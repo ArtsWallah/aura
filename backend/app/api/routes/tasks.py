@@ -10,7 +10,12 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.agent.dynamic_planner import PlanningInputMetadata
 from app.agent.execution_handoff import ExecutionHandoff, ExecutionHandoffError
-from app.agent.intelligence_contracts import RequiredInputKind
+from app.agent.intelligence_contracts import (
+    IntentAssessment,
+    PlanningResponseType,
+    ProviderIdentity,
+    RequiredInputKind,
+)
 from app.agent.intelligence_pipeline import (
     IntelligencePipelineResult,
     PipelineDisposition,
@@ -50,6 +55,7 @@ class TaskStatusResponse(BaseModel):
 class TaskClarificationResponse(BaseModel):
     outcome: Literal["clarification_required"] = "clarification_required"
     question: str = Field(min_length=1, max_length=500)
+    required_input: RequiredInputKind | None = None
 
 
 class TaskRejectionResponse(BaseModel):
@@ -88,23 +94,57 @@ def _status_response(state: TaskState) -> TaskStatusResponse:
         updated_at=state.updated_at,
     )
 
+_GENERIC_CLARIFICATION_QUESTION = "Could you clarify the task and the result you want?"
+
+_SAFE_PIPELINE_QUESTIONS = {
+    "What would you like AURA to plan?",
+    _GENERIC_CLARIFICATION_QUESTION,
+    "Which numeric column should be checked for outliers?",
+    "Which categorical column should define the groups, and which numeric column should be compared?",
+    "What type of chart would you like?",
+    "Which numeric columns should be included in the heatmap?",
+    "Which numeric column should the histogram show?",
+    "Which available categorical and numeric columns should the chart use?",
+    "Which statistical question should the plan answer?",
+    "Could you clarify which supported operations should be included in the plan?",
+}
+
+
 def _clarification_response(result: IntelligencePipelineResult) -> TaskClarificationResponse:
-    required = next(
-        (item.kind for item in result.intent.missing_inputs if item.required), None
-    )
     questions = {
         RequiredInputKind.DATASET: "Please select an authorized dataset upload.",
         RequiredInputKind.DOCUMENT: "Please select an authorized document upload.",
         RequiredInputKind.DATABASE: "Please provide an authorized database connection.",
         RequiredInputKind.RESEARCH_TOPIC: "What specific topic should be researched?",
         RequiredInputKind.ANALYSIS_GOAL: "What result should the analysis provide?",
-        RequiredInputKind.CLARIFICATION: "Could you clarify the task and the result you want?",
+        RequiredInputKind.CLARIFICATION: _GENERIC_CLARIFICATION_QUESTION,
     }
-    question = questions.get(
-        required,
-        "Could you clarify which supported operations should be included?",
-    )
-    return TaskClarificationResponse(question=question)
+    required: RequiredInputKind | None = None
+    try:
+        if not isinstance(result.intent, IntentAssessment):
+            raise ValueError("Invalid clarification intent.")
+        required = next(
+            (item.kind for item in result.intent.missing_inputs if item.required), None
+        )
+        question = questions.get(required, "Could you clarify which supported operations should be included?")
+        planning = result.planning_response
+        if (
+            result.disposition == PipelineDisposition.CLARIFICATION_REQUIRED
+            and planning is not None
+            and planning.response_type == PlanningResponseType.CLARIFICATION
+            and planning.provider_identity == ProviderIdentity.LOCAL_DETERMINISTIC_PLANNER
+            and result.provider_identity == planning.provider_identity
+            and planning.clarification_question in _SAFE_PIPELINE_QUESTIONS
+        ):
+            question = planning.clarification_question
+        if required is None:
+            required = RequiredInputKind.CLARIFICATION
+        return TaskClarificationResponse(question=question, required_input=required)
+    except Exception:
+        return TaskClarificationResponse(
+            question=_GENERIC_CLARIFICATION_QUESTION,
+            required_input=RequiredInputKind.CLARIFICATION,
+        )
 
 
 def _rejection_response(

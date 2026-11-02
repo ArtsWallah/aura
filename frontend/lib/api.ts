@@ -1,5 +1,6 @@
 import { 
   TaskState, 
+  TaskClarificationResponse,
   TaskSubmissionResponse,
   TaskListItem,
   TaskArtifactManifest,
@@ -87,7 +88,7 @@ export async function createTask(
   objective: string,
   file_path?: string,
   privacy_mode: PrivacyMode = "hybrid"
-): Promise<TaskState> {
+): Promise<TaskState | TaskClarificationResponse> {
   const res = await fetch(`${API_BASE}/api/tasks`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -96,7 +97,7 @@ export async function createTask(
   const result = (await res.json()) as TaskSubmissionResponse;
   if ("outcome" in result) {
     if (result.outcome === "clarification_required") {
-      throw new Error(result.question);
+      return result;
     }
     throw new Error(result.message);
   }

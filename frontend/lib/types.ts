@@ -57,6 +57,7 @@ export interface TaskState {
 export interface TaskClarificationResponse {
   outcome: "clarification_required";
   question: string;
+  required_input: "dataset" | "document" | "database" | "research_topic" | "analysis_goal" | "clarification" | null;
 }
 
 export interface TaskRejectionResponse {

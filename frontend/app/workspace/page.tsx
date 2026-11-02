@@ -15,7 +15,7 @@ import {
   Eye
 } from "lucide-react";
 import { createTask, uploadDatasetFile, fetchTask, fetchTaskArtifacts, fetchTaskMarkdown, cancelTask, API_BASE } from "@/lib/api";
-import { TaskState, TaskArtifactManifest, PrivacyMode } from "@/lib/types";
+import { TaskState, TaskArtifactManifest, TaskClarificationResponse, PrivacyMode } from "@/lib/types";
 
 function WorkspaceContent() {
   const searchParams = useSearchParams();
@@ -32,6 +32,7 @@ function WorkspaceContent() {
 
   const [isRunning, setIsRunning] = useState<boolean>(false);
   const [currentTask, setCurrentTask] = useState<TaskState | null>(null);
+  const [clarification, setClarification] = useState<TaskClarificationResponse | null>(null);
   const [taskArtifacts, setTaskArtifacts] = useState<TaskArtifactManifest | null>(null);
   const [markdownReport, setMarkdownReport] = useState<string | null>(null);
   const [events, setEvents] = useState<Array<{ timestamp: string; message: string; type: string }>>([]);
@@ -67,13 +68,20 @@ function WorkspaceContent() {
     setIsRunning(true);
     setEvents([]);
     setCurrentTask(null);
+    setClarification(null);
     setTaskArtifacts(null);
     setMarkdownReport(null);
     setActiveTab("plan");
 
     try {
-      // The API returns 202 and the stable task ID before execution begins.
-      const initialTask = await createTask(objective, filePath, privacyMode);
+      // Clarification returns without a task; READY submissions return the task ID.
+      const submission = await createTask(objective, filePath, privacyMode);
+      if ("outcome" in submission) {
+        setClarification(submission);
+        setIsRunning(false);
+        return;
+      }
+      const initialTask = submission;
       setCurrentTask(initialTask);
 
       // Subscribe immediately; EventSource reconnects with Last-Event-ID and never
@@ -228,6 +236,24 @@ function WorkspaceContent() {
               placeholder="e.g., Analyze this dataset, identify sales trends, detect underperforming categories, and generate a report with charts."
               className="w-full rounded-lg border border-slate-700 bg-slate-950 p-3 text-sm text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             />
+            {clarification && (
+              <div
+                role="status"
+                aria-live="polite"
+                className="rounded-lg border border-amber-700/60 bg-amber-950/30 p-3 text-sm text-amber-100"
+              >
+                <p className="font-semibold">More information needed</p>
+                <p className="mt-1">{clarification.question}</p>
+                {clarification.required_input && clarification.required_input !== "clarification" && (
+                  <p className="mt-1 text-xs text-amber-200/80">
+                    Needed: {clarification.required_input.replaceAll("_", " ")}
+                  </p>
+                )}
+                <p className="mt-2 text-xs text-amber-200/80">
+                  Revise the objective or selected input above, then submit again. AURA will reassess the updated request.
+                </p>
+              </div>
+            )}
 
             <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
               <div className="flex items-center gap-2">

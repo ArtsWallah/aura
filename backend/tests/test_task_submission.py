@@ -1,10 +1,12 @@
 import asyncio
 import importlib
+import json
 
 import pytest
 
 from app.agent.checkpoint import SQLiteCheckpointer
 from app.agent.execution_handoff import ExecutionHandoff, HandoffFailureCode, ExecutionHandoffError
+from app.agent.intelligence_contracts import ProviderIdentity, RequiredInputKind
 from app.agent.intelligence_pipeline import IntelligencePipeline, PipelineDisposition, PipelineFailureCode
 from app.agent.service import ProcessLocalTaskPayload, TaskExecutionService
 from app.agent.state import TaskStatus
@@ -128,6 +130,10 @@ async def test_non_ready_submission_creates_no_task_or_queue_row(
     assert service._payloads == {}
     assert runner.handoffs == [] and runner.legacy_calls == []
     assert "objective" not in response.body.decode().lower()
+    if disposition is PipelineDisposition.CLARIFICATION_REQUIRED:
+        body = json.loads(response.body)
+        assert set(body) == {"outcome", "question", "required_input"}
+        assert "task_id" not in body
 
 
 @pytest.mark.asyncio
@@ -181,12 +187,82 @@ def test_client_cannot_supply_plan_or_handoff_fields():
         ("provider_identity", "gemini"),
         ("registry_identity", "fake-registry"),
         ("execution_arguments", {"path": "private"}),
+        ("clarification_state", {"required_input": "dataset"}),
     ):
         with pytest.raises(ValueError):
             tasks_module.CreateTaskRequest.model_validate({
                 "objective": "Check system health",
                 field: value,
             })
+
+
+@pytest.mark.asyncio
+async def test_only_allowlisted_local_clarification_questions_are_returned():
+    base = await IntelligencePipeline().run("Analyze this", privacy_mode="local_only")
+    safe_planning = base.planning_response.model_copy(update={
+        "clarification_question": "Which numeric column should be checked for outliers?",
+    })
+    safe_result = base.model_copy(update={"planning_response": safe_planning})
+    response = tasks_module._clarification_response(safe_result)
+    assert response.question == "Which numeric column should be checked for outliers?"
+    assert response.required_input is RequiredInputKind.CLARIFICATION
+
+    marker = "provider-echo-private-objective-773"
+    unsafe_planning = base.planning_response.model_copy(update={
+        "provider_identity": ProviderIdentity.GEMINI,
+        "clarification_question": f"Please repeat {marker}",
+    })
+    unsafe_result = base.model_copy(update={"planning_response": unsafe_planning})
+    fallback = tasks_module._clarification_response(unsafe_result)
+    assert fallback.question == "Could you clarify the task and the result you want?"
+    assert marker not in fallback.model_dump_json()
+
+    malformed = base.model_copy(update={"intent": None})
+    malformed_fallback = tasks_module._clarification_response(malformed)
+    assert malformed_fallback.question == "Could you clarify the task and the result you want?"
+
+
+@pytest.mark.asyncio
+async def test_revised_submission_runs_a_fresh_pipeline_and_queues_only_ready_result(
+    tmp_path, monkeypatch
+):
+    real_pipeline = IntelligencePipeline()
+
+    class CountingPipeline:
+        def __init__(self):
+            self.calls = []
+
+        async def run(self, **kwargs):
+            self.calls.append(kwargs.copy())
+            return await real_pipeline.run(**kwargs)
+
+    pipeline = CountingPipeline()
+    store = SQLiteCheckpointer(tmp_path / "fresh-reassessment.db")
+    service = TaskExecutionService(FakeWorkerOrchestrator(store))
+    monkeypatch.setattr(service_module, "checkpointer", store)
+    monkeypatch.setattr(tasks_module, "task_execution_service", service)
+    monkeypatch.setattr(tasks_module, "intelligence_pipeline", pipeline)
+
+    clarification = await tasks_module.create_task(_request(objective="Analyze this", privacy_mode="hybrid"))
+    assert clarification.status_code == 200
+    assert store.list_checkpoints() == []
+    assert service._payloads == {}
+
+    accepted = await tasks_module.create_task(
+        _request(objective="Check system health", privacy_mode="hybrid")
+    )
+    assert accepted.status.value == "queued"
+    assert len(pipeline.calls) == 2
+    assert [call["objective"] for call in pipeline.calls] == [
+        "Analyze this", "Check system health"
+    ]
+    assert all(call["privacy_mode"] == "hybrid" for call in pipeline.calls)
+    assert set(pipeline.calls[1]) == {"objective", "available_inputs", "privacy_mode"}
+    assert len(store.list_checkpoints()) == 1
+    assert len(service._payloads) == 1
+    payload = service._payloads[accepted.task_id]
+    assert payload.handoff_required is True
+    assert payload.handoff.plan.steps[0].tool_name == "system_health"
 
 
 @pytest.mark.asyncio
