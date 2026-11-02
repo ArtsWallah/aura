@@ -227,6 +227,7 @@ def assess_intent(
             confidence=0.25 if vague else 0.05,
             required_inputs=missing.copy(),
             missing_inputs=missing,
+            required_tool_groups=[],
             is_multi_step=False,
         )
 
@@ -277,6 +278,7 @@ def assess_intent(
         confidence=confidence,
         required_inputs=required,
         missing_inputs=missing,
+        required_tool_groups=[sorted(names) for _, names in matches],
         is_multi_step=multi_step,
     )
 

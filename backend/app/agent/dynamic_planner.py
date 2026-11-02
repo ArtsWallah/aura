@@ -123,6 +123,7 @@ class DynamicPlanner:
             if provider_identity is not None
             else ProviderIdentity.LOCAL_DETERMINISTIC_PLANNER
         )
+        self.last_failure_code: str | None = None
 
     async def create_plan(
         self,
@@ -132,6 +133,7 @@ class DynamicPlanner:
         privacy_mode: Literal["local_only", "hybrid", "cloud_enabled"] = "local_only",
     ) -> PlanningResponse:
         """Return a strict PLAN or a safe CLARIFICATION; never execute tools."""
+        self.last_failure_code = None
         try:
             assessment = IntentAssessment.model_validate(intent)
             metadata = PlanningInputMetadata.model_validate(input_metadata or {})
@@ -566,13 +568,16 @@ class DynamicPlanner:
         provider_identity: ProviderIdentity = ProviderIdentity.LOCAL_DETERMINISTIC_PLANNER,
     ) -> PlanningResponse:
         if not (len(tool_names) == len(parameters) == len(dependencies)):
+            self.last_failure_code = "invalid_plan"
             return self._clarification("Could you clarify the requested steps?", "The candidate plan is structurally incomplete.")
         if step_ids is not None and (len(step_ids) != len(tool_names) or len(set(step_ids)) != len(step_ids)):
+            self.last_failure_code = "invalid_plan"
             return self._clarification("Could you retry with unique step identifiers?", "The candidate plan contains invalid or duplicate step IDs.")
         steps: list[ExecutionStep] = []
         for index, (name, params, deps) in enumerate(zip(tool_names, parameters, dependencies), start=1):
             definition = self._require_definition(name)
             if definition is None:
+                self.last_failure_code = "invalid_plan"
                 return self._unsupported_capability(name)
             try:
                 # Reject undeclared keys even if a Pydantic tool input model
@@ -591,14 +596,17 @@ class DynamicPlanner:
                     dependencies=deps,
                 ))
             except (ValidationError, ValueError, KeyError):
+                self.last_failure_code = "invalid_plan"
                 return self._clarification("Could you provide the missing tool input details?", "The requested plan does not satisfy the registered tool schema.")
 
         if not self._intent_matches_plan(intent, steps, objective):
+            self.last_failure_code = "invalid_plan"
             return self._clarification("Could you clarify which supported operation should be planned?", "The candidate tools do not match the assessed intent.")
         plan = ExecutionPlan(plan_id=f"plan_{uuid.uuid4().hex[:12]}", goal=objective, steps=steps)
         try:
             validate_execution_plan(plan, privacy_mode=privacy_mode, max_steps=settings.MAX_PLAN_STEPS)
         except (PlanValidationError, ValidationError, ValueError):
+            self.last_failure_code = "invalid_plan"
             return self._clarification("Could you clarify the required inputs or privacy mode?", "The candidate plan did not pass structural or policy validation.")
         return PlanningResponse(
             response_type=PlanningResponseType.PLAN,
@@ -663,6 +671,7 @@ class DynamicPlanner:
             return self._clarification("Please choose an available planning provider.", "No provider was available for the requested planning mode.")
         try:
             if not self.provider.is_available():
+                self.last_failure_code = "provider_unavailable"
                 return self._clarification("Would you like to use local deterministic planning instead?", "The explicitly selected provider is unavailable; no fallback was used.")
             catalog = []
             for name in sorted(self._available_names):
@@ -698,16 +707,25 @@ class DynamicPlanner:
                     max_tokens=2048,
                 )
             if response.provider != expected_provider:
+                self.last_failure_code = "invalid_provider_response"
                 return self._clarification("Would you like to retry with a correctly configured provider?", "The provider identity did not match the explicit selection.")
             if response.tool_calls or not response.content or len(response.content) > MAX_PROVIDER_RESPONSE_CHARS:
+                self.last_failure_code = "invalid_provider_response"
                 return self._clarification("Could you narrow the request to a plan the selected provider can express?", "The provider did not return a structured planning response.")
             return self._parse_provider_plan(
                 response.content, objective, intent, metadata, privacy_mode,
                 provider_identity=self.last_provider_identity,
             )
-        except Exception:
+        except Exception as exc:
             # Provider error bodies and response payloads are deliberately not
             # logged or exposed through the planning contract.
+            code = getattr(exc, "code", None)
+            if isinstance(exc, TimeoutError) or code == "timeout":
+                self.last_failure_code = "provider_timeout"
+            elif code == "missing_api_key":
+                self.last_failure_code = "provider_unavailable"
+            else:
+                self.last_failure_code = "provider_failure"
             return self._clarification("Would you like to retry later or use deterministic local planning?", "The selected provider failed; no provider fallback was attempted.")
 
     def _parse_provider_plan(
@@ -780,6 +798,7 @@ class DynamicPlanner:
                 step_ids, provider_identity,
             )
         except (json.JSONDecodeError, TypeError, ValueError, ValidationError):
+            self.last_failure_code = "invalid_provider_response"
             return self._clarification("Could you clarify the supported tools or required inputs?", "The provider response was malformed, unsafe, or failed plan validation.")
 
     def _missing_input_clarification(self, missing: set[RequiredInputKind]) -> PlanningResponse:

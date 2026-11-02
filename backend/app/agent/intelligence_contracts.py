@@ -44,12 +44,27 @@ class InputRequirement(StrictContract):
     required: bool = True
 
 
+_ToolId = Annotated[str, Field(pattern=r"^[a-z][a-z0-9_]{0,63}$")]
+_ToolGroup = Annotated[list[_ToolId], Field(min_length=1, max_length=16)]
+
+
 class IntentAssessment(StrictContract):
     category: IntentCategory
     confidence: float = Field(ge=0.0, le=1.0)
     required_inputs: list[InputRequirement] = Field(default_factory=list, max_length=32)
     missing_inputs: list[InputRequirement] = Field(default_factory=list, max_length=32)
+    # Each inner group is an OR of tools for one assessed capability;
+    # separate groups are all required. Empty defaults preserve old payloads.
+    required_tool_groups: list[_ToolGroup] = Field(default_factory=list, max_length=16)
     is_multi_step: bool
+
+    @model_validator(mode="after")
+    def validate_required_tool_groups(self) -> "IntentAssessment":
+        if any(len(group) != len(set(group)) for group in self.required_tool_groups):
+            raise ValueError("Required tool groups cannot contain duplicate tools.")
+        if len({tuple(group) for group in self.required_tool_groups}) != len(self.required_tool_groups):
+            raise ValueError("Required tool groups cannot be duplicated.")
+        return self
 
 
 class PlanningResponseType(str, Enum):
@@ -111,9 +126,6 @@ class EvaluationStatus(str, Enum):
     EXECUTION_FAILED = "execution_failed"
     SUCCEEDED = "succeeded"
     INCONCLUSIVE = "inconclusive"
-
-
-_ToolId = Annotated[str, Field(pattern=r"^[a-z][a-z0-9_]{0,63}$")]
 
 
 class SafeAlternativeRecommendation(StrictContract):

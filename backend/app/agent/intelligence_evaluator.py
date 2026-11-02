@@ -153,18 +153,26 @@ class IntelligenceEvaluator:
             return self._result(False, 0.0, EvaluationStatus.INCONCLUSIVE, [IssueCode.MISSING_INPUT])
         if data.intent.category == IntentCategory.MULTI_STEP_ANALYSIS or data.intent.is_multi_step:
             # The Phase 3.1.2 assessment identifies multi-step intent but does
-            # not carry its required sub-goals; exact coverage is unknowable.
-            return self._result(False, 0.0, EvaluationStatus.INCONCLUSIVE, [IssueCode.MISSING_EVIDENCE])
+            # not carry its required sub-goals unless assessed tool groups exist.
+            if not data.intent.required_tool_groups:
+                return self._result(False, 0.0, EvaluationStatus.INCONCLUSIVE, [IssueCode.MISSING_EVIDENCE])
         expected_category = _INTENT_CATEGORY.get(data.intent.category)
-        if expected_category is None or data.intent.category == IntentCategory.UNKNOWN:
+        if (expected_category is None and not data.intent.required_tool_groups) or data.intent.category == IntentCategory.UNKNOWN:
             return self._result(False, 0.0, EvaluationStatus.INCONCLUSIVE, [IssueCode.UNKNOWN])
 
-        covered = any(definitions[step.tool_name].category == expected_category for step in data.steps)
+        selected_tools = {step.tool_name for step in data.steps}
+        if data.intent.required_tool_groups:
+            matched_groups = sum(bool(selected_tools.intersection(group)) for group in data.intent.required_tool_groups)
+            coverage = matched_groups / len(data.intent.required_tool_groups)
+            covered = matched_groups == len(data.intent.required_tool_groups)
+        else:
+            covered = any(definitions[step.tool_name].category == expected_category for step in data.steps)
+            coverage = 1.0 if covered else 0.0
         if not covered:
             alternative = self._canonical_alternative(data.intent.category, definitions, data)
             return self._result(
                 True,
-                0.0,
+                coverage,
                 EvaluationStatus.INCOMPLETE_COVERAGE,
                 [IssueCode.OBJECTIVE_UNCOVERED],
                 RetryRecommendation.REPLAN if alternative else RetryRecommendation.NONE,
