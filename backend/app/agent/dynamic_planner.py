@@ -604,7 +604,12 @@ class DynamicPlanner:
             return self._clarification("Could you clarify which supported operation should be planned?", "The candidate tools do not match the assessed intent.")
         plan = ExecutionPlan(plan_id=f"plan_{uuid.uuid4().hex[:12]}", goal=objective, steps=steps)
         try:
-            validate_execution_plan(plan, privacy_mode=privacy_mode, max_steps=settings.MAX_PLAN_STEPS)
+            validate_execution_plan(
+                plan,
+                privacy_mode=privacy_mode,
+                max_steps=settings.MAX_PLAN_STEPS,
+                registry=self.registry,
+            )
         except (PlanValidationError, ValidationError, ValueError):
             self.last_failure_code = "invalid_plan"
             return self._clarification("Could you clarify the required inputs or privacy mode?", "The candidate plan did not pass structural or policy validation.")

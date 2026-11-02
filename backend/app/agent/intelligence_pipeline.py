@@ -66,6 +66,8 @@ class IntelligencePipelineResult(StrictContract):
     validation_outcome: ValidationOutcome | None = None
     evaluation: EvaluationResult | None = None
     failure_code: PipelineFailureCode | None = None
+    validation_registry_id: str | None = None
+    privacy_mode: Literal["local_only", "hybrid", "cloud_enabled"] | None = None
 
     @model_validator(mode="after")
     def validate_disposition(self) -> "IntelligencePipelineResult":
@@ -79,6 +81,8 @@ class IntelligencePipelineResult(StrictContract):
                 or self.evaluation.evaluation_status != EvaluationStatus.PLAN_VALID
                 or not self.evaluation.execution_valid
                 or self.provider_identity != self.planning_response.provider_identity
+                or not self.validation_registry_id
+                or self.privacy_mode not in {"local_only", "hybrid", "cloud_enabled"}
             ):
                 raise ValueError("READY requires a provider-identified plan that passed validation and evaluation.")
         elif self.disposition == PipelineDisposition.CLARIFICATION_REQUIRED:
@@ -206,11 +210,21 @@ class IntelligencePipeline:
             if planning.plan is None:
                 return self._rejected(assessment, PipelineFailureCode.INVALID_PLAN)
 
+            # The legacy ExecutionPlan.goal is free-form and planners commonly
+            # copy the full user objective into it. Keep returned READY plans
+            # and their later handoffs limited to an allowlisted intent label.
+            planning.plan.goal = assessment.category.value
+
             for step in planning.plan.steps:
                 definition = self.registry.get_tool_definition(step.tool_name)
                 if definition is None:
                     return self._rejected(assessment, PipelineFailureCode.INVALID_PLAN)
-            validate_execution_plan(planning.plan, privacy_mode=mode)
+                # Keep non-executable display text registry-derived. Provider
+                # prose and user objectives do not belong in execution plans.
+                step.title = step.tool_name.replace("_", " ").title()
+                step.description = definition.description
+                step.capability = definition.category.value
+            validate_execution_plan(planning.plan, privacy_mode=mode, registry=self.registry)
             validation_outcome = ValidationOutcome.ACCEPTED
             evaluation = self.evaluator.evaluate(EvaluationInput(
                 intent=assessment,
@@ -236,6 +250,8 @@ class IntelligencePipeline:
                 planning_response=planning,
                 validation_outcome=validation_outcome,
                 evaluation=evaluation,
+                validation_registry_id=self.registry.registry_id,
+                privacy_mode=mode,
             )
         if evaluation.evaluation_status == EvaluationStatus.INCOMPLETE_COVERAGE:
             return self._clarification(

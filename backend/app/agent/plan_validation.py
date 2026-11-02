@@ -6,7 +6,7 @@ from pydantic import ValidationError
 
 from app.agent.state import ExecutionPlan
 from app.core.config import settings
-from app.tools.registry import tool_registry
+from app.tools.registry import ToolRegistry, tool_registry
 from app.tools.schemas import ExecutionLocation, PermissionLevel
 
 
@@ -26,8 +26,10 @@ def validate_execution_plan(
     plan: ExecutionPlan,
     privacy_mode: str = "hybrid",
     max_steps: int | None = None,
+    registry: ToolRegistry | None = None,
 ) -> ExecutionPlan:
     """Validate plan structure, tool schemas, dependencies, and runtime policy."""
+    registry = registry or tool_registry
     if privacy_mode not in {"local_only", "hybrid", "cloud_enabled"}:
         raise PlanValidationError("invalid_privacy_mode", "Plan privacy mode is invalid.")
 
@@ -58,7 +60,7 @@ def validate_execution_plan(
             indegree[step.step_id] += 1
             dependents[dependency].append(step.step_id)
 
-        definition = tool_registry.get_tool_definition(step.tool_name)
+        definition = registry.get_tool_definition(step.tool_name)
         if definition is None:
             raise PlanValidationError("unknown_tool", "Execution plan references an unregistered tool.")
         if definition.execution_location == ExecutionLocation.BROWSER:
@@ -72,7 +74,7 @@ def validate_execution_plan(
         step.max_retries = min(step.max_retries, settings.MAX_STEP_RETRIES)
 
         try:
-            tool_registry.validate_arguments(step.tool_name, step.parameters)
+            registry.validate_arguments(step.tool_name, step.parameters)
         except ValidationError as exc:
             # Never return Pydantic's error payload because it includes submitted values.
             raise PlanValidationError("invalid_tool_parameters", "Execution plan contains invalid tool parameters.") from exc

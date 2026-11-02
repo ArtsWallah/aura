@@ -1,6 +1,7 @@
 import asyncio
 import time
 import inspect
+import uuid
 import weakref
 from typing import Callable, Any, Type
 from pydantic import BaseModel, ValidationError
@@ -18,6 +19,9 @@ from app.privacy.outbound import current_privacy_mode
 
 class ToolRegistry:
     def __init__(self):
+        # Process-local identity lets planning, handoff, and execution prove
+        # they validated against the same registry instance.
+        self.registry_id = uuid.uuid4().hex
         self._tools: dict[str, ToolDefinition] = {}
         self._executors: dict[str, Callable] = {}
         self._input_models: dict[str, Type[BaseModel]] = {}

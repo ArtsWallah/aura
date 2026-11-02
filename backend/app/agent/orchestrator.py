@@ -2,14 +2,16 @@ import asyncio
 import time
 import uuid
 from typing import AsyncGenerator
-from app.agent.state import TaskState, TaskStatus, StepStatus, TaskEvent, TaskMetrics
+from app.agent.state import ExecutionPlan, TaskState, TaskStatus, StepStatus, TaskEvent, TaskMetrics
 from app.agent.planner import TaskPlanner
 from app.agent.executor import executor
 from app.agent.evaluator import evaluator
 from app.agent.checkpoint import checkpointer
+from app.agent.execution_handoff import ExecutionHandoff, ExecutionHandoffError, HandoffFailureCode
 from app.llm.router import llm_router
 from app.core.logging import logger
 from app.privacy.outbound import privacy_scope
+from app.tools.registry import tool_registry
 
 class AgentOrchestrator:
     def __init__(self):
@@ -112,6 +114,36 @@ class AgentOrchestrator:
         with privacy_scope(privacy_mode):
             return await self._run_task(objective, file_path, privacy_mode, task_id, initial_state)
 
+    async def run_handoff(
+        self,
+        handoff: ExecutionHandoff,
+        *,
+        task_id: str | None = None,
+        privacy_mode: str | None = None,
+    ) -> TaskState:
+        """Execute a pipeline handoff after integrity and live-policy checks."""
+        if not isinstance(handoff, ExecutionHandoff):
+            raise ExecutionHandoffError(HandoffFailureCode.INVALID_HANDOFF)
+        mode = handoff.privacy_mode if privacy_mode is None else privacy_mode
+        plan = handoff.validate_integrity(privacy_mode=mode, registry=tool_registry)
+        if task_id is not None:
+            try:
+                if task_id in self._active_tasks or checkpointer.load_checkpoint(task_id) is not None:
+                    raise ExecutionHandoffError(HandoffFailureCode.INVALID_HANDOFF)
+            except ExecutionHandoffError:
+                raise
+            except Exception:
+                raise ExecutionHandoffError(HandoffFailureCode.REGISTRY_UNAVAILABLE) from None
+        with privacy_scope(mode):
+            return await self._run_task(
+                objective="",
+                file_path=None,
+                privacy_mode=mode,
+                task_id=task_id,
+                initial_state=None,
+                supplied_plan=plan,
+            )
+
     async def _run_task(
         self,
         objective: str,
@@ -119,6 +151,7 @@ class AgentOrchestrator:
         privacy_mode: str = "hybrid",
         task_id: str | None = None,
         initial_state: TaskState | None = None,
+        supplied_plan: ExecutionPlan | None = None,
     ) -> TaskState:
         t_id = task_id or f"task_{uuid.uuid4().hex[:10]}"
         queued_state = checkpointer.load_checkpoint(t_id) if initial_state is not None else None
@@ -153,10 +186,13 @@ class AgentOrchestrator:
 
         try:
             # 1. Routing & Planning
-            provider = llm_router.get_provider(privacy_mode=privacy_mode)
-            planner = TaskPlanner(provider)
-            
-            plan = await planner.create_plan(objective, file_path, privacy_mode=privacy_mode)
+            planner = None
+            if supplied_plan is None:
+                provider = llm_router.get_provider(privacy_mode=privacy_mode)
+                planner = TaskPlanner(provider)
+                plan = await planner.create_plan(objective, file_path, privacy_mode=privacy_mode)
+            else:
+                plan = supplied_plan
             state.plan = plan
             if cancel_signal.is_set():
                 state.transition_to(TaskStatus.CANCELLED)
@@ -164,7 +200,8 @@ class AgentOrchestrator:
                 await self._emit_event(TaskEvent(event_type="task_cancelled", task_id=t_id, message="cancelled"))
                 return state
             state.transition_to(TaskStatus.RUNNING)
-            state.metrics.llm_calls_count += planner.provider_calls
+            if planner is not None:
+                state.metrics.llm_calls_count += planner.provider_calls
             checkpointer.save_checkpoint(state)
 
             await self._emit_event(TaskEvent(
