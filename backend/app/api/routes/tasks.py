@@ -3,11 +3,20 @@ import asyncio
 import uuid
 import re
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Union
 from fastapi import APIRouter, Header, HTTPException, status
-from fastapi.responses import Response, StreamingResponse
-from pydantic import BaseModel, Field
+from fastapi.responses import JSONResponse, Response, StreamingResponse
+from pydantic import BaseModel, ConfigDict, Field
 
+from app.agent.dynamic_planner import PlanningInputMetadata
+from app.agent.execution_handoff import ExecutionHandoff, ExecutionHandoffError
+from app.agent.intelligence_contracts import RequiredInputKind
+from app.agent.intelligence_pipeline import (
+    IntelligencePipelineResult,
+    PipelineDisposition,
+    PipelineFailureCode,
+    intelligence_pipeline,
+)
 from app.agent.orchestrator import orchestrator
 from app.agent.state import TaskState, TaskStatus, TaskEvent
 from app.agent.checkpoint import checkpointer
@@ -15,10 +24,13 @@ from app.agent.service import task_execution_service
 from app.core.config import settings
 from app.core.security import validate_safe_path
 from app.privacy.encryption import encryption_service
+from app.tools.registry import tool_registry
 
 router = APIRouter(prefix="/tasks", tags=["Tasks"])
 
 class CreateTaskRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     objective: str = Field(description="High-level natural language instruction or query.")
     file_path: str | None = Field(default=None, description="Path to uploaded dataset/document.")
     privacy_mode: Literal["local_only", "hybrid", "cloud_enabled"] | None = Field(
@@ -33,6 +45,24 @@ class TaskStatusResponse(BaseModel):
     privacy_mode: Literal["local_only", "hybrid", "cloud_enabled"]
     created_at: float
     updated_at: float
+
+
+class TaskClarificationResponse(BaseModel):
+    outcome: Literal["clarification_required"] = "clarification_required"
+    question: str = Field(min_length=1, max_length=500)
+
+
+class TaskRejectionResponse(BaseModel):
+    outcome: Literal["rejected"] = "rejected"
+    code: Literal[
+        "invalid_request", "unsupported_request", "provider_unavailable", "planning_failed"
+    ]
+    message: str = Field(min_length=1, max_length=300)
+
+
+TaskSubmissionResponse = Union[
+    TaskStatusResponse, TaskClarificationResponse, TaskRejectionResponse
+]
 
 
 class TaskArtifactManifest(BaseModel):
@@ -58,23 +88,111 @@ def _status_response(state: TaskState) -> TaskStatusResponse:
         updated_at=state.updated_at,
     )
 
-@router.post("", response_model=TaskStatusResponse, status_code=status.HTTP_202_ACCEPTED)
+def _clarification_response(result: IntelligencePipelineResult) -> TaskClarificationResponse:
+    required = next(
+        (item.kind for item in result.intent.missing_inputs if item.required), None
+    )
+    questions = {
+        RequiredInputKind.DATASET: "Please select an authorized dataset upload.",
+        RequiredInputKind.DOCUMENT: "Please select an authorized document upload.",
+        RequiredInputKind.DATABASE: "Please provide an authorized database connection.",
+        RequiredInputKind.RESEARCH_TOPIC: "What specific topic should be researched?",
+        RequiredInputKind.ANALYSIS_GOAL: "What result should the analysis provide?",
+        RequiredInputKind.CLARIFICATION: "Could you clarify the task and the result you want?",
+    }
+    question = questions.get(
+        required,
+        "Could you clarify which supported operations should be included?",
+    )
+    return TaskClarificationResponse(question=question)
+
+
+def _rejection_response(
+    code: PipelineFailureCode | None,
+) -> tuple[int, TaskRejectionResponse]:
+    if code == PipelineFailureCode.INVALID_INPUT:
+        return status.HTTP_422_UNPROCESSABLE_CONTENT, TaskRejectionResponse(
+            code="invalid_request", message="The request or available input metadata is invalid."
+        )
+    if code == PipelineFailureCode.UNSUPPORTED_INTENT:
+        return status.HTTP_422_UNPROCESSABLE_CONTENT, TaskRejectionResponse(
+            code="unsupported_request", message="This request is not supported."
+        )
+    if code in {PipelineFailureCode.PROVIDER_UNAVAILABLE, PipelineFailureCode.PROVIDER_TIMEOUT}:
+        return status.HTTP_503_SERVICE_UNAVAILABLE, TaskRejectionResponse(
+            code="provider_unavailable", message="The configured planning provider is unavailable."
+        )
+    if code in {PipelineFailureCode.INVALID_PLAN, PipelineFailureCode.INVALID_PROVIDER_RESPONSE}:
+        return status.HTTP_422_UNPROCESSABLE_CONTENT, TaskRejectionResponse(
+            code="planning_failed", message="AURA could not validate a safe plan for this request."
+        )
+    return status.HTTP_503_SERVICE_UNAVAILABLE, TaskRejectionResponse(
+        code="planning_failed", message="AURA could not safely complete planning."
+    )
+
+
+@router.post("", response_model=TaskSubmissionResponse, status_code=status.HTTP_202_ACCEPTED)
 async def create_task(request: CreateTaskRequest):
-    task_id = f"task_{uuid.uuid4().hex}"
     if request.file_path:
         try:
             validate_safe_path(request.file_path)
         except PermissionError as exc:
             raise HTTPException(status_code=400, detail="Only managed uploads and the bundled sample dataset may be used.") from exc
     privacy_mode = request.privacy_mode or settings.DEFAULT_PRIVACY_MODE
+
+    try:
+        pipeline_result = await intelligence_pipeline.run(
+            objective=request.objective,
+            available_inputs=PlanningInputMetadata(
+                authorized_file_path=request.file_path,
+            ),
+            privacy_mode=privacy_mode,
+        )
+    except Exception:
+        rejection = TaskRejectionResponse(
+            code="planning_failed", message="AURA could not safely complete planning."
+        )
+        return JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            content=rejection.model_dump(mode="json"),
+        )
+    if not isinstance(pipeline_result, IntelligencePipelineResult):
+        response_status, response = _rejection_response(PipelineFailureCode.INTERNAL_ERROR)
+        return JSONResponse(status_code=response_status, content=response.model_dump(mode="json"))
+
+    if pipeline_result.disposition == PipelineDisposition.CLARIFICATION_REQUIRED:
+        response = _clarification_response(pipeline_result)
+        return JSONResponse(status_code=status.HTTP_200_OK, content=response.model_dump(mode="json"))
+    if pipeline_result.disposition == PipelineDisposition.REJECTED:
+        response_status, response = _rejection_response(pipeline_result.failure_code)
+        return JSONResponse(status_code=response_status, content=response.model_dump(mode="json"))
+    if pipeline_result.disposition != PipelineDisposition.READY:
+        response_status, response = _rejection_response(PipelineFailureCode.INTERNAL_ERROR)
+        return JSONResponse(status_code=response_status, content=response.model_dump(mode="json"))
+
+    try:
+        handoff = ExecutionHandoff.from_pipeline_result(
+            pipeline_result,
+            privacy_mode=privacy_mode,
+            registry=tool_registry,
+        )
+    except ExecutionHandoffError:
+        response_status, response = _rejection_response(PipelineFailureCode.INVALID_PLAN)
+        return JSONResponse(status_code=response_status, content=response.model_dump(mode="json"))
+
+    task_id = f"task_{uuid.uuid4().hex}"
     state = TaskState(
         task_id=task_id,
-        objective=request.objective,
-        file_path=request.file_path,
+        objective="",
+        file_path=None,
         privacy_mode=privacy_mode,
         status=TaskStatus.QUEUED,
     )
-    await task_execution_service.enqueue(state)
+    try:
+        await task_execution_service.enqueue_handoff(state, handoff)
+    except ExecutionHandoffError:
+        response_status, response = _rejection_response(PipelineFailureCode.INVALID_PLAN)
+        return JSONResponse(status_code=response_status, content=response.model_dump(mode="json"))
     return _status_response(state)
 
 @router.get("", response_model=list[TaskStatusResponse])

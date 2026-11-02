@@ -1,5 +1,6 @@
 import { 
   TaskState, 
+  TaskSubmissionResponse,
   TaskListItem,
   TaskArtifactManifest,
   TaskArtifactContent,
@@ -92,8 +93,15 @@ export async function createTask(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ objective, file_path, privacy_mode }),
   });
+  const result = (await res.json()) as TaskSubmissionResponse;
+  if ("outcome" in result) {
+    if (result.outcome === "clarification_required") {
+      throw new Error(result.question);
+    }
+    throw new Error(result.message);
+  }
   if (!res.ok) throw new Error(`Task submission failed (${res.status}).`);
-  return res.json();
+  return result;
 }
 
 export async function uploadDatasetFile(file: File, encryptAtRest = false) {

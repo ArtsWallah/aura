@@ -120,15 +120,29 @@ class AgentOrchestrator:
         *,
         task_id: str | None = None,
         privacy_mode: str | None = None,
+        initial_state: TaskState | None = None,
     ) -> TaskState:
         """Execute a pipeline handoff after integrity and live-policy checks."""
         if not isinstance(handoff, ExecutionHandoff):
             raise ExecutionHandoffError(HandoffFailureCode.INVALID_HANDOFF)
         mode = handoff.privacy_mode if privacy_mode is None else privacy_mode
         plan = handoff.validate_integrity(privacy_mode=mode, registry=tool_registry)
+        if initial_state is not None and (
+            initial_state.status != TaskStatus.QUEUED
+            or initial_state.privacy_mode != mode
+            or (task_id is not None and initial_state.task_id != task_id)
+        ):
+            raise ExecutionHandoffError(HandoffFailureCode.INVALID_HANDOFF)
         if task_id is not None:
             try:
-                if task_id in self._active_tasks or checkpointer.load_checkpoint(task_id) is not None:
+                queued_state = checkpointer.load_checkpoint(task_id)
+                if task_id in self._active_tasks:
+                    raise ExecutionHandoffError(HandoffFailureCode.INVALID_HANDOFF)
+                if initial_state is None and queued_state is not None:
+                    raise ExecutionHandoffError(HandoffFailureCode.INVALID_HANDOFF)
+                if initial_state is not None and (
+                    queued_state is None or queued_state.status != TaskStatus.QUEUED
+                ):
                     raise ExecutionHandoffError(HandoffFailureCode.INVALID_HANDOFF)
             except ExecutionHandoffError:
                 raise
@@ -140,7 +154,7 @@ class AgentOrchestrator:
                 file_path=None,
                 privacy_mode=mode,
                 task_id=task_id,
-                initial_state=None,
+                initial_state=initial_state,
                 supplied_plan=plan,
             )
 

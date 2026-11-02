@@ -81,7 +81,7 @@ def test_settings_endpoint():
 
 def test_queued_task_can_be_cancelled_through_task_api():
     submitted = client.post("/api/tasks", json={
-        "objective": "cancel this queued task",
+        "objective": "Check system health",
         "privacy_mode": "local_only",
     })
     assert submitted.status_code == 202
@@ -188,23 +188,8 @@ def test_create_task_api(api_test_csv):
         assert objective_marker not in listed.text and file_marker not in listed.text
 
         artifacts = task_client.get(f"/api/tasks/{task_id}/artifacts")
-        assert artifacts.status_code == 200
-        manifest = artifacts.json()
-        assert set(manifest) == {"task_id", "title", "html_url", "markdown_url", "chart_urls"}
-        assert manifest["task_id"] == task_id
-        assert manifest["html_url"] == f"/api/tasks/{task_id}/artifacts/html"
-        assert manifest["markdown_url"] == f"/api/tasks/{task_id}/artifacts/markdown"
-        assert objective_marker not in artifacts.text and file_marker not in artifacts.text
-        assert "markdown_content" not in manifest and "artifacts" not in manifest
-
-        report = task_client.get(manifest["markdown_url"])
-        assert report.status_code == 200
-        assert set(report.json()) == {"task_id", "artifact_type", "content"}
-        assert report.json()["task_id"] == task_id
-        assert report.json()["artifact_type"] == "markdown"
-        html = task_client.get(manifest["html_url"])
-        assert html.status_code == 200
-        assert "sandbox" in html.headers["content-security-policy"]
+        # This request plans dataset inspection, not report generation.
+        assert artifacts.status_code == 404
 
         stream = task_client.get(f"/api/tasks/{task_id}/events")
         assert stream.status_code == 200

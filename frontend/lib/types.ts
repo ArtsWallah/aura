@@ -54,6 +54,22 @@ export interface TaskState {
   updated_at: number;
 }
 
+export interface TaskClarificationResponse {
+  outcome: "clarification_required";
+  question: string;
+}
+
+export interface TaskRejectionResponse {
+  outcome: "rejected";
+  code: "invalid_request" | "unsupported_request" | "provider_unavailable" | "planning_failed";
+  message: string;
+}
+
+export type TaskSubmissionResponse =
+  | TaskState
+  | TaskClarificationResponse
+  | TaskRejectionResponse;
+
 export interface TaskArtifactManifest {
   task_id: string;
   title: string;

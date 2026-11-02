@@ -2,14 +2,26 @@
 import asyncio
 import uuid
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import Any
 
 from app.agent.checkpoint import checkpointer
+from app.agent.execution_handoff import ExecutionHandoff, ExecutionHandoffError, HandoffFailureCode
 from app.agent.orchestrator import AgentOrchestrator, orchestrator
 from app.agent.state import TaskEvent, TaskState
 from app.core.config import settings
 from app.core.logging import logger
 from app.privacy.encryption import encryption_service
+from app.tools.registry import tool_registry
+
+
+@dataclass(frozen=True)
+class ProcessLocalTaskPayload:
+    """Executable request data retained only in this process."""
+
+    task_state: TaskState
+    handoff: ExecutionHandoff | None
+    handoff_required: bool
 
 
 class TaskExecutionService:
@@ -18,7 +30,7 @@ class TaskExecutionService:
         self._running = False
         self._wake: asyncio.Event | None = None
         self._workers: list[asyncio.Task] = []
-        self._payloads: dict[str, TaskState] = {}
+        self._payloads: dict[str, ProcessLocalTaskPayload] = {}
         # Keep a committed queue row invisible to workers until its process-local
         # executable payload and initial event have both been published.
         self._queue_lock = asyncio.Lock()
@@ -91,6 +103,29 @@ class TaskExecutionService:
         logger.info("AURA task workers stopped.")
 
     async def enqueue(self, task: TaskState) -> None:
+        """Preserve the legacy internal queue path for existing callers."""
+        await self._enqueue_payload(ProcessLocalTaskPayload(
+            task_state=task.model_copy(deep=True),
+            handoff=None,
+            handoff_required=False,
+        ))
+
+    async def enqueue_handoff(self, task: TaskState, handoff: ExecutionHandoff) -> None:
+        """Queue a validated plan without retaining the raw objective or path."""
+        if task.status.value != "queued":
+            raise ExecutionHandoffError(HandoffFailureCode.INVALID_HANDOFF)
+        handoff.validate_integrity(privacy_mode=task.privacy_mode, registry=tool_registry)
+        safe_state = task.model_copy(deep=True)
+        safe_state.objective = ""
+        safe_state.file_path = None
+        await self._enqueue_payload(ProcessLocalTaskPayload(
+            task_state=safe_state,
+            handoff=handoff.model_copy(deep=True),
+            handoff_required=True,
+        ))
+
+    async def _enqueue_payload(self, payload: ProcessLocalTaskPayload) -> None:
+        task = payload.task_state
         async with self._queue_lock:
             _, persist_error, persist_cancelled = await self._run_blocking_to_completion(
                 checkpointer.enqueue_task, task
@@ -103,7 +138,7 @@ class TaskExecutionService:
                     raise asyncio.CancelledError
                 raise persist_error
 
-            self._payloads[task.task_id] = task.model_copy(deep=True)
+            self._payloads[task.task_id] = payload
             _, event_error, event_cancelled = await self._run_blocking_to_completion(
                 checkpointer.append_event,
                 TaskEvent(
@@ -176,14 +211,39 @@ class TaskExecutionService:
                     ))
                     await asyncio.to_thread(checkpointer.release_task_claim, task.task_id, worker_id)
                     continue
+                if payload.task_state.task_id != task.task_id:
+                    task.recovery_required = True
+                    task.recovery_reason = "Queued task input did not match its process-local task identifier."
+                    task.transition_to(type(task.status).FAILED)
+                    task.error_summary = "Execution could not be safely resumed; submit the task again."
+                    await asyncio.to_thread(checkpointer.save_checkpoint, task)
+                    await asyncio.to_thread(checkpointer.append_event, TaskEvent(
+                        event_type="task_failed", task_id=task.task_id,
+                        message="Task could not be resumed after restart.",
+                        data={"status": "failed", "recovery_required": True},
+                    ))
+                    await asyncio.to_thread(checkpointer.release_task_claim, task.task_id, worker_id)
+                    continue
                 try:
-                    await self.orchestrator.run_task(
-                        objective=payload.objective,
-                        file_path=payload.file_path,
-                        privacy_mode=payload.privacy_mode,
-                        task_id=payload.task_id,
-                        initial_state=payload,
-                    )
+                    if payload.handoff_required:
+                        if not isinstance(payload.handoff, ExecutionHandoff):
+                            raise ExecutionHandoffError(HandoffFailureCode.INVALID_HANDOFF)
+                        await self.orchestrator.run_handoff(
+                            payload.handoff,
+                            privacy_mode=payload.task_state.privacy_mode,
+                            task_id=task.task_id,
+                            initial_state=task,
+                        )
+                    else:
+                        if payload.handoff is not None:
+                            raise ExecutionHandoffError(HandoffFailureCode.INVALID_HANDOFF)
+                        await self.orchestrator.run_task(
+                            objective=payload.task_state.objective,
+                            file_path=payload.task_state.file_path,
+                            privacy_mode=payload.task_state.privacy_mode,
+                            task_id=payload.task_state.task_id,
+                            initial_state=payload.task_state,
+                        )
                 except Exception:
                     logger.error("Task worker stopped after an execution error.")
                     failed_state = self.orchestrator.get_task_state(task.task_id) or task
