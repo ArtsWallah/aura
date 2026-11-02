@@ -63,8 +63,8 @@ def validate_execution_plan(
             raise PlanValidationError("unknown_tool", "Execution plan references an unregistered tool.")
         if definition.execution_location == ExecutionLocation.BROWSER:
             raise PlanValidationError("unsupported_location", "Browser-only tools cannot run in the backend executor.")
-        if definition.execution_location == ExecutionLocation.CLOUD and privacy_mode == "local_only":
-            raise PlanValidationError("privacy_policy", "This plan requires an external tool in local-only mode.")
+        if definition.execution_location == ExecutionLocation.CLOUD and privacy_mode != "cloud_enabled":
+            raise PlanValidationError("privacy_policy", "This plan requires explicit cloud-enabled privacy mode.")
         if definition.permission_level == PermissionLevel.PRIVILEGED or definition.requires_approval:
             raise PlanValidationError("approval_required", "Execution plan contains a tool requiring explicit approval.")
         if step.max_retries < 0:

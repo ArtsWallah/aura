@@ -119,6 +119,9 @@ def test_plan_validation_enforces_step_limit_privacy_and_approval(monkeypatch):
     with pytest.raises(PlanValidationError) as privacy:
         validate_execution_plan(_plan(_step(tool_name="web_research", parameters={"query": "safe"})), "local_only")
     assert privacy.value.code == "privacy_policy"
+    with pytest.raises(PlanValidationError) as hybrid_privacy:
+        validate_execution_plan(_plan(_step(tool_name="web_research", parameters={"query": "safe"})), "hybrid")
+    assert hybrid_privacy.value.code == "privacy_policy"
 
     original = tool_registry._tools["generate_report"]
     tool_registry._tools["generate_report"] = original.model_copy(update={"requires_approval": True})
@@ -215,6 +218,93 @@ def test_persistent_queue_claim_is_atomic_and_reuses_the_task_id(phase2_temp_dir
     assert claimed.file_path is None
     assert duplicate is None
     store.release_task_claim(state.task_id, "worker-a")
+
+
+@pytest.mark.asyncio
+async def test_worker_polling_cannot_claim_until_concurrent_enqueue_publishes_payload(
+    phase2_temp_dir, monkeypatch
+):
+    import asyncio
+    import threading
+    import app.agent.service as service_module
+    from app.agent.service import TaskExecutionService
+
+    store = SQLiteCheckpointer(phase2_temp_dir / "enqueue-race.db")
+    monkeypatch.setattr(service_module, "checkpointer", store)
+    committed = threading.Event()
+    allow_enqueue_return = threading.Event()
+    original_enqueue = store.enqueue_task
+
+    def delayed_enqueue(task):
+        original_enqueue(task)
+        committed.set()
+        assert allow_enqueue_return.wait(timeout=3)
+
+    monkeypatch.setattr(store, "enqueue_task", delayed_enqueue)
+
+    class RecordingOrchestrator:
+        def __init__(self):
+            self.seen = []
+
+        async def run_task(self, **kwargs):
+            self.seen.append((kwargs["task_id"], kwargs["objective"]))
+            state = kwargs["initial_state"]
+            state.transition_to(TaskStatus.PLANNING)
+            state.transition_to(TaskStatus.RUNNING)
+            state.transition_to(TaskStatus.COMPLETED)
+            store.save_checkpoint(state)
+
+    runner = RecordingOrchestrator()
+    service = TaskExecutionService(runner)
+    service._running = True
+    service._wake = asyncio.Event()
+
+    submissions = [
+        asyncio.create_task(service.enqueue(TaskState(task_id=f"race-{n}", objective=f"private-{n}")))
+        for n in range(2)
+    ]
+    await asyncio.wait_for(asyncio.to_thread(committed.wait), timeout=2)
+    worker = asyncio.create_task(service._worker_loop("race-worker"))
+    await asyncio.sleep(0.1)
+    assert runner.seen == []
+    assert service._payloads == {}
+
+    allow_enqueue_return.set()
+    await asyncio.gather(*submissions)
+    service._wake.set()
+    for _ in range(100):
+        if len(runner.seen) == 2:
+            break
+        await asyncio.sleep(0.02)
+    service._running = False
+    service._wake.set()
+    await asyncio.wait_for(worker, timeout=2)
+
+    assert sorted(runner.seen) == [("race-0", "private-0"), ("race-1", "private-1")]
+    assert store.latest_event_sequence("race-0") == 1
+    assert store.latest_event_sequence("race-1") == 1
+
+
+@pytest.mark.asyncio
+async def test_enqueue_event_failure_rolls_back_queue_row_and_payload(phase2_temp_dir, monkeypatch):
+    import app.agent.service as service_module
+    from app.agent.service import TaskExecutionService
+
+    store = SQLiteCheckpointer(phase2_temp_dir / "enqueue-rollback.db")
+    monkeypatch.setattr(service_module, "checkpointer", store)
+
+    def fail_event(_event):
+        raise RuntimeError("event store unavailable")
+
+    monkeypatch.setattr(store, "append_event", fail_event)
+    service = TaskExecutionService()
+    state = TaskState(task_id="enqueue-rollback", objective="private")
+    with pytest.raises(RuntimeError, match="event store unavailable"):
+        await service.enqueue(state)
+
+    assert service._payloads == {}
+    assert store.load_checkpoint(state.task_id) is None
+    assert store.claim_next_queued_task("rollback-check") is None
 
 
 def test_restart_recovery_marks_inflight_work_ambiguous_without_replaying_it(phase2_temp_dir):

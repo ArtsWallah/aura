@@ -65,12 +65,30 @@ def test_settings_endpoint():
     if data["gemini_configured"]:
         assert data["gemini_api_key_masked"] == "Configured"
 
+
+def test_queued_task_can_be_cancelled_through_task_api():
+    submitted = client.post("/api/tasks", json={
+        "objective": "cancel this queued task",
+        "privacy_mode": "local_only",
+    })
+    assert submitted.status_code == 202
+    task_id = submitted.json()["task_id"]
+
+    cancelled = client.post(f"/api/tasks/{task_id}/cancel")
+    assert cancelled.status_code == 200
+    assert cancelled.json()["status"] == "cancelled"
+    refreshed = client.get(f"/api/tasks/{task_id}")
+    assert refreshed.status_code == 200
+    assert refreshed.json()["status"] == "cancelled"
+
 def test_create_task_api(api_test_csv):
+    objective_marker = "private-objective-marker-9137"
+    file_marker = api_test_csv
     with TestClient(app, client=("127.0.0.1", 54321)) as task_client:
         res = task_client.post(
             "/api/tasks",
             json={
-                "objective": "Analyze dataset and detect underperforming categories",
+                "objective": f"Analyze dataset and detect underperforming categories {objective_marker}",
                 "file_path": api_test_csv,
                 "privacy_mode": "local_only"
             }
@@ -78,6 +96,8 @@ def test_create_task_api(api_test_csv):
         assert res.status_code == 202
         accepted = res.json()
         assert accepted["status"] == "queued"
+        assert set(accepted) == {"task_id", "status", "privacy_mode", "created_at", "updated_at"}
+        assert objective_marker not in res.text and file_marker not in res.text
         task_id = accepted["task_id"]
 
         final = None
@@ -85,13 +105,38 @@ def test_create_task_api(api_test_csv):
             response = task_client.get(f"/api/tasks/{task_id}")
             assert response.status_code == 200
             final = response.json()
+            assert set(final) == {"task_id", "status", "privacy_mode", "created_at", "updated_at"}
+            assert objective_marker not in response.text and file_marker not in response.text
             if final["status"] in {"completed", "failed"}:
                 break
             time.sleep(0.05)
 
         assert final["task_id"] == task_id
         assert final["status"] == "completed"
-        assert final["final_deliverable"] is not None
+
+        listed = task_client.get("/api/tasks")
+        assert listed.status_code == 200
+        assert all(set(item) == {"task_id", "status", "privacy_mode", "created_at", "updated_at"} for item in listed.json())
+        assert objective_marker not in listed.text and file_marker not in listed.text
+
+        artifacts = task_client.get(f"/api/tasks/{task_id}/artifacts")
+        assert artifacts.status_code == 200
+        manifest = artifacts.json()
+        assert set(manifest) == {"task_id", "title", "html_url", "markdown_url", "chart_urls"}
+        assert manifest["task_id"] == task_id
+        assert manifest["html_url"] == f"/api/tasks/{task_id}/artifacts/html"
+        assert manifest["markdown_url"] == f"/api/tasks/{task_id}/artifacts/markdown"
+        assert objective_marker not in artifacts.text and file_marker not in artifacts.text
+        assert "markdown_content" not in manifest and "artifacts" not in manifest
+
+        report = task_client.get(manifest["markdown_url"])
+        assert report.status_code == 200
+        assert set(report.json()) == {"task_id", "artifact_type", "content"}
+        assert report.json()["task_id"] == task_id
+        assert report.json()["artifact_type"] == "markdown"
+        html = task_client.get(manifest["html_url"])
+        assert html.status_code == 200
+        assert "sandbox" in html.headers["content-security-policy"]
 
         stream = task_client.get(f"/api/tasks/{task_id}/events")
         assert stream.status_code == 200
@@ -110,6 +155,17 @@ def test_create_task_api(api_test_csv):
         assert replay.status_code == 200
         assert "event: task.created" not in replay.text
         assert all(int(line[4:]) > 1 for line in replay.text.splitlines() if line.startswith("id: "))
+
+        latest = max(sequence_ids)
+        terminal_reconnect = task_client.get(
+            f"/api/tasks/{task_id}/events", headers={"Last-Event-ID": str(latest)}
+        )
+        assert terminal_reconnect.status_code == 200
+        assert terminal_reconnect.text == ""
+        future_reconnect = task_client.get(
+            f"/api/tasks/{task_id}/events", headers={"Last-Event-ID": str(latest + 1)}
+        )
+        assert future_reconnect.status_code == 400
 
         bad_cursor = task_client.get(
             f"/api/tasks/{task_id}/events",

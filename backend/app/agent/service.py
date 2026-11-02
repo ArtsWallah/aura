@@ -17,6 +17,9 @@ class TaskExecutionService:
         self._wake: asyncio.Event | None = None
         self._workers: list[asyncio.Task] = []
         self._payloads: dict[str, TaskState] = {}
+        # Keep a committed queue row invisible to workers until its process-local
+        # executable payload and initial event have both been published.
+        self._queue_lock = asyncio.Lock()
 
     async def start(self) -> None:
         if self._running:
@@ -58,14 +61,20 @@ class TaskExecutionService:
         logger.info("AURA task workers stopped.")
 
     async def enqueue(self, task: TaskState) -> None:
-        await asyncio.to_thread(checkpointer.enqueue_task, task)
-        self._payloads[task.task_id] = task.model_copy(deep=True)
-        await asyncio.to_thread(checkpointer.append_event, TaskEvent(
-            event_type="task.created",
-            task_id=task.task_id,
-            message="Task accepted.",
-            data={"status": "queued"},
-        ))
+        async with self._queue_lock:
+            await asyncio.to_thread(checkpointer.enqueue_task, task)
+            self._payloads[task.task_id] = task.model_copy(deep=True)
+            try:
+                await asyncio.to_thread(checkpointer.append_event, TaskEvent(
+                    event_type="task.created",
+                    task_id=task.task_id,
+                    message="Task accepted.",
+                    data={"status": "queued"},
+                ))
+            except Exception:
+                self._payloads.pop(task.task_id, None)
+                await asyncio.to_thread(checkpointer.discard_unclaimed_queued_task, task.task_id)
+                raise
         if self._wake is not None:
             self._wake.set()
 
@@ -87,13 +96,14 @@ class TaskExecutionService:
     async def _worker_loop(self, worker_id: str) -> None:
         while self._running:
             try:
-                task = await asyncio.to_thread(checkpointer.claim_next_queued_task, worker_id)
+                async with self._queue_lock:
+                    task = await asyncio.to_thread(checkpointer.claim_next_queued_task, worker_id)
+                    payload = self._payloads.pop(task.task_id, None) if task is not None else None
             except Exception:
                 logger.error("Task worker could not claim queued work.")
                 task = None
 
             if task is not None:
-                payload = self._payloads.pop(task.task_id, None)
                 if payload is None:
                     task.recovery_required = True
                     task.recovery_reason = "Queued task input was not available in this process."

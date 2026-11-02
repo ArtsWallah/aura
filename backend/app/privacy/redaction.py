@@ -2,6 +2,12 @@ import re
 from typing import Tuple
 
 class DataRedactor:
+    """Best-effort recognizer for known patterns, not a general PII detector.
+
+    Hybrid egress must not rely on this class to decide whether arbitrary text
+    is safe. The outbound client fails closed for Hybrid until an explicit
+    release/approval contract is available.
+    """
     PATTERNS = {
         "EMAIL": r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+",
         "PHONE": r"\b(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b",

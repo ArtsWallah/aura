@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 from app.tools.schemas import ToolCategory, ExecutionLocation, PermissionLevel
 from app.tools.registry import tool_registry
 from app.core.logging import logger
-from app.privacy.outbound import PrivacyAwareAsyncClient, current_privacy_mode, redact_external_text
+from app.privacy.outbound import PrivacyAwareAsyncClient, current_privacy_mode
 
 class WebResearchInput(BaseModel):
     query: str = Field(description="Search terms or question to research.")
@@ -31,7 +31,12 @@ class SourceCitation(BaseModel):
 )
 async def web_research(params: WebResearchInput) -> dict[str, Any]:
     sources: list[dict[str, Any]] = []
-    query = redact_external_text(params.query) if current_privacy_mode() == "hybrid" else params.query
+    mode = current_privacy_mode()
+    if mode == "local_only":
+        raise PermissionError("External research is blocked by local_only privacy mode.")
+    if mode == "hybrid":
+        raise PermissionError("External research requires explicit cloud_enabled privacy mode.")
+    query = params.query
     
     # Try querying Wikipedia REST API as a reliable knowledge source
     try:

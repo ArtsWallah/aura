@@ -3,6 +3,7 @@ import json
 import time
 import threading
 import uuid
+import sqlite3
 from contextlib import closing
 
 import pytest
@@ -385,3 +386,54 @@ async def test_persisted_sse_projection_drops_sensitive_event_content(execution_
     assert second.message == "A tool step completed."
     assert second.data == {"duration_ms": 42}
     assert marker not in str(second.model_dump())
+
+    store.append_event(TaskEvent(
+        event_type=f"provider-error-{marker}", task_id=state.task_id,
+        message=marker, data={"secret": marker},
+    ))
+    with closing(sqlite3.connect(store.db_path)) as conn:
+        rows = conn.execute(
+            "SELECT sequence, event_type, created_at, payload_json FROM task_events WHERE task_id = ? ORDER BY sequence",
+            (state.task_id,),
+        ).fetchall()
+    assert [row[1] for row in rows] == ["step_started", "step_completed", "task_update"]
+    assert all(marker not in row[1] and marker not in row[3] for row in rows)
+
+
+@pytest.mark.asyncio
+async def test_sse_replay_catches_events_produced_concurrently(execution_data_dir, monkeypatch):
+    import app.agent.orchestrator as orchestrator_module
+    import app.api.routes.tasks as task_routes
+
+    store = SQLiteCheckpointer(execution_data_dir / "concurrent-sse.db")
+    state = TaskState(task_id="concurrent-sse", objective="private", status=TaskStatus.RUNNING)
+    store.save_checkpoint(state)
+    monkeypatch.setattr(orchestrator_module, "checkpointer", store)
+    monkeypatch.setattr(task_routes, "checkpointer", store)
+    runner = AgentOrchestrator()
+    runner._active_tasks[state.task_id] = state
+    monkeypatch.setattr(task_routes, "orchestrator", runner)
+
+    response = await task_routes.stream_task_events(state.task_id, last_event_id=None)
+    iterator = response.body_iterator
+    initial = await asyncio.wait_for(iterator.__anext__(), timeout=1)
+    assert "task.snapshot" in initial
+
+    pending_read = asyncio.create_task(iterator.__anext__())
+    await asyncio.sleep(0)
+    await runner._emit_event(TaskEvent(
+        event_type="step_started", task_id=state.task_id,
+        message="sensitive raw content", data={"rows": ["private"]},
+    ))
+    produced = await asyncio.wait_for(pending_read, timeout=1)
+    assert "id: 1" in produced
+    assert "event: step_started" in produced
+    assert "sensitive raw content" not in produced
+    assert "private" not in produced
+
+    state.transition_to(TaskStatus.COMPLETED)
+    await runner._emit_event(TaskEvent(event_type="task_completed", task_id=state.task_id, message="done"))
+    terminal = await asyncio.wait_for(iterator.__anext__(), timeout=1)
+    assert "event: task_completed" in terminal
+    with pytest.raises(StopAsyncIteration):
+        await asyncio.wait_for(iterator.__anext__(), timeout=1)

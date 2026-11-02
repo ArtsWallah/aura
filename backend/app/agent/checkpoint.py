@@ -123,6 +123,15 @@ class SQLiteCheckpointer:
             raise ValueError("Only queued tasks can be added to the persistent queue.")
         self.save_checkpoint(task_state)
 
+    def discard_unclaimed_queued_task(self, task_id: str) -> None:
+        """Roll back an enqueue whose initial event could not be recorded."""
+        with closing(sqlite3.connect(self.db_path, timeout=30)) as conn:
+            conn.execute(
+                "DELETE FROM task_checkpoints WHERE task_id = ? AND status = ? AND claimed_by IS NULL AND event_seq = 0",
+                (task_id, TaskStatus.QUEUED.value),
+            )
+            conn.commit()
+
     def claim_next_queued_task(self, worker_id: str) -> TaskState | None:
         """Atomically claim one queued row so workers cannot execute it twice."""
         with closing(sqlite3.connect(self.db_path, timeout=30)) as conn:
@@ -213,7 +222,7 @@ class SQLiteCheckpointer:
             )
             conn.execute(
                 "INSERT INTO task_events(task_id, sequence, event_type, created_at, payload_json) VALUES (?, ?, ?, ?, ?)",
-                (event.task_id, sequence, event.event_type, event.timestamp, payload),
+                (event.task_id, sequence, safe_event.event_type, event.timestamp, payload),
             )
             conn.execute(
                 "DELETE FROM task_events WHERE task_id = ? AND sequence <= ?",

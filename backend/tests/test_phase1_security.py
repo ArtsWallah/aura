@@ -1,4 +1,3 @@
-import json
 import logging
 import sqlite3
 from pathlib import Path
@@ -11,6 +10,7 @@ from cryptography.fernet import Fernet
 from fastapi.testclient import TestClient
 
 from app.agent.checkpoint import SQLiteCheckpointer
+from app.agent.planner import TaskPlanner
 from app.agent.executor import executor
 from app.agent.state import ExecutionStep, TaskState
 from app.llm.gemini import GeminiProvider
@@ -68,30 +68,70 @@ async def test_gemini_and_research_integrations_obey_local_only_policy():
 
 
 @pytest.mark.asyncio
-async def test_hybrid_redacts_query_and_json_before_transmission():
-    received = {}
+async def test_hybrid_blocks_unknown_ids_nested_text_and_raw_file_content_at_http_boundary():
+    transmitted = False
 
     async def transport(request):
-        received["query"] = request.url.query.decode()
-        received["json"] = json.loads(request.content)
+        nonlocal transmitted
+        transmitted = True
         return httpx.Response(200, json={"ok": True})
 
     async with PrivacyAwareAsyncClient(transport=httpx.MockTransport(transport)) as web:
         with privacy_scope("hybrid"):
-            await web.post("https://example.com/search?email=user%40example.com", json={"prompt": "Contact user@example.com", "rows": [{"x": 1}], "sample_data": ["private"]})
-    assert "user%40example.com" not in received["query"]
-    assert "%5BREDACTED_EMAIL%5D" in received["query"]
-    assert "user@example.com" not in json.dumps(received["json"])
-    assert "rows" not in received["json"]
-    assert "sample_data" not in received["json"]
+            with pytest.raises(PermissionError, match="Hybrid mode blocks"):
+                await web.post(
+                    "https://example.com/search?customer_id=AC-884210",
+                    json={
+                        "prompt": "Alice Morgan, Account 873199 arbitrary sensitive text",
+                        "nested": {"customer": "AC-884210"},
+                        "phone": "+1-415-555-0199",
+                        "rows": [{"email": "user@example.com"}],
+                        "raw_file": "category,revenue\\nAlice,9000\\n",
+                    },
+                )
+            with pytest.raises(PermissionError, match="Hybrid mode blocks"):
+                await web.send(web.build_request(
+                    "POST", "https://example.com/upload", content=b"raw file bytes"
+                ))
+    assert transmitted is False
 
 
 @pytest.mark.asyncio
 async def test_hybrid_blocks_uninspectable_binary_payloads():
     async with PrivacyAwareAsyncClient(transport=httpx.MockTransport(lambda request: httpx.Response(200))) as web:
         with privacy_scope("hybrid"):
-            with pytest.raises(PermissionError, match="binary"):
+            with pytest.raises(PermissionError, match="Hybrid mode blocks"):
                 await web.post("https://example.com/upload", content=b"\xff\x00\xfe")
+
+
+@pytest.mark.asyncio
+async def test_hybrid_planner_does_not_send_objectives_or_file_paths_to_provider():
+    class SpyProvider:
+        calls = 0
+
+        def is_available(self):
+            return True
+
+        async def chat(self, *args, **kwargs):
+            self.calls += 1
+            raise AssertionError("Hybrid planner must not call an external provider.")
+
+    marker = "Alice Morgan customer AC-884210 private arbitrary objective"
+    provider = SpyProvider()
+    planner = TaskPlanner(provider)
+    plan = await planner.create_plan(
+        marker, "C:/private/raw-customer-data.csv", privacy_mode="hybrid"
+    )
+    assert plan.steps
+    assert provider.calls == 0
+    assert planner.provider_calls == 0
+
+
+@pytest.mark.asyncio
+async def test_hybrid_research_query_is_not_transmitted():
+    with privacy_scope("hybrid"):
+        with pytest.raises(PermissionError, match="cloud_enabled"):
+            await web_research(WebResearchInput(query="AC-884210 Alice Morgan raw context"))
 
 
 def test_invalid_privacy_modes_fail_closed():

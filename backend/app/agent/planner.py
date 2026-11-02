@@ -38,6 +38,7 @@ Schema expected:
 class TaskPlanner:
     def __init__(self, llm_provider: BaseLLMProvider):
         self.llm = llm_provider
+        self.provider_calls = 0
 
     async def create_plan(
         self,
@@ -46,6 +47,16 @@ class TaskPlanner:
         context: dict[str, Any] | None = None,
         privacy_mode: str = "hybrid"
     ) -> ExecutionPlan:
+        # Arbitrary objectives and file-derived context cannot be made reliably
+        # safe by pattern redaction alone. Until AURA has an explicit release
+        # approval flow, Hybrid planning uses the deterministic local plan and
+        # does not send user content to a provider.
+        if privacy_mode == "hybrid":
+            return validate_execution_plan(
+                self._create_fallback_plan(objective, file_path),
+                privacy_mode=privacy_mode,
+            )
+
         tools_decl = tool_registry.get_tool_schemas_for_llm()
         tools_summary = "\n".join([f"- {t['name']}: {t['description']}" for t in tools_decl])
         
@@ -64,6 +75,7 @@ Create a structured execution plan to achieve the objective."""
 
         logger.info("Generating structured execution plan.")
         response = await self.llm.chat(messages, response_format_json=True)
+        self.provider_calls += 1
         
         try:
             plan_dict = json.loads(response.content or "{}")

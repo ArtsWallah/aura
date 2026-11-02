@@ -163,7 +163,7 @@ class AgentOrchestrator:
                 await self._emit_event(TaskEvent(event_type="task_cancelled", task_id=t_id, message="cancelled"))
                 return state
             state.transition_to(TaskStatus.RUNNING)
-            state.metrics.llm_calls_count += 1
+            state.metrics.llm_calls_count += planner.provider_calls
             checkpointer.save_checkpoint(state)
 
             await self._emit_event(TaskEvent(

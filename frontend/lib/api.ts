@@ -1,5 +1,9 @@
 import { 
   TaskState, 
+  TaskListItem,
+  TaskArtifactManifest,
+  TaskArtifactContent,
+  TaskCancellationResponse,
   ToolDefinition, 
   ModelMetadata, 
   SystemSettings, 
@@ -50,13 +54,31 @@ export async function generateEmbedding(text: string) {
   return res.json();
 }
 
-export async function fetchTasks(limit = 25): Promise<any[]> {
+export async function fetchTasks(limit = 25): Promise<TaskListItem[]> {
   const res = await fetch(`${API_BASE}/api/tasks?limit=${limit}`);
   return res.json();
 }
 
 export async function fetchTask(task_id: string): Promise<TaskState> {
   const res = await fetch(`${API_BASE}/api/tasks/${task_id}`);
+  return res.json();
+}
+
+export async function fetchTaskArtifacts(task_id: string): Promise<TaskArtifactManifest> {
+  const res = await fetch(`${API_BASE}/api/tasks/${task_id}/artifacts`);
+  if (!res.ok) throw new Error(`Task artifacts are unavailable (${res.status}).`);
+  return res.json();
+}
+
+export async function fetchTaskMarkdown(task_id: string): Promise<TaskArtifactContent> {
+  const res = await fetch(`${API_BASE}/api/tasks/${task_id}/artifacts/markdown`);
+  if (!res.ok) throw new Error(`Task report is unavailable (${res.status}).`);
+  return res.json();
+}
+
+export async function cancelTask(task_id: string): Promise<TaskCancellationResponse> {
+  const res = await fetch(`${API_BASE}/api/tasks/${task_id}/cancel`, { method: "POST" });
+  if (!res.ok) throw new Error(`Task cancellation failed (${res.status}).`);
   return res.json();
 }
 

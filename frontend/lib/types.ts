@@ -48,19 +48,31 @@ export interface TaskMetrics {
 
 export interface TaskState {
   task_id: string;
-  objective: string;
   privacy_mode: PrivacyMode;
   status: TaskStatus;
-  plan?: ExecutionPlan | null;
-  step_results: Record<string, any>;
-  final_deliverable?: any;
-  artifacts: string[];
-  metrics: TaskMetrics;
-  error_summary?: string | null;
-  recovery_required?: boolean;
-  recovery_reason?: string | null;
   created_at: number;
   updated_at: number;
+}
+
+export interface TaskArtifactManifest {
+  task_id: string;
+  title: string;
+  html_url?: string | null;
+  markdown_url?: string | null;
+  chart_urls: string[];
+}
+
+export interface TaskArtifactContent {
+  task_id: string;
+  artifact_type: "markdown";
+  content: string;
+}
+
+export type TaskListItem = TaskState;
+
+export interface TaskCancellationResponse {
+  status: TaskStatus;
+  message: string;
 }
 
 export interface ToolDefinition {

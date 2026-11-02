@@ -5,11 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { 
   Play, 
   Upload, 
-  FileText, 
   ShieldCheck, 
-  CheckCircle2, 
-  Clock, 
-  AlertCircle, 
   Layers, 
   Download, 
   BarChart3, 
@@ -18,8 +14,8 @@ import {
   RotateCw,
   Eye
 } from "lucide-react";
-import { createTask, uploadDatasetFile, fetchTask, API_BASE } from "@/lib/api";
-import { TaskState, PrivacyMode, StepStatus } from "@/lib/types";
+import { createTask, uploadDatasetFile, fetchTask, fetchTaskArtifacts, fetchTaskMarkdown, cancelTask, API_BASE } from "@/lib/api";
+import { TaskState, TaskArtifactManifest, PrivacyMode } from "@/lib/types";
 
 function WorkspaceContent() {
   const searchParams = useSearchParams();
@@ -32,9 +28,12 @@ function WorkspaceContent() {
   const [privacyMode, setPrivacyMode] = useState<PrivacyMode>("hybrid");
   const [uploading, setUploading] = useState<boolean>(false);
   const [uploadStatus, setUploadStatus] = useState<string | null>(null);
+  const [cancellationPending, setCancellationPending] = useState<boolean>(false);
 
   const [isRunning, setIsRunning] = useState<boolean>(false);
   const [currentTask, setCurrentTask] = useState<TaskState | null>(null);
+  const [taskArtifacts, setTaskArtifacts] = useState<TaskArtifactManifest | null>(null);
+  const [markdownReport, setMarkdownReport] = useState<string | null>(null);
   const [events, setEvents] = useState<Array<{ timestamp: string; message: string; type: string }>>([]);
   const [activeTab, setActiveTab] = useState<"plan" | "logs" | "report">("plan");
 
@@ -55,8 +54,8 @@ function WorkspaceContent() {
       const res = await uploadDatasetFile(file, privacyMode === "local_only");
       setFilePath(res.file_path);
       setUploadStatus(`Uploaded: ${res.file_name} (${Math.round(res.size_bytes / 1024)} KB)`);
-    } catch (err: any) {
-      setUploadStatus(`Upload failed: ${err.message}`);
+    } catch (err: unknown) {
+      setUploadStatus(`Upload failed: ${err instanceof Error ? err.message : "Unknown error."}`);
     } finally {
       setUploading(false);
     }
@@ -68,6 +67,8 @@ function WorkspaceContent() {
     setIsRunning(true);
     setEvents([]);
     setCurrentTask(null);
+    setTaskArtifacts(null);
+    setMarkdownReport(null);
     setActiveTab("plan");
 
     try {
@@ -105,6 +106,15 @@ function WorkspaceContent() {
             eventSource.close();
             fetchTask(initialTask.task_id).then((task) => {
               setCurrentTask(task);
+              if (eventName === "task_completed") {
+                fetchTaskArtifacts(initialTask.task_id).then((artifacts) => {
+                  setTaskArtifacts(artifacts);
+                  return fetchTaskMarkdown(initialTask.task_id);
+                }).then((report) => setMarkdownReport(report.content)).catch(() => {
+                  setTaskArtifacts(null);
+                  setMarkdownReport(null);
+                });
+              }
               setIsRunning(false);
               if (eventName === "task_completed") setActiveTab("report");
             });
@@ -115,10 +125,35 @@ function WorkspaceContent() {
         // Leave the source open. The browser reconnects automatically and sends
         // Last-Event-ID so the server can replay events without task resubmission.
       };
-    } catch (err: any) {
-      alert(`Task initiation error: ${err.message}`);
+    } catch (err: unknown) {
+      alert(`Task initiation error: ${err instanceof Error ? err.message : "Unknown error."}`);
       setIsRunning(false);
     }
+  };
+
+  const handleCancelTask = async () => {
+    if (!currentTask || cancellationPending || currentTask.status === "cancel_requested") return;
+    setCancellationPending(true);
+    try {
+      const result = await cancelTask(currentTask.task_id);
+      setCurrentTask((task) => task ? { ...task, status: result.status } : task);
+      const refreshed = await fetchTask(currentTask.task_id);
+      setCurrentTask(refreshed);
+    } catch (err: unknown) {
+      setUploadStatus(`Cancellation failed: ${err instanceof Error ? err.message : "Unknown error."}`);
+    } finally {
+      setCancellationPending(false);
+    }
+  };
+
+  const handleDownloadMarkdown = () => {
+    if (!markdownReport) return;
+    const objectUrl = URL.createObjectURL(new Blob([markdownReport], { type: "text/markdown;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = objectUrl;
+    link.download = `${taskArtifacts?.task_id || "aura-report"}.md`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
   };
 
   return (
@@ -183,6 +218,7 @@ function WorkspaceContent() {
                     type="file"
                     accept=".csv,.xlsx,.xls,.txt,.md"
                     onChange={handleFileUpload}
+                    disabled={uploading}
                     className="hidden"
                   />
                 </label>
@@ -193,27 +229,38 @@ function WorkspaceContent() {
                 )}
               </div>
 
-              <button
-                onClick={handleRunTask}
-                disabled={isRunning}
-                className={`flex items-center gap-2 rounded-lg px-5 py-2 text-sm font-semibold text-white shadow-lg transition-all ${
-                  isRunning
-                    ? "bg-indigo-800 cursor-not-allowed"
-                    : "bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/30"
-                }`}
-              >
-                {isRunning ? (
-                  <>
-                    <RotateCw className="h-4 w-4 animate-spin" />
-                    <span>Executing DAG...</span>
-                  </>
-                ) : (
-                  <>
-                    <Play className="h-4 w-4 fill-white" />
-                    <span>Execute Autonomous Task</span>
-                  </>
+              <div className="flex items-center gap-2">
+                {isRunning && currentTask && (
+                  <button
+                    onClick={handleCancelTask}
+                    disabled={cancellationPending || currentTask.status === "cancel_requested" || ["completed", "failed", "cancelled"].includes(currentTask.status)}
+                    className="rounded-lg border border-rose-700 px-3 py-2 text-xs font-semibold text-rose-300 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {currentTask.status === "cancel_requested" || cancellationPending ? "Cancellation requested" : "Cancel task"}
+                  </button>
                 )}
-              </button>
+                <button
+                  onClick={handleRunTask}
+                  disabled={isRunning}
+                  className={`flex items-center gap-2 rounded-lg px-5 py-2 text-sm font-semibold text-white shadow-lg transition-all ${
+                    isRunning
+                      ? "bg-indigo-800 cursor-not-allowed"
+                      : "bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/30"
+                  }`}
+                >
+                  {isRunning ? (
+                    <>
+                      <RotateCw className="h-4 w-4 animate-spin" />
+                      <span>{currentTask?.status === "cancel_requested" ? "Waiting for safe cancellation..." : "Executing DAG..."}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Play className="h-4 w-4 fill-white" />
+                      <span>Execute Autonomous Task</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -235,7 +282,7 @@ function WorkspaceContent() {
                 {privacyMode === "local_only"
                   ? "Local Only: 100% on-device deterministic execution."
                   : privacyMode === "hybrid"
-                  ? "Hybrid: Proprietary rows retained locally; minimized schemas to cloud."
+                  ? "Hybrid: User content stays local; generic planning uses the local fallback."
                   : "Cloud Enabled: Authorized Gemini API cloud reasoning."}
               </span>
             </div>
@@ -253,7 +300,7 @@ function WorkspaceContent() {
               : "border-transparent text-slate-400 hover:text-slate-300"
           }`}
         >
-          Execution Plan & DAG ({currentTask?.plan?.steps.length || 0} Steps)
+          Task Status
         </button>
         <button
           onClick={() => setActiveTab("logs")}
@@ -277,69 +324,17 @@ function WorkspaceContent() {
         </button>
       </div>
 
-      {/* Tab 1: Execution Plan Visualizer */}
+      {/* Tab 1: Privacy-safe task status */}
       {activeTab === "plan" && (
-        <div className="space-y-4">
-          {!currentTask?.plan ? (
-            <div className="rounded-xl border border-slate-800 bg-slate-900/30 p-12 text-center text-slate-400 text-sm">
-              Click &quot;Execute Autonomous Task&quot; above to synthesize the structured execution plan.
-            </div>
+        <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-6 space-y-3">
+          {!currentTask ? (
+            <p className="text-sm text-slate-400">Submit a task to view its status.</p>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {currentTask.plan.steps.map((step, idx) => {
-                const isCompleted = step.status === "completed";
-                const isFailed = step.status === "failed";
-                const isInProgress = step.status === "in_progress";
-
-                return (
-                  <div
-                    key={step.step_id}
-                    className={`rounded-xl border p-4 space-y-2.5 transition-all ${
-                      isCompleted
-                        ? "border-emerald-500/30 bg-emerald-950/10"
-                        : isFailed
-                        ? "border-rose-500/30 bg-rose-950/10"
-                        : isInProgress
-                        ? "border-indigo-500 bg-indigo-950/20 shadow-lg shadow-indigo-500/10"
-                        : "border-slate-800 bg-slate-900/40"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-mono text-[11px] text-slate-400 font-semibold uppercase">
-                        Step {idx + 1} &bull; {step.step_id}
-                      </span>
-                      <span
-                        className={`rounded px-2 py-0.5 text-[10px] font-bold ${
-                          isCompleted
-                            ? "bg-emerald-500/20 text-emerald-300"
-                            : isFailed
-                            ? "bg-rose-500/20 text-rose-300"
-                            : isInProgress
-                            ? "bg-indigo-500/20 text-indigo-300 animate-pulse"
-                            : "bg-slate-800 text-slate-400"
-                        }`}
-                      >
-                        {step.status.toUpperCase()}
-                      </span>
-                    </div>
-
-                    <h3 className="text-sm font-semibold text-white leading-snug">
-                      {step.title}
-                    </h3>
-                    <p className="text-xs text-slate-400 leading-relaxed">
-                      {step.description}
-                    </p>
-
-                    <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400">
-                      <span className="font-mono text-indigo-300">tool: {step.tool_name}</span>
-                      {step.duration_ms > 0 && (
-                        <span>{Math.round(step.duration_ms)} ms</span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            <>
+              <p className="text-sm text-slate-300">Task <span className="font-mono">{currentTask.task_id}</span></p>
+              <p className="text-sm text-slate-300">Status: <span className="font-semibold capitalize">{currentTask.status}</span></p>
+              <p className="text-xs text-slate-500">Execution plans and tool data remain private and are not included in task status responses.</p>
+            </>
           )}
         </div>
       )}
@@ -379,7 +374,7 @@ function WorkspaceContent() {
       {/* Tab 3: Final Deliverable & Embedded Charts */}
       {activeTab === "report" && (
         <div className="space-y-6">
-          {!currentTask?.final_deliverable ? (
+          {!taskArtifacts ? (
             <div className="rounded-xl border border-slate-800 bg-slate-900/30 p-12 text-center text-slate-400 text-sm">
               No deliverable generated yet. Run a task to generate analytical reports.
             </div>
@@ -389,16 +384,16 @@ function WorkspaceContent() {
               <div className="flex items-center justify-between bg-slate-900/60 p-4 rounded-xl border border-slate-800">
                 <div>
                   <h2 className="text-lg font-bold text-white">
-                    {currentTask.final_deliverable.title || "Analytical Deliverable"}
+                    {taskArtifacts.title || "Analytical Deliverable"}
                   </h2>
                   <p className="text-xs text-slate-400">
                     Generated autonomously with verified Python calculations and Matplotlib charts.
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
-                  {currentTask.final_deliverable.relative_html_url && (
+                  {taskArtifacts.html_url && (
                     <a
-                      href={`${API_BASE}${currentTask.final_deliverable.relative_html_url}`}
+                      href={`${API_BASE}${taskArtifacts.html_url}`}
                       target="_blank"
                       rel="noreferrer"
                       className="flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500 shadow"
@@ -407,34 +402,33 @@ function WorkspaceContent() {
                       <span>View Standalone HTML</span>
                     </a>
                   )}
-                  {currentTask.final_deliverable.relative_markdown_url && (
-                    <a
-                      href={`${API_BASE}${currentTask.final_deliverable.relative_markdown_url}`}
-                      download
+                  {taskArtifacts.markdown_url && (
+                    <button
+                      onClick={handleDownloadMarkdown}
+                      disabled={!markdownReport}
                       className="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-700"
                     >
                       <Download className="h-3.5 w-3.5" />
                       <span>Download .md</span>
-                    </a>
+                    </button>
                   )}
                 </div>
               </div>
 
               {/* Rendered Charts */}
-              {currentTask.artifacts && currentTask.artifacts.filter(a => a.endsWith(".png")).length > 0 && (
+              {taskArtifacts.chart_urls.length > 0 && (
                 <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-5 space-y-4">
                   <h3 className="text-sm font-semibold text-white flex items-center gap-2">
                     <BarChart3 className="h-4 w-4 text-indigo-400" />
                     Embedded Visualizations
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {currentTask.artifacts.filter(a => a.endsWith(".png")).map((art, i) => {
-                      const filename = art.split(/[\\/]/).pop();
+                    {taskArtifacts.chart_urls.map((url, i) => {
                       return (
                         <div key={i} className="rounded-lg overflow-hidden border border-slate-800 bg-slate-950">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
-                            src={`${API_BASE}/data/charts/${filename}`}
+                            src={`${API_BASE}${url}`}
                             alt="Generated Visualization"
                             className="w-full h-auto object-contain"
                           />
@@ -446,10 +440,10 @@ function WorkspaceContent() {
               )}
 
               {/* Markdown Content Viewer */}
-              {currentTask.final_deliverable.markdown_content && (
+              {markdownReport && (
                 <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-6 space-y-4">
                   <pre className="whitespace-pre-wrap font-sans text-sm text-slate-200 leading-relaxed">
-                    {currentTask.final_deliverable.markdown_content}
+                    {markdownReport}
                   </pre>
                 </div>
               )}
