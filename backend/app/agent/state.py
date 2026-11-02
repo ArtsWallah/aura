@@ -1,16 +1,36 @@
 import time
 from enum import Enum
 from typing import Any, Literal
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 class TaskStatus(str, Enum):
-    PENDING = "pending"
+    QUEUED = "queued"
     PLANNING = "planning"
-    EXECUTING = "executing"
-    EVALUATING = "evaluating"
+    RUNNING = "running"
+    WAITING = "waiting"
+    RETRYING = "retrying"
+    CANCEL_REQUESTED = "cancel_requested"
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
+
+    # Source compatibility while existing orchestration code is migrated.
+    PENDING = "queued"
+    EXECUTING = "running"
+    EVALUATING = "running"
+
+
+TASK_STATUS_TRANSITIONS: dict[TaskStatus, frozenset[TaskStatus]] = {
+    TaskStatus.QUEUED: frozenset({TaskStatus.PLANNING, TaskStatus.CANCELLED, TaskStatus.FAILED}),
+    TaskStatus.PLANNING: frozenset({TaskStatus.RUNNING, TaskStatus.WAITING, TaskStatus.CANCEL_REQUESTED, TaskStatus.FAILED}),
+    TaskStatus.RUNNING: frozenset({TaskStatus.WAITING, TaskStatus.RETRYING, TaskStatus.CANCEL_REQUESTED, TaskStatus.COMPLETED, TaskStatus.FAILED}),
+    TaskStatus.WAITING: frozenset({TaskStatus.RUNNING, TaskStatus.RETRYING, TaskStatus.CANCEL_REQUESTED, TaskStatus.CANCELLED, TaskStatus.FAILED}),
+    TaskStatus.RETRYING: frozenset({TaskStatus.RUNNING, TaskStatus.WAITING, TaskStatus.CANCEL_REQUESTED, TaskStatus.FAILED}),
+    TaskStatus.CANCEL_REQUESTED: frozenset({TaskStatus.CANCELLED, TaskStatus.FAILED}),
+    TaskStatus.COMPLETED: frozenset(),
+    TaskStatus.FAILED: frozenset(),
+    TaskStatus.CANCELLED: frozenset(),
+}
 
 class StepStatus(str, Enum):
     PENDING = "pending"
@@ -18,6 +38,7 @@ class StepStatus(str, Enum):
     COMPLETED = "completed"
     FAILED = "failed"
     SKIPPED = "skipped"
+    INTERRUPTED = "interrupted"
 
 class ExecutionStep(BaseModel):
     step_id: str
@@ -29,8 +50,8 @@ class ExecutionStep(BaseModel):
     dependencies: list[str] = Field(default_factory=list)
     output: Any = None
     error: str | None = None
-    retry_count: int = 0
-    max_retries: int = 2
+    retry_count: int = Field(default=0, ge=0)
+    max_retries: int = Field(default=2, ge=0)
     status: StepStatus = StepStatus.PENDING
     duration_ms: float = 0.0
 
@@ -52,16 +73,42 @@ class TaskMetrics(BaseModel):
 class TaskState(BaseModel):
     task_id: str
     objective: str
+    file_path: str | None = None
     privacy_mode: Literal["local_only", "hybrid", "cloud_enabled"] = "hybrid"
-    status: TaskStatus = TaskStatus.PENDING
+    status: TaskStatus = TaskStatus.QUEUED
     plan: ExecutionPlan | None = None
     step_results: dict[str, Any] = Field(default_factory=dict)
     final_deliverable: dict[str, Any] | None = None
     artifacts: list[str] = Field(default_factory=list)
     metrics: TaskMetrics = Field(default_factory=TaskMetrics)
     error_summary: str | None = None
+    recovery_required: bool = False
+    recovery_reason: str | None = None
     created_at: float = Field(default_factory=time.time)
     updated_at: float = Field(default_factory=time.time)
+
+    @model_validator(mode="before")
+    @classmethod
+    def map_legacy_status(cls, value: Any) -> Any:
+        if isinstance(value, dict):
+            legacy = {
+                "pending": "queued",
+                "executing": "running",
+                "evaluating": "running",
+            }
+            status = value.get("status")
+            if isinstance(status, str) and status in legacy:
+                value = {**value, "status": legacy[status]}
+        return value
+
+    def transition_to(self, next_status: TaskStatus) -> None:
+        """Apply a permitted lifecycle transition or reject it without mutation."""
+        next_status = TaskStatus(next_status)
+        allowed = TASK_STATUS_TRANSITIONS[self.status]
+        if next_status not in allowed:
+            raise ValueError(f"Invalid task transition: {self.status.value} -> {next_status.value}.")
+        self.status = next_status
+        self.updated_at = time.time()
 
 class TaskEvent(BaseModel):
     event_type: str # "plan_created", "step_started", "step_completed", "step_failed", "evaluation", "task_completed"

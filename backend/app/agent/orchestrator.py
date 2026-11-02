@@ -14,7 +14,27 @@ from app.privacy.outbound import privacy_scope
 class AgentOrchestrator:
     def __init__(self):
         self._active_tasks: dict[str, TaskState] = {}
-        self._event_queues: dict[str, list[asyncio.Queue]] = {}
+        self._event_queues: dict[str, list[asyncio.Queue[tuple[int, TaskEvent]]]] = {}
+        self._cancel_signals: dict[str, asyncio.Event] = {}
+
+    def request_cancel(self, task_id: str) -> str | None:
+        """Request cancellation; active sync tools finish before cancellation is final."""
+        state = self.get_task_state(task_id)
+        if state is None:
+            return None
+        if state.status in {TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED}:
+            return state.status.value
+        if state.status == TaskStatus.QUEUED:
+            state.transition_to(TaskStatus.CANCELLED)
+            checkpointer.save_checkpoint(state)
+            return state.status.value
+        if state.status != TaskStatus.CANCEL_REQUESTED:
+            state.transition_to(TaskStatus.CANCEL_REQUESTED)
+            checkpointer.save_checkpoint(state)
+        signal = self._cancel_signals.get(task_id)
+        if signal:
+            signal.set()
+        return state.status.value
 
     def get_task_state(self, task_id: str) -> TaskState | None:
         if task_id in self._active_tasks:
@@ -22,45 +42,103 @@ class AgentOrchestrator:
         # Fall back to database checkpoint
         return checkpointer.load_checkpoint(task_id)
 
-    def register_event_listener(self, task_id: str) -> asyncio.Queue:
+    def register_event_listener(self, task_id: str) -> asyncio.Queue[tuple[int, TaskEvent]]:
         q = asyncio.Queue()
         self._event_queues.setdefault(task_id, []).append(q)
         return q
 
-    def remove_event_listener(self, task_id: str, q: asyncio.Queue):
+    def remove_event_listener(self, task_id: str, q: asyncio.Queue[tuple[int, TaskEvent]]):
         if task_id in self._event_queues and q in self._event_queues[task_id]:
             self._event_queues[task_id].remove(q)
 
     async def _emit_event(self, event: TaskEvent):
+        allowed = {
+            "task_started", "plan_created", "step_started", "step_completed",
+            "step_failed", "step_retry", "task_completed", "task_failed", "task_cancelled",
+        }
+        event_type = event.event_type if event.event_type in allowed else "task_update"
+        state = self._active_tasks.get(event.task_id)
+        step = next((item for item in state.plan.steps if item.step_id == event.step_id), None) if state and state.plan and event.step_id else None
+        ordinal = next((index + 1 for index, item in enumerate(state.plan.steps) if item.step_id == event.step_id), None) if state and state.plan and event.step_id else None
+        messages = {
+            "task_started": "Task execution started.",
+            "plan_created": "A validated plan is ready.",
+            "step_started": "A tool step started.",
+            "step_completed": "A tool step completed.",
+            "step_failed": "A tool step failed.",
+            "step_retry": "A retry-safe step will be retried.",
+            "task_completed": "Task completed.",
+            "task_failed": "Task failed.",
+            "task_cancelled": "Task cancelled.",
+            "task_update": "Task status updated.",
+        }
+        safe_data: dict[str, object] = {}
+        if event_type == "plan_created" and state and state.plan:
+            safe_data = {"step_count": len(state.plan.steps)}
+        elif step is not None:
+            safe_data = {
+                "step_index": ordinal,
+                "tool_name": step.tool_name,
+                "status": step.status.value,
+            }
+            if event_type == "step_completed":
+                safe_data["duration_ms"] = max(0, int(step.duration_ms))
+            if event_type == "step_retry":
+                safe_data["retry_count"] = max(0, int(step.retry_count))
+            if event_type == "step_failed":
+                safe_data["error_category"] = "tool_failure"
+        safe_event = TaskEvent(
+            event_type=event_type,
+            task_id=event.task_id,
+            timestamp=event.timestamp,
+            step_id=event.step_id if step is not None else None,
+            message=messages[event_type],
+            data=safe_data,
+        )
+        sequence = await asyncio.to_thread(checkpointer.append_event, safe_event)
         queues = self._event_queues.get(event.task_id, [])
         for q in queues:
-            await q.put(event)
+            await q.put((sequence, safe_event))
 
     async def run_task(
         self,
         objective: str,
         file_path: str | None = None,
         privacy_mode: str = "hybrid",
-        task_id: str | None = None
+        task_id: str | None = None,
+        initial_state: TaskState | None = None,
     ) -> TaskState:
         with privacy_scope(privacy_mode):
-            return await self._run_task(objective, file_path, privacy_mode, task_id)
+            return await self._run_task(objective, file_path, privacy_mode, task_id, initial_state)
 
     async def _run_task(
         self,
         objective: str,
         file_path: str | None = None,
         privacy_mode: str = "hybrid",
-        task_id: str | None = None
+        task_id: str | None = None,
+        initial_state: TaskState | None = None,
     ) -> TaskState:
         t_id = task_id or f"task_{uuid.uuid4().hex[:10]}"
-        state = TaskState(
-            task_id=t_id,
-            objective=objective,
-            privacy_mode=privacy_mode,
-            status=TaskStatus.PLANNING
-        )
+        queued_state = checkpointer.load_checkpoint(t_id) if initial_state is not None else None
+        if initial_state is not None and queued_state is None:
+            raise RuntimeError("Queued task state could not be decrypted; refusing to overwrite it.")
+        if queued_state and queued_state.status == TaskStatus.CANCELLED:
+            return queued_state
+        if queued_state and queued_state.status == TaskStatus.QUEUED:
+            state = initial_state.model_copy(deep=True)
+            state.transition_to(TaskStatus.PLANNING)
+        else:
+            state = TaskState(
+                task_id=t_id,
+                objective=objective,
+                file_path=file_path,
+                privacy_mode=privacy_mode,
+                status=TaskStatus.PLANNING
+            )
         self._active_tasks[t_id] = state
+        cancel_signal = asyncio.Event()
+        self._cancel_signals[t_id] = cancel_signal
         checkpointer.save_checkpoint(state)
         
         start_time = time.perf_counter()
@@ -77,9 +155,14 @@ class AgentOrchestrator:
             provider = llm_router.get_provider(privacy_mode=privacy_mode)
             planner = TaskPlanner(provider)
             
-            plan = await planner.create_plan(objective, file_path)
+            plan = await planner.create_plan(objective, file_path, privacy_mode=privacy_mode)
             state.plan = plan
-            state.status = TaskStatus.EXECUTING
+            if cancel_signal.is_set():
+                state.transition_to(TaskStatus.CANCELLED)
+                checkpointer.save_checkpoint(state)
+                await self._emit_event(TaskEvent(event_type="task_cancelled", task_id=t_id, message="cancelled"))
+                return state
+            state.transition_to(TaskStatus.RUNNING)
             state.metrics.llm_calls_count += 1
             checkpointer.save_checkpoint(state)
 
@@ -106,6 +189,15 @@ class AgentOrchestrator:
             total_steps = len(plan.steps)
 
             while len(completed_step_ids) < total_steps:
+                if cancel_signal.is_set():
+                    for pending_step in plan.steps:
+                        if pending_step.status == StepStatus.PENDING:
+                            pending_step.status = StepStatus.SKIPPED
+                            pending_step.error = "Skipped after cancellation was requested."
+                    if state.status == TaskStatus.CANCEL_REQUESTED:
+                        state.transition_to(TaskStatus.CANCELLED)
+                    checkpointer.save_checkpoint(state)
+                    break
                 # Find all pending steps whose dependencies are satisfied
                 ready_steps = [
                     s for s in plan.steps
@@ -116,7 +208,7 @@ class AgentOrchestrator:
                     # Check if any steps failed or are stuck
                     failed = [s for s in plan.steps if s.status == StepStatus.FAILED]
                     if failed:
-                        state.status = TaskStatus.FAILED
+                        state.transition_to(TaskStatus.FAILED)
                         state.error_summary = f"Execution halted due to failed steps: {[s.step_id for s in failed]}"
                         break
                     else:
@@ -134,15 +226,33 @@ class AgentOrchestrator:
                 for step in ready_steps:
                     if step.status == StepStatus.COMPLETED:
                         completed_step_ids.add(step.step_id)
-                    elif step.status == StepStatus.FAILED:
-                        state.status = TaskStatus.FAILED
+                    elif step.status == StepStatus.FAILED and not cancel_signal.is_set():
+                        state.transition_to(TaskStatus.FAILED)
                         break
 
                 checkpointer.save_checkpoint(state)
                 if state.status == TaskStatus.FAILED:
+                    blocked = {s.step_id for s in plan.steps if s.status == StepStatus.FAILED}
+                    changed = True
+                    while changed:
+                        changed = False
+                        for pending_step in plan.steps:
+                            if pending_step.status == StepStatus.PENDING and any(dep in blocked for dep in pending_step.dependencies):
+                                pending_step.status = StepStatus.SKIPPED
+                                pending_step.error = "Skipped because a prerequisite failed."
+                                blocked.add(pending_step.step_id)
+                                changed = True
+                    checkpointer.save_checkpoint(state)
                     break
 
+            await queue_for_executor.join()
             forward_task.cancel()
+            await asyncio.gather(forward_task, return_exceptions=True)
+
+            if state.status == TaskStatus.CANCELLED:
+                await self._emit_event(TaskEvent(event_type="task_cancelled", task_id=t_id, message="cancelled"))
+                self._cancel_signals.pop(t_id, None)
+                return state
 
             # 3. Final Task Evaluation
             is_successful, eval_reason = evaluator.evaluate_task_completion(state)
@@ -150,7 +260,7 @@ class AgentOrchestrator:
             state.metrics.total_execution_time_ms = (time.perf_counter() - start_time) * 1000.0
 
             if is_successful:
-                state.status = TaskStatus.COMPLETED
+                state.transition_to(TaskStatus.COMPLETED)
                 
                 # Extract final deliverable
                 report_step = next((s for s in reversed(plan.steps) if s.tool_name == "generate_report" and s.status == StepStatus.COMPLETED), None)
@@ -168,7 +278,8 @@ class AgentOrchestrator:
                     data={"deliverable": state.final_deliverable, "metrics": state.metrics.model_dump()}
                 ))
             else:
-                state.status = TaskStatus.FAILED
+                if state.status != TaskStatus.FAILED:
+                    state.transition_to(TaskStatus.FAILED)
                 state.error_summary = eval_reason
                 await self._emit_event(TaskEvent(
                     event_type="task_failed",
@@ -178,19 +289,30 @@ class AgentOrchestrator:
                 ))
 
         except Exception as e:
-            state.status = TaskStatus.FAILED
+            was_cancel_requested = state.status == TaskStatus.CANCEL_REQUESTED
+            if was_cancel_requested:
+                state.transition_to(TaskStatus.CANCELLED)
+            elif state.status not in {TaskStatus.FAILED, TaskStatus.CANCELLED}:
+                state.transition_to(TaskStatus.FAILED)
             state.error_summary = "Internal task error."
             state.updated_at = time.time()
             state.metrics.total_execution_time_ms = (time.perf_counter() - start_time) * 1000.0
             logger.error("Task execution failed with an internal error.")
             await self._emit_event(TaskEvent(
-                event_type="task_failed",
+                event_type="task_cancelled" if was_cancel_requested else "task_failed",
                 task_id=t_id,
-                message="Task execution failed.",
-                data={"error": "Internal task error."}
+                message="Task cancelled at a safe execution boundary." if was_cancel_requested else "Task execution failed.",
+                data={"status": "cancelled" if was_cancel_requested else "failed"}
             ))
 
+        if cancel_signal.is_set() and state.status == TaskStatus.CANCEL_REQUESTED:
+            for pending_step in state.plan.steps if state.plan else []:
+                if pending_step.status == StepStatus.PENDING:
+                    pending_step.status = StepStatus.SKIPPED
+                    pending_step.error = "Skipped after cancellation was requested."
+            state.transition_to(TaskStatus.CANCELLED)
         checkpointer.save_checkpoint(state)
+        self._cancel_signals.pop(t_id, None)
         return state
 
 orchestrator = AgentOrchestrator()

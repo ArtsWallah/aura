@@ -19,7 +19,8 @@ class DescriptiveStatsInput(BaseModel):
     description="Calculates comprehensive descriptive statistics: mean, median, std, IQR, skewness, kurtosis, min, max, and quartiles for numeric fields.",
     input_model=DescriptiveStatsInput,
     execution_location=ExecutionLocation.LOCAL,
-    permission_level=PermissionLevel.READ_ONLY
+    permission_level=PermissionLevel.READ_ONLY,
+    retry_safe=True,
 )
 def descriptive_statistics(params: DescriptiveStatsInput) -> dict[str, Any]:
     safe_path = validate_safe_path(params.file_path)
@@ -80,7 +81,8 @@ class GroupComparisonInput(BaseModel):
     description="Groups data by a categorical feature and computes aggregated metrics (sum, mean, count, min, max, std) for comparative segment analysis.",
     input_model=GroupComparisonInput,
     execution_location=ExecutionLocation.LOCAL,
-    permission_level=PermissionLevel.READ_ONLY
+    permission_level=PermissionLevel.READ_ONLY,
+    retry_safe=True,
 )
 def group_comparison(params: GroupComparisonInput) -> dict[str, Any]:
     safe_path = validate_safe_path(params.file_path)
@@ -137,7 +139,8 @@ class CorrelationAnalysisInput(BaseModel):
     description="Computes Pearson or Spearman correlation coefficients across numeric columns and identifies prominent positive and negative relationships.",
     input_model=CorrelationAnalysisInput,
     execution_location=ExecutionLocation.LOCAL,
-    permission_level=PermissionLevel.READ_ONLY
+    permission_level=PermissionLevel.READ_ONLY,
+    retry_safe=True,
 )
 def correlation_analysis(params: CorrelationAnalysisInput) -> dict[str, Any]:
     safe_path = validate_safe_path(params.file_path)
@@ -198,7 +201,8 @@ class OutlierDetectionInput(BaseModel):
     description="Identifies statistical anomalies and extreme outlier records using IQR or Z-score boundaries.",
     input_model=OutlierDetectionInput,
     execution_location=ExecutionLocation.LOCAL,
-    permission_level=PermissionLevel.READ_ONLY
+    permission_level=PermissionLevel.READ_ONLY,
+    retry_safe=True,
 )
 def detect_outliers(params: OutlierDetectionInput) -> dict[str, Any]:
     safe_path = validate_safe_path(params.file_path)

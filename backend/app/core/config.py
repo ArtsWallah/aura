@@ -1,7 +1,7 @@
 from pathlib import Path
 import ipaddress
 from typing import Literal
-from pydantic import field_validator
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -58,9 +58,13 @@ class Settings(BaseSettings):
         return value
     
     # Agent Execution
-    MAX_PLAN_STEPS: int = 15
-    MAX_STEP_RETRIES: int = 2
-    STEP_TIMEOUT_SECONDS: int = 60
+    MAX_PLAN_STEPS: int = Field(default=15, ge=1, le=100)
+    MAX_STEP_RETRIES: int = Field(default=2, ge=0, le=10)
+    STEP_TIMEOUT_SECONDS: int = Field(default=60, ge=1, le=3600)
+    MAX_CONCURRENT_TASKS: int = Field(default=2, ge=1, le=32)
+    MAX_CONCURRENT_TOOL_EXECUTIONS: int = Field(default=4, ge=1, le=128)
+    WORKER_POLL_INTERVAL_SECONDS: float = Field(default=0.25, ge=0.05, le=10)
+    WORKER_SHUTDOWN_GRACE_SECONDS: int = Field(default=30, ge=1, le=600)
     
     model_config = SettingsConfigDict(
         env_file=".env",

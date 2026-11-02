@@ -5,6 +5,8 @@ from app.agent.state import ExecutionPlan, ExecutionStep, StepStatus
 from app.llm.base import BaseLLMProvider, LLMMessage
 from app.tools.registry import tool_registry
 from app.core.logging import logger
+from app.core.config import settings
+from app.agent.plan_validation import validate_execution_plan
 
 PLANNER_SYSTEM_PROMPT = """You are AURA's Master Task Planner & Decomposer.
 Your responsibility is to decompose complex user objectives into a logical, ordered Directed Acyclic Graph (DAG) of execution steps.
@@ -41,7 +43,8 @@ class TaskPlanner:
         self,
         objective: str,
         file_path: str | None = None,
-        context: dict[str, Any] | None = None
+        context: dict[str, Any] | None = None,
+        privacy_mode: str = "hybrid"
     ) -> ExecutionPlan:
         tools_decl = tool_registry.get_tool_schemas_for_llm()
         tools_summary = "\n".join([f"- {t['name']}: {t['description']}" for t in tools_decl])
@@ -82,7 +85,7 @@ Create a structured execution plan to achieve the objective."""
             if not steps:
                 raise ValueError("LLM generated an empty step list.")
 
-            return ExecutionPlan(
+            plan = ExecutionPlan(
                 plan_id=plan_dict.get("plan_id", f"plan_{uuid.uuid4().hex[:8]}"),
                 goal=objective,
                 steps=steps
@@ -90,10 +93,20 @@ Create a structured execution plan to achieve the objective."""
         except Exception as e:
             logger.error("Failed to parse LLM plan output; falling back to the deterministic plan.")
             # Fallback deterministic plan construction
-            return self._create_fallback_plan(objective, file_path)
+            plan = self._create_fallback_plan(objective, file_path)
+
+        # File paths are server-authorized inputs. Never trust an LLM supplied path,
+        # and pass the selected upload through to every tool that accepts one.
+        if file_path:
+            for step in plan.steps:
+                input_schema = tool_registry.get_tool_definition(step.tool_name).input_schema
+                if "file_path" in input_schema.get("properties", {}):
+                    step.parameters["file_path"] = file_path
+
+        return validate_execution_plan(plan, privacy_mode=privacy_mode)
 
     def _create_fallback_plan(self, objective: str, file_path: str | None) -> ExecutionPlan:
-        target_file = file_path or "data/sample_sales.csv"
+        target_file = file_path or str(settings.DATA_DIR / "sample_sales.csv")
         return ExecutionPlan(
             plan_id=f"plan_fallback_{uuid.uuid4().hex[:6]}",
             goal=objective,

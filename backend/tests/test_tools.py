@@ -112,7 +112,8 @@ async def test_report_generation(sample_sales_csv):
                 "Scale investment in high-margin Electronics line.",
                 "Review marketing strategy for underperforming categories."
             ]
-        }
+        },
+        user_approval_granted=True,
     )
     assert report_res.success is True
     assert Path(report_res.data["markdown_path"]).exists()

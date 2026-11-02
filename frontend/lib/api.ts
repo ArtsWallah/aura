@@ -70,6 +70,7 @@ export async function createTask(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ objective, file_path, privacy_mode }),
   });
+  if (!res.ok) throw new Error(`Task submission failed (${res.status}).`);
   return res.json();
 }
 

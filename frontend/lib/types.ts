@@ -1,15 +1,17 @@
 export type PrivacyMode = "local_only" | "hybrid" | "cloud_enabled";
 
 export type TaskStatus = 
-  | "pending" 
+  | "queued"
   | "planning" 
-  | "executing" 
-  | "evaluating" 
+  | "running"
+  | "waiting"
+  | "retrying"
+  | "cancel_requested"
   | "completed" 
   | "failed" 
   | "cancelled";
 
-export type StepStatus = "pending" | "in_progress" | "completed" | "failed" | "skipped";
+export type StepStatus = "pending" | "in_progress" | "completed" | "failed" | "skipped" | "interrupted";
 
 export interface ExecutionStep {
   step_id: string;
@@ -55,6 +57,8 @@ export interface TaskState {
   artifacts: string[];
   metrics: TaskMetrics;
   error_summary?: string | null;
+  recovery_required?: boolean;
+  recovery_reason?: string | null;
   created_at: number;
   updated_at: number;
 }
@@ -68,6 +72,7 @@ export interface ToolDefinition {
   execution_location: string;
   permission_level: string;
   requires_approval: boolean;
+  retry_safe: boolean;
   timeout_seconds: number;
   version: string;
 }

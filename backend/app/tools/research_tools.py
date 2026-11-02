@@ -26,6 +26,7 @@ class SourceCitation(BaseModel):
     input_model=WebResearchInput,
     execution_location=ExecutionLocation.CLOUD,
     permission_level=PermissionLevel.READ_ONLY,
+    retry_safe=True,
     timeout_seconds=20
 )
 async def web_research(params: WebResearchInput) -> dict[str, Any]:

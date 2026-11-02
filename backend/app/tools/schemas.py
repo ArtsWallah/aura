@@ -37,6 +37,7 @@ class ToolDefinition(BaseModel):
     execution_location: ExecutionLocation = ExecutionLocation.LOCAL
     permission_level: PermissionLevel = PermissionLevel.READ_ONLY
     requires_approval: bool = False
+    retry_safe: bool = False
     timeout_seconds: int = 60
     version: str = "1.0.0"
 

@@ -1,5 +1,6 @@
 import pytest
 import pandas as pd
+import time
 from fastapi.testclient import TestClient
 from app.main import app
 from app.core.config import settings
@@ -65,16 +66,54 @@ def test_settings_endpoint():
         assert data["gemini_api_key_masked"] == "Configured"
 
 def test_create_task_api(api_test_csv):
-    res = client.post(
-        "/api/tasks",
-        json={
-            "objective": "Analyze dataset and detect underperforming categories",
-            "file_path": api_test_csv,
-            "privacy_mode": "local_only"
-        }
-    )
-    assert res.status_code == 200
-    task_data = res.json()
-    assert task_data["status"] == "completed"
-    assert task_data["final_deliverable"] is not None
+    with TestClient(app, client=("127.0.0.1", 54321)) as task_client:
+        res = task_client.post(
+            "/api/tasks",
+            json={
+                "objective": "Analyze dataset and detect underperforming categories",
+                "file_path": api_test_csv,
+                "privacy_mode": "local_only"
+            }
+        )
+        assert res.status_code == 202
+        accepted = res.json()
+        assert accepted["status"] == "queued"
+        task_id = accepted["task_id"]
+
+        final = None
+        for _ in range(200):
+            response = task_client.get(f"/api/tasks/{task_id}")
+            assert response.status_code == 200
+            final = response.json()
+            if final["status"] in {"completed", "failed"}:
+                break
+            time.sleep(0.05)
+
+        assert final["task_id"] == task_id
+        assert final["status"] == "completed"
+        assert final["final_deliverable"] is not None
+
+        stream = task_client.get(f"/api/tasks/{task_id}/events")
+        assert stream.status_code == 200
+        event_text = stream.text
+        assert "event: task.created" in event_text
+        assert "event: task_completed" in event_text
+        assert "objective\"" not in event_text
+        assert "file_path" not in event_text
+        sequence_ids = [int(line[4:]) for line in event_text.splitlines() if line.startswith("id: ")]
+        assert sequence_ids == sorted(set(sequence_ids))
+
+        replay = task_client.get(
+            f"/api/tasks/{task_id}/events",
+            headers={"Last-Event-ID": "1"},
+        )
+        assert replay.status_code == 200
+        assert "event: task.created" not in replay.text
+        assert all(int(line[4:]) > 1 for line in replay.text.splitlines() if line.startswith("id: "))
+
+        bad_cursor = task_client.get(
+            f"/api/tasks/{task_id}/events",
+            headers={"Last-Event-ID": "not-a-number"},
+        )
+        assert bad_cursor.status_code == 400
 

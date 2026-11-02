@@ -165,7 +165,9 @@ def test_task_checkpoint_is_encrypted_at_rest(managed_test_dir):
     raw = conn.execute("SELECT state_json FROM task_checkpoints").fetchone()[0]
     conn.close()
     assert "user@example.com" not in raw
-    assert store.load_checkpoint(state.task_id).objective == state.objective
+    decrypted = encryption_service().decrypt_bytes(raw.encode("ascii")).decode("utf-8")
+    assert "user@example.com" not in decrypted
+    assert store.load_checkpoint(state.task_id).objective == ""
     assert "objective" not in store.list_checkpoints()[0]
 
 

@@ -19,7 +19,8 @@ class ReadDocumentInput(BaseModel):
     description="Reads local documents, extracts plain text, and chunks them into structured sections for downstream reasoning or embedding retrieval.",
     input_model=ReadDocumentInput,
     execution_location=ExecutionLocation.LOCAL,
-    permission_level=PermissionLevel.READ_ONLY
+    permission_level=PermissionLevel.READ_ONLY,
+    retry_safe=True,
 )
 def read_document(params: ReadDocumentInput) -> dict[str, Any]:
     safe_path = validate_safe_path(params.file_path)
@@ -69,7 +70,8 @@ class SearchDocumentChunksInput(BaseModel):
     description="Performs keyword and token-overlap relevance scoring over document chunks to retrieve the most contextually relevant excerpts.",
     input_model=SearchDocumentChunksInput,
     execution_location=ExecutionLocation.LOCAL,
-    permission_level=PermissionLevel.READ_ONLY
+    permission_level=PermissionLevel.READ_ONLY,
+    retry_safe=True,
 )
 def search_document_chunks(params: SearchDocumentChunksInput) -> dict[str, Any]:
     query_terms = set(re.findall(r"\w+", params.query.lower()))

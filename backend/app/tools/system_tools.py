@@ -16,7 +16,8 @@ class SystemHealthInput(BaseModel):
     description="Reports system operational status, Python environment version, available tool counts, and storage metrics.",
     input_model=SystemHealthInput,
     execution_location=ExecutionLocation.LOCAL,
-    permission_level=PermissionLevel.READ_ONLY
+    permission_level=PermissionLevel.READ_ONLY,
+    retry_safe=True,
 )
 def system_health(params: SystemHealthInput) -> dict[str, Any]:
     storage_info = {}

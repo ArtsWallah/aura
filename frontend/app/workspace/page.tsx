@@ -71,82 +71,49 @@ function WorkspaceContent() {
     setActiveTab("plan");
 
     try {
-      // 1. Submit task creation
+      // The API returns 202 and the stable task ID before execution begins.
       const initialTask = await createTask(objective, filePath, privacyMode);
       setCurrentTask(initialTask);
 
-      // 2. Open SSE stream for live updates
+      // Subscribe immediately; EventSource reconnects with Last-Event-ID and never
+      // resubmits the task when the connection drops.
       const eventSource = new EventSource(`${API_BASE}/api/tasks/${initialTask.task_id}/events`);
-
-      eventSource.onmessage = (event) => {
-        try {
-          const parsed = JSON.parse(event.data);
+      const terminalEvents = new Set(["task_completed", "task_failed", "task_cancelled"]);
+      const eventNames = [
+        "task.created", "task_started", "plan_created", "step_started", "step_completed",
+        "step_failed", "step_retry", "task_completed", "task_failed", "task_cancelled", "task.snapshot",
+      ];
+      eventNames.forEach((eventName) => {
+        eventSource.addEventListener(eventName, (event: MessageEvent) => {
+          let data: { message?: string } = {};
+          try {
+            data = JSON.parse(event.data);
+          } catch {
+            // Ignore malformed event payloads; the server emits JSON projections.
+          }
           setEvents((prev) => [
             ...prev,
             {
               timestamp: new Date().toLocaleTimeString(),
-              message: parsed.message || event.data,
-              type: parsed.event_type || "info",
+              message: data.message || "Task status updated.",
+              type: eventName,
             },
           ]);
-        } catch {
-          // Plain message
-        }
-      };
+          fetchTask(initialTask.task_id).then(setCurrentTask);
 
-      eventSource.addEventListener("step_started", (e: any) => {
-        const data = JSON.parse(e.data);
-        setEvents((prev) => [
-          ...prev,
-          { timestamp: new Date().toLocaleTimeString(), message: data.message, type: "step_started" },
-        ]);
-        // Refresh task state
-        fetchTask(initialTask.task_id).then(setCurrentTask);
-      });
-
-      eventSource.addEventListener("step_completed", (e: any) => {
-        const data = JSON.parse(e.data);
-        setEvents((prev) => [
-          ...prev,
-          { timestamp: new Date().toLocaleTimeString(), message: data.message, type: "step_completed" },
-        ]);
-        fetchTask(initialTask.task_id).then(setCurrentTask);
-      });
-
-      eventSource.addEventListener("task_completed", (e: any) => {
-        const data = JSON.parse(e.data);
-        setEvents((prev) => [
-          ...prev,
-          { timestamp: new Date().toLocaleTimeString(), message: "Execution DAG completed successfully.", type: "task_completed" },
-        ]);
-        fetchTask(initialTask.task_id).then((t) => {
-          setCurrentTask(t);
-          setIsRunning(false);
-          setActiveTab("report");
+          if (terminalEvents.has(eventName)) {
+            eventSource.close();
+            fetchTask(initialTask.task_id).then((task) => {
+              setCurrentTask(task);
+              setIsRunning(false);
+              if (eventName === "task_completed") setActiveTab("report");
+            });
+          }
         });
-        eventSource.close();
       });
-
-      eventSource.addEventListener("task_failed", (e: any) => {
-        const data = JSON.parse(e.data);
-        setEvents((prev) => [
-          ...prev,
-          { timestamp: new Date().toLocaleTimeString(), message: `Task halted: ${data.message}`, type: "task_failed" },
-        ]);
-        fetchTask(initialTask.task_id).then((t) => {
-          setCurrentTask(t);
-          setIsRunning(false);
-        });
-        eventSource.close();
-      });
-
       eventSource.onerror = () => {
-        eventSource.close();
-        // Polling fallback to get final status
-        fetchTask(initialTask.task_id).then((t) => {
-          setCurrentTask(t);
-          setIsRunning(false);
-        });
+        // Leave the source open. The browser reconnects automatically and sends
+        // Last-Event-ID so the server can replay events without task resubmission.
       };
     } catch (err: any) {
       alert(`Task initiation error: ${err.message}`);

@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.logging import logger
+from app.agent.service import task_execution_service
 from app.api.routes import health, tools, models, tasks, files, artifacts, settings as settings_routes
 
 # Ensure tools and models are loaded
@@ -16,7 +17,9 @@ import app.models
 async def lifespan(app: FastAPI):
     logger.info("Initializing AURA Platform backend services...")
     settings.init_directories()
+    await task_execution_service.start()
     yield
+    await task_execution_service.stop()
     logger.info("Shutting down AURA Platform backend services...")
 
 app = FastAPI(

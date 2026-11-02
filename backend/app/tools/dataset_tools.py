@@ -36,6 +36,7 @@ class InspectDatasetOutput(BaseModel):
     output_model=InspectDatasetOutput,
     execution_location=ExecutionLocation.LOCAL,
     permission_level=PermissionLevel.READ_ONLY,
+    retry_safe=True,
     timeout_seconds=30
 )
 def inspect_dataset(params: InspectDatasetInput) -> dict[str, Any]:

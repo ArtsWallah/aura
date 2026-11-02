@@ -1,7 +1,7 @@
 import asyncio
 import time
 from typing import Any
-from app.agent.state import ExecutionStep, StepStatus, TaskState, TaskEvent
+from app.agent.state import ExecutionStep, StepStatus, TaskState, TaskEvent, TaskStatus
 from app.agent.evaluator import evaluator
 from app.tools.registry import tool_registry
 from app.tools.schemas import ToolResult
@@ -11,12 +11,26 @@ class PlanExecutor:
     def __init__(self):
         pass
 
+    @staticmethod
+    def _is_retryable_failure(error: str | None) -> bool:
+        if not error:
+            return False
+        lowered = error.lower()
+        transient_markers = (
+            "timed out", "temporarily unavailable", "temporary failure",
+            "connection reset", "connection refused", "rate limit", "http 429", "http 5",
+        )
+        return any(marker in lowered for marker in transient_markers)
+
     async def execute_step(
         self,
         step: ExecutionStep,
         task_state: TaskState,
         event_queue: asyncio.Queue | None = None
     ) -> ToolResult:
+        if task_state.status == TaskStatus.CANCEL_REQUESTED:
+            step.status = StepStatus.SKIPPED
+            return ToolResult(tool_name=step.tool_name, success=False, error="Tool execution cancelled before start.")
         step.status = StepStatus.IN_PROGRESS
         start_time = time.perf_counter()
         
@@ -40,8 +54,14 @@ class PlanExecutor:
             result = await tool_registry.execute_tool(
                 name=step.tool_name,
                 arguments=resolved_params,
-                user_approval_granted=True # Auto-approved by orchestrator workflow
+                user_approval_granted=True, # The submitted task authorizes its validated plan.
+                cancellation_check=lambda: task_state.status == TaskStatus.CANCEL_REQUESTED,
             )
+
+            if result.error == "Tool execution cancelled before start.":
+                step.status = StepStatus.SKIPPED
+                retry = False
+                break
             
             task_state.metrics.tool_calls_count += 1
             
@@ -73,9 +93,19 @@ class PlanExecutor:
                     ))
                 retry = False
             else:
-                if eval_res.requires_retry and step.retry_count < step.max_retries:
+                tool_definition = tool_registry.get_tool_definition(step.tool_name)
+                if (
+                    eval_res.requires_retry
+                    and task_state.status != TaskStatus.CANCEL_REQUESTED
+                    and tool_definition is not None
+                    and tool_definition.retry_safe
+                    and (eval_res.suggested_parameter_correction is not None or self._is_retryable_failure(result.error))
+                    and step.retry_count < step.max_retries
+                ):
                     step.retry_count += 1
                     task_state.metrics.retries_count += 1
+                    if task_state.status == TaskStatus.RUNNING:
+                        task_state.transition_to(TaskStatus.RETRYING)
                     logger.warning("Retrying failed tool step.")
                     
                     if eval_res.suggested_parameter_correction:
@@ -90,6 +120,8 @@ class PlanExecutor:
                             data={"retry_count": step.retry_count}
                         ))
                     await asyncio.sleep(0.5)
+                    if task_state.status == TaskStatus.RETRYING:
+                        task_state.transition_to(TaskStatus.RUNNING)
                 else:
                     step.status = StepStatus.FAILED
                     step.error = eval_res.reason
