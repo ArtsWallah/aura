@@ -1,0 +1,1201 @@
+order_id,order_date,category,region,sales_channel,units_sold,unit_price,revenue,profit
+ORD-10484,2025-01-01,Networking Cables & Adapters,North America,Digital Self-Serve,26,41.17,1070.42,399.85
+ORD-10691,2025-01-01,Enterprise Server Solutions,LATAM,Direct Enterprise,12,2579.49,30953.88,11038.12
+ORD-10315,2025-01-02,Enterprise Server Solutions,North America,Partner Reseller,12,1793.37,21520.44,6929.46
+ORD-10382,2025-01-02,Cloud Storage Appliances,APAC,Direct Enterprise,11,1754.72,19301.92,7241.61
+ORD-10821,2025-01-02,Enterprise Server Solutions,APAC,Direct Enterprise,2,1679.46,3358.92,1298.44
+ORD-11006,2025-01-02,Cloud Storage Appliances,North America,Partner Reseller,12,1664.48,19973.76,4050.52
+ORD-11165,2025-01-02,Enterprise Server Solutions,LATAM,Partner Reseller,3,4145.53,12436.59,2530.58
+ORD-10205,2025-01-04,Enterprise Server Solutions,EMEA,Direct Enterprise,8,3778.28,30226.24,11765.7
+ORD-10481,2025-01-04,Enterprise Server Solutions,APAC,Digital Self-Serve,11,1256.48,13821.28,4048.01
+ORD-10663,2025-01-04,Networking Cables & Adapters,EMEA,Digital Self-Serve,52,27.66,1438.32,343.97
+ORD-10082,2025-01-05,Cloud Storage Appliances,LATAM,Partner Reseller,4,853.7,3414.8,1129.39
+ORD-10247,2025-01-05,Enterprise Server Solutions,EMEA,Direct Enterprise,11,2809.53,30904.83,7300.54
+ORD-10428,2025-01-05,Enterprise Server Solutions,LATAM,Partner Reseller,9,3418.7,30768.3,12629.77
+ORD-10467,2025-01-05,Cloud Storage Appliances,North America,Direct Enterprise,4,1342.32,5369.28,1620.26
+ORD-10519,2025-01-05,Networking Cables & Adapters,EMEA,Direct Enterprise,58,22.79,1321.82,277.97
+ORD-10692,2025-01-06,Networking Cables & Adapters,APAC,Direct Enterprise,23,30.8,708.4,183.16
+ORD-10850,2025-01-06,Cybersecurity Peripherals,EMEA,Partner Reseller,45,364.68,16410.6,5449.51
+ORD-10490,2025-01-07,Cloud Storage Appliances,North America,Direct Enterprise,12,1227.75,14733.0,4452.27
+ORD-10555,2025-01-07,Enterprise Server Solutions,North America,Direct Enterprise,10,2438.95,24389.5,6915.22
+ORD-10649,2025-01-07,Enterprise Server Solutions,North America,Direct Enterprise,10,3611.59,36115.9,11189.42
+ORD-11069,2025-01-07,Cybersecurity Peripherals,EMEA,Partner Reseller,7,665.0,4655.0,859.93
+ORD-11124,2025-01-07,Legacy Replacement Parts,North America,Digital Self-Serve,3,21.63,64.89,17.86
+ORD-11133,2025-01-07,Enterprise Server Solutions,LATAM,Digital Self-Serve,7,4390.31,30732.17,11834.99
+ORD-10389,2025-01-08,Cloud Storage Appliances,LATAM,Partner Reseller,3,751.82,2255.46,889.33
+ORD-10683,2025-01-08,Cybersecurity Peripherals,North America,Digital Self-Serve,15,926.39,13895.85,3227.19
+ORD-11079,2025-01-08,Enterprise Server Solutions,LATAM,Direct Enterprise,1,1447.18,1447.18,493.87
+ORD-10510,2025-01-09,Networking Cables & Adapters,EMEA,Digital Self-Serve,45,64.51,2902.95,768.08
+ORD-10640,2025-01-09,Cloud Storage Appliances,LATAM,Partner Reseller,6,842.19,5053.14,1625.96
+ORD-10785,2025-01-10,Networking Cables & Adapters,EMEA,Direct Enterprise,54,15.59,841.86,328.09
+ORD-10803,2025-01-10,Enterprise Server Solutions,APAC,Partner Reseller,1,4458.6,4458.6,1923.32
+ORD-10831,2025-01-10,Cloud Storage Appliances,APAC,Direct Enterprise,13,983.48,12785.24,4142.35
+ORD-11118,2025-01-10,Cybersecurity Peripherals,LATAM,Partner Reseller,13,549.09,7138.17,2861.46
+ORD-10115,2025-01-11,Enterprise Server Solutions,EMEA,Digital Self-Serve,11,2187.7,24064.7,9596.69
+ORD-10236,2025-01-11,Enterprise Server Solutions,EMEA,Direct Enterprise,9,1569.49,14125.41,5461.95
+ORD-10524,2025-01-11,Networking Cables & Adapters,LATAM,Digital Self-Serve,75,56.6,4245.0,1824.51
+ORD-10553,2025-01-11,Cybersecurity Peripherals,North America,Partner Reseller,11,672.42,7396.62,2089.95
+ORD-10650,2025-01-11,Cloud Storage Appliances,North America,Partner Reseller,10,1224.94,12249.4,4127.96
+ORD-10828,2025-01-11,Enterprise Server Solutions,EMEA,Partner Reseller,13,2242.34,29150.42,10778.53
+ORD-10877,2025-01-11,Cloud Storage Appliances,LATAM,Direct Enterprise,13,1776.43,23093.59,9501.72
+ORD-11003,2025-01-11,Cloud Storage Appliances,EMEA,Direct Enterprise,1,602.65,602.65,204.46
+ORD-10327,2025-01-12,Cybersecurity Peripherals,EMEA,Partner Reseller,75,274.21,20565.75,8714.25
+ORD-10710,2025-01-12,Cloud Storage Appliances,EMEA,Digital Self-Serve,1,1603.36,1603.36,571.18
+ORD-10737,2025-01-12,Enterprise Server Solutions,APAC,Partner Reseller,15,4269.68,64045.2,13406.65
+ORD-10811,2025-01-12,Cybersecurity Peripherals,APAC,Partner Reseller,15,800.44,12006.6,4724.35
+ORD-10217,2025-01-13,Cybersecurity Peripherals,North America,Direct Enterprise,5,709.26,3546.3,1568.45
+ORD-11111,2025-01-13,Enterprise Server Solutions,North America,Direct Enterprise,3,1736.79,5210.37,986.91
+ORD-10027,2025-01-14,Cloud Storage Appliances,EMEA,Digital Self-Serve,7,782.51,5477.57,2050.48
+ORD-10067,2025-01-14,Enterprise Server Solutions,LATAM,Partner Reseller,14,2508.07,35112.98,10474.36
+ORD-10293,2025-01-14,Enterprise Server Solutions,North America,Digital Self-Serve,3,1881.6,5644.8,1404.74
+ORD-10632,2025-01-14,Enterprise Server Solutions,EMEA,Digital Self-Serve,3,2194.34,6583.02,2408.45
+ORD-10765,2025-01-14,Enterprise Server Solutions,LATAM,Partner Reseller,3,2313.9,6941.7,1701.78
+ORD-10069,2025-01-15,Cloud Storage Appliances,LATAM,Digital Self-Serve,13,1095.43,14240.59,2765.63
+ORD-10207,2025-01-15,Cloud Storage Appliances,APAC,Direct Enterprise,13,1569.2,20399.6,8621.26
+ORD-10253,2025-01-15,Cloud Storage Appliances,APAC,Direct Enterprise,12,1548.55,18582.6,6091.0
+ORD-10482,2025-01-16,Enterprise Server Solutions,North America,Direct Enterprise,7,2517.79,17624.53,4377.37
+ORD-10577,2025-01-16,Cloud Storage Appliances,North America,Direct Enterprise,10,1583.88,15838.8,3665.91
+ORD-11176,2025-01-16,Cybersecurity Peripherals,EMEA,Digital Self-Serve,11,402.44,4426.84,1800.55
+ORD-10532,2025-01-17,Legacy Replacement Parts,LATAM,Direct Enterprise,1,61.81,61.81,25.47
+ORD-10776,2025-01-17,Cloud Storage Appliances,LATAM,Direct Enterprise,8,753.26,6026.08,1982.73
+ORD-10797,2025-01-17,Cloud Storage Appliances,APAC,Digital Self-Serve,5,1305.44,6527.2,2532.65
+ORD-10917,2025-01-17,Enterprise Server Solutions,LATAM,Partner Reseller,11,2424.51,26669.61,6532.05
+ORD-11144,2025-01-18,Cybersecurity Peripherals,EMEA,Digital Self-Serve,12,752.03,9024.36,3836.95
+ORD-10624,2025-01-19,Networking Cables & Adapters,North America,Digital Self-Serve,45,18.35,825.75,237.9
+ORD-10662,2025-01-19,Cybersecurity Peripherals,EMEA,Digital Self-Serve,10,679.27,6792.7,2767.34
+ORD-10625,2025-01-21,Networking Cables & Adapters,LATAM,Partner Reseller,39,24.67,962.13,375.39
+ORD-11093,2025-01-21,Enterprise Server Solutions,LATAM,Partner Reseller,12,4493.74,53924.88,10609.4
+ORD-11151,2025-01-21,Enterprise Server Solutions,APAC,Partner Reseller,1,1492.69,1492.69,537.49
+ORD-10111,2025-01-22,Legacy Replacement Parts,LATAM,Partner Reseller,1,59.93,59.93,15.44
+ORD-10657,2025-01-22,Enterprise Server Solutions,APAC,Partner Reseller,7,1982.27,13875.89,5846.57
+ORD-11074,2025-01-22,Networking Cables & Adapters,LATAM,Digital Self-Serve,49,50.09,2454.41,828.97
+ORD-10160,2025-01-23,Enterprise Server Solutions,North America,Direct Enterprise,12,3241.8,38901.6,14915.21
+ORD-10263,2025-01-23,Networking Cables & Adapters,North America,Partner Reseller,63,19.92,1254.96,259.66
+ORD-10286,2025-01-23,Enterprise Server Solutions,North America,Partner Reseller,5,1208.48,6042.4,2489.51
+ORD-10373,2025-01-23,Enterprise Server Solutions,APAC,Partner Reseller,4,2715.76,10863.04,2016.04
+ORD-10355,2025-01-24,Enterprise Server Solutions,EMEA,Partner Reseller,8,2455.07,19640.56,7033.25
+ORD-10365,2025-01-24,Enterprise Server Solutions,EMEA,Direct Enterprise,10,2845.53,28455.3,10608.69
+ORD-10928,2025-01-24,Networking Cables & Adapters,APAC,Direct Enterprise,59,26.74,1577.66,626.31
+ORD-11020,2025-01-24,Cloud Storage Appliances,North America,Digital Self-Serve,14,1298.22,18175.08,4937.48
+ORD-11183,2025-01-24,Enterprise Server Solutions,LATAM,Partner Reseller,9,3665.83,32992.47,14373.16
+ORD-10136,2025-01-25,Enterprise Server Solutions,APAC,Partner Reseller,13,3957.31,51445.03,11866.52
+ORD-10398,2025-01-25,Cloud Storage Appliances,LATAM,Digital Self-Serve,3,1723.32,5169.96,2068.47
+ORD-11129,2025-01-25,Legacy Replacement Parts,LATAM,Direct Enterprise,1,22.08,22.08,4.28
+ORD-10026,2025-01-26,Cloud Storage Appliances,LATAM,Direct Enterprise,13,1412.38,18360.94,6777.55
+ORD-10252,2025-01-26,Cloud Storage Appliances,EMEA,Digital Self-Serve,15,1108.21,16623.15,4844.5
+ORD-10296,2025-01-26,Cloud Storage Appliances,EMEA,Digital Self-Serve,15,1311.23,19668.45,6889.9
+ORD-10758,2025-01-26,Cloud Storage Appliances,EMEA,Digital Self-Serve,7,1565.68,10959.76,3792.47
+ORD-10872,2025-01-26,Cloud Storage Appliances,APAC,Direct Enterprise,8,1738.57,13908.56,3638.55
+ORD-11177,2025-01-26,Networking Cables & Adapters,LATAM,Partner Reseller,36,28.25,1017.0,329.64
+ORD-10122,2025-01-28,Cybersecurity Peripherals,LATAM,Partner Reseller,13,604.16,7854.08,3049.99
+ORD-10696,2025-01-28,Cloud Storage Appliances,APAC,Partner Reseller,13,773.06,10049.78,3098.76
+ORD-10754,2025-01-28,Legacy Replacement Parts,APAC,Digital Self-Serve,1,49.71,49.71,19.47
+ORD-10809,2025-01-28,Enterprise Server Solutions,APAC,Digital Self-Serve,13,3692.42,48001.46,10752.09
+ORD-10774,2025-01-29,Cybersecurity Peripherals,North America,Partner Reseller,15,937.21,14058.15,5250.4
+ORD-11094,2025-01-29,Cloud Storage Appliances,EMEA,Partner Reseller,3,1048.21,3144.63,566.6
+ORD-10050,2025-01-30,Enterprise Server Solutions,North America,Digital Self-Serve,4,4302.79,17211.16,6797.58
+ORD-10112,2025-01-30,Cybersecurity Peripherals,EMEA,Digital Self-Serve,14,690.92,9672.88,2141.88
+ORD-10906,2025-01-30,Cybersecurity Peripherals,APAC,Partner Reseller,1,622.55,622.55,215.55
+ORD-10023,2025-01-31,Cloud Storage Appliances,APAC,Partner Reseller,1,773.74,773.74,302.3
+ORD-10531,2025-01-31,Networking Cables & Adapters,North America,Direct Enterprise,51,38.43,1959.93,689.25
+ORD-10288,2025-02-01,Enterprise Server Solutions,LATAM,Direct Enterprise,10,2148.96,21489.6,8088.24
+ORD-10551,2025-02-01,Legacy Replacement Parts,LATAM,Partner Reseller,1,54.02,54.02,13.71
+ORD-10699,2025-02-01,Cloud Storage Appliances,LATAM,Direct Enterprise,1,1165.16,1165.16,364.92
+ORD-10740,2025-02-01,Cloud Storage Appliances,LATAM,Direct Enterprise,2,1446.23,2892.46,774.27
+ORD-11142,2025-02-01,Cloud Storage Appliances,North America,Digital Self-Serve,14,881.61,12342.54,4432.65
+ORD-11157,2025-02-01,Enterprise Server Solutions,APAC,Direct Enterprise,12,2114.76,25377.12,10713.62
+ORD-10380,2025-02-02,Enterprise Server Solutions,APAC,Direct Enterprise,9,2685.62,24170.58,7299.32
+ORD-10598,2025-02-02,Enterprise Server Solutions,North America,Direct Enterprise,15,2009.57,30143.55,6942.56
+ORD-10904,2025-02-02,Cloud Storage Appliances,LATAM,Direct Enterprise,6,640.71,3844.26,921.99
+ORD-10046,2025-02-03,Enterprise Server Solutions,EMEA,Digital Self-Serve,12,2452.5,29430.0,9835.22
+ORD-10671,2025-02-04,Enterprise Server Solutions,EMEA,Partner Reseller,13,2875.68,37383.84,7292.55
+ORD-10278,2025-02-05,Enterprise Server Solutions,North America,Partner Reseller,12,2508.56,30102.72,12118.56
+ORD-10852,2025-02-05,Enterprise Server Solutions,EMEA,Partner Reseller,7,4494.77,31463.39,7314.48
+ORD-11033,2025-02-05,Enterprise Server Solutions,North America,Partner Reseller,9,2445.08,22005.72,7368.39
+ORD-11085,2025-02-05,Cloud Storage Appliances,APAC,Digital Self-Serve,7,618.4,4328.8,1895.33
+ORD-10120,2025-02-06,Cybersecurity Peripherals,EMEA,Direct Enterprise,13,640.1,8321.3,1986.74
+ORD-10225,2025-02-06,Cloud Storage Appliances,LATAM,Direct Enterprise,7,1430.78,10015.46,2446.5
+ORD-10525,2025-02-06,Enterprise Server Solutions,APAC,Digital Self-Serve,14,2587.76,36228.64,11104.25
+ORD-10631,2025-02-06,Cloud Storage Appliances,EMEA,Partner Reseller,5,1624.68,8123.4,2976.98
+ORD-11140,2025-02-06,Cloud Storage Appliances,LATAM,Digital Self-Serve,12,1795.11,21541.32,7135.54
+ORD-10016,2025-02-07,Enterprise Server Solutions,North America,Partner Reseller,3,1453.96,4361.88,1341.6
+ORD-10255,2025-02-07,Cybersecurity Peripherals,EMEA,Direct Enterprise,29,426.01,12354.29,3162.77
+ORD-10485,2025-02-07,Enterprise Server Solutions,APAC,Digital Self-Serve,5,4056.7,20283.5,7943.22
+ORD-10611,2025-02-07,Enterprise Server Solutions,North America,Partner Reseller,1,3931.32,3931.32,947.62
+ORD-11134,2025-02-07,Legacy Replacement Parts,EMEA,Partner Reseller,4,38.65,154.6,28.29
+ORD-10338,2025-02-08,Cloud Storage Appliances,LATAM,Digital Self-Serve,7,1692.87,11850.09,5261.37
+ORD-10677,2025-02-08,Enterprise Server Solutions,EMEA,Partner Reseller,13,1665.06,21645.78,6109.58
+ORD-10999,2025-02-08,Enterprise Server Solutions,APAC,Partner Reseller,7,2887.84,20214.88,5497.01
+ORD-10196,2025-02-09,Legacy Replacement Parts,LATAM,Direct Enterprise,1,65.87,65.87,18.92
+ORD-10324,2025-02-09,Cloud Storage Appliances,EMEA,Direct Enterprise,5,609.25,3046.25,614.94
+ORD-10452,2025-02-09,Cloud Storage Appliances,North America,Direct Enterprise,7,809.31,5665.17,2251.12
+ORD-10702,2025-02-09,Enterprise Server Solutions,North America,Partner Reseller,6,3902.97,23417.82,8513.04
+ORD-11071,2025-02-09,Enterprise Server Solutions,North America,Direct Enterprise,4,1771.86,7087.44,2196.74
+ORD-11180,2025-02-09,Cloud Storage Appliances,North America,Direct Enterprise,1,928.81,928.81,345.87
+ORD-10639,2025-02-10,Enterprise Server Solutions,EMEA,Direct Enterprise,5,3347.35,16736.75,4266.83
+ORD-10080,2025-02-11,Enterprise Server Solutions,North America,Partner Reseller,7,2615.53,18308.71,4776.4
+ORD-10266,2025-02-11,Cybersecurity Peripherals,LATAM,Digital Self-Serve,6,737.61,4425.66,1050.34
+ORD-10351,2025-02-11,Cloud Storage Appliances,North America,Direct Enterprise,12,606.83,7281.96,2621.31
+ORD-10924,2025-02-11,Enterprise Server Solutions,LATAM,Partner Reseller,9,2434.24,21908.16,6327.83
+ORD-11039,2025-02-11,Cloud Storage Appliances,LATAM,Direct Enterprise,9,1652.44,14871.96,6272.91
+ORD-10464,2025-02-12,Enterprise Server Solutions,APAC,Partner Reseller,12,2973.45,35681.4,9796.43
+ORD-10896,2025-02-12,Enterprise Server Solutions,North America,Partner Reseller,9,2555.96,23003.64,5112.69
+ORD-10116,2025-02-13,Enterprise Server Solutions,LATAM,Partner Reseller,11,1575.89,17334.79,5336.82
+ORD-10540,2025-02-13,Cloud Storage Appliances,EMEA,Direct Enterprise,7,850.07,5950.49,2666.47
+ORD-10647,2025-02-13,Enterprise Server Solutions,North America,Partner Reseller,13,2686.07,34918.91,14935.53
+ORD-11050,2025-02-13,Cybersecurity Peripherals,LATAM,Direct Enterprise,35,366.7,12834.5,4377.98
+ORD-10109,2025-02-14,Cybersecurity Peripherals,APAC,Direct Enterprise,25,323.35,8083.75,3156.21
+ORD-10623,2025-02-14,Enterprise Server Solutions,North America,Partner Reseller,12,1357.58,16290.96,5094.77
+ORD-10644,2025-02-14,Cloud Storage Appliances,APAC,Digital Self-Serve,4,1361.78,5447.12,1241.87
+ORD-10962,2025-02-14,Cybersecurity Peripherals,APAC,Digital Self-Serve,46,259.92,11956.32,4217.9
+ORD-10165,2025-02-15,Cloud Storage Appliances,EMEA,Digital Self-Serve,10,898.04,8980.4,1950.88
+ORD-10213,2025-02-15,Networking Cables & Adapters,LATAM,Partner Reseller,59,61.96,3655.64,1375.01
+ORD-10202,2025-02-16,Cloud Storage Appliances,EMEA,Direct Enterprise,9,640.48,5764.32,2205.35
+ORD-10231,2025-02-16,Cloud Storage Appliances,North America,Direct Enterprise,8,1529.22,12233.76,5341.77
+ORD-10244,2025-02-16,Enterprise Server Solutions,EMEA,Direct Enterprise,2,1675.95,3351.9,1363.43
+ORD-10004,2025-02-17,Enterprise Server Solutions,EMEA,Digital Self-Serve,7,3987.47,27912.29,5592.28
+ORD-10284,2025-02-17,Networking Cables & Adapters,LATAM,Direct Enterprise,21,62.38,1309.98,434.49
+ORD-10361,2025-02-17,Enterprise Server Solutions,APAC,Digital Self-Serve,1,4463.1,4463.1,868.38
+ORD-10732,2025-02-17,Cybersecurity Peripherals,North America,Direct Enterprise,10,947.65,9476.5,4083.87
+ORD-10801,2025-02-17,Networking Cables & Adapters,LATAM,Digital Self-Serve,52,18.64,969.28,332.94
+ORD-10056,2025-02-18,Enterprise Server Solutions,EMEA,Digital Self-Serve,6,3661.62,21969.72,4594.94
+ORD-11152,2025-02-18,Networking Cables & Adapters,North America,Direct Enterprise,40,62.4,2496.0,1056.86
+ORD-10070,2025-02-19,Enterprise Server Solutions,APAC,Digital Self-Serve,1,3478.31,3478.31,1268.97
+ORD-10910,2025-02-19,Cloud Storage Appliances,EMEA,Digital Self-Serve,13,671.02,8723.26,1588.86
+ORD-11015,2025-02-19,Cloud Storage Appliances,APAC,Direct Enterprise,15,1672.9,25093.5,8800.53
+ORD-10068,2025-02-20,Cybersecurity Peripherals,LATAM,Partner Reseller,16,392.2,6275.2,2004.78
+ORD-10072,2025-02-20,Enterprise Server Solutions,EMEA,Direct Enterprise,11,1455.61,16011.71,3105.25
+ORD-10083,2025-02-20,Enterprise Server Solutions,APAC,Direct Enterprise,15,1499.58,22493.7,9717.95
+ORD-10113,2025-02-20,Cybersecurity Peripherals,North America,Digital Self-Serve,9,893.19,8038.71,3112.6
+ORD-10401,2025-02-20,Cloud Storage Appliances,APAC,Digital Self-Serve,12,1662.28,19947.36,6281.44
+ORD-10798,2025-02-20,Networking Cables & Adapters,LATAM,Direct Enterprise,78,30.61,2387.58,476.82
+ORD-10223,2025-02-21,Cloud Storage Appliances,EMEA,Digital Self-Serve,13,1181.72,15362.36,5187.57
+ORD-10124,2025-02-22,Enterprise Server Solutions,EMEA,Partner Reseller,1,1787.81,1787.81,731.91
+ORD-10130,2025-02-22,Cloud Storage Appliances,North America,Partner Reseller,4,1666.7,6666.8,2344.3
+ORD-10251,2025-02-22,Cloud Storage Appliances,LATAM,Partner Reseller,3,1088.61,3265.83,992.31
+ORD-10303,2025-02-22,Cloud Storage Appliances,EMEA,Direct Enterprise,2,1197.32,2394.64,625.2
+ORD-10415,2025-02-22,Cybersecurity Peripherals,North America,Direct Enterprise,80,481.73,38538.4,7613.87
+ORD-11059,2025-02-22,Enterprise Server Solutions,LATAM,Direct Enterprise,5,3928.09,19640.45,4464.29
+ORD-11109,2025-02-22,Enterprise Server Solutions,North America,Digital Self-Serve,6,1835.82,11014.92,4715.17
+ORD-10157,2025-02-23,Cloud Storage Appliances,LATAM,Partner Reseller,7,1058.87,7412.09,3215.85
+ORD-10501,2025-02-23,Cybersecurity Peripherals,EMEA,Direct Enterprise,7,514.29,3600.03,1443.78
+ORD-10995,2025-02-23,Cloud Storage Appliances,LATAM,Partner Reseller,10,736.3,7363.0,2352.77
+ORD-10410,2025-02-24,Cloud Storage Appliances,LATAM,Direct Enterprise,2,1738.8,3477.6,659.95
+ORD-10786,2025-02-24,Networking Cables & Adapters,North America,Direct Enterprise,12,27.13,325.56,105.86
+ORD-10854,2025-02-24,Networking Cables & Adapters,LATAM,Digital Self-Serve,51,22.45,1144.95,243.81
+ORD-10254,2025-02-25,Cybersecurity Peripherals,APAC,Digital Self-Serve,34,439.11,14929.74,5551.51
+ORD-10439,2025-02-25,Enterprise Server Solutions,North America,Partner Reseller,14,4213.63,58990.82,16485.4
+ORD-10738,2025-02-25,Cybersecurity Peripherals,APAC,Digital Self-Serve,5,661.32,3306.6,1104.0
+ORD-11195,2025-02-25,Cybersecurity Peripherals,North America,Direct Enterprise,6,772.61,4635.66,1099.73
+ORD-10386,2025-02-26,Enterprise Server Solutions,LATAM,Direct Enterprise,7,3003.94,21027.58,8813.26
+ORD-10476,2025-02-26,Cloud Storage Appliances,North America,Digital Self-Serve,9,1034.17,9307.53,2745.77
+ORD-10528,2025-02-26,Cloud Storage Appliances,APAC,Partner Reseller,6,984.94,5909.64,1471.3
+ORD-11005,2025-02-26,Enterprise Server Solutions,APAC,Partner Reseller,5,3352.12,16760.6,6054.13
+ORD-10002,2025-02-27,Cloud Storage Appliances,APAC,Digital Self-Serve,14,925.85,12961.9,4757.51
+ORD-10711,2025-02-27,Cloud Storage Appliances,LATAM,Digital Self-Serve,9,1194.37,10749.33,4620.07
+ORD-10620,2025-02-28,Enterprise Server Solutions,North America,Partner Reseller,12,3964.49,47573.88,8668.01
+ORD-10747,2025-02-28,Networking Cables & Adapters,APAC,Partner Reseller,42,64.3,2700.6,1035.53
+ORD-11044,2025-02-28,Cybersecurity Peripherals,North America,Partner Reseller,74,399.75,29581.5,9536.47
+ORD-11139,2025-02-28,Networking Cables & Adapters,North America,Digital Self-Serve,73,61.28,4473.44,1162.86
+ORD-10101,2025-03-01,Cloud Storage Appliances,EMEA,Direct Enterprise,6,827.97,4967.82,2018.81
+ORD-10865,2025-03-01,Enterprise Server Solutions,LATAM,Digital Self-Serve,10,4140.46,41404.6,8335.25
+ORD-10274,2025-03-02,Cloud Storage Appliances,APAC,Partner Reseller,8,1348.05,10784.4,4341.81
+ORD-10344,2025-03-02,Enterprise Server Solutions,LATAM,Digital Self-Serve,9,2142.77,19284.93,4520.68
+ORD-10735,2025-03-02,Enterprise Server Solutions,North America,Partner Reseller,14,3836.1,53705.4,19244.93
+ORD-10787,2025-03-02,Networking Cables & Adapters,North America,Digital Self-Serve,41,17.48,716.68,322.02
+ORD-10862,2025-03-02,Legacy Replacement Parts,EMEA,Digital Self-Serve,3,30.63,91.89,31.18
+ORD-10316,2025-03-03,Enterprise Server Solutions,APAC,Digital Self-Serve,14,4100.6,57408.4,24224.46
+ORD-10690,2025-03-03,Cybersecurity Peripherals,LATAM,Direct Enterprise,34,418.06,14214.04,5550.12
+ORD-10942,2025-03-03,Enterprise Server Solutions,North America,Direct Enterprise,6,2141.29,12847.74,4072.48
+ORD-10976,2025-03-03,Enterprise Server Solutions,North America,Direct Enterprise,12,3940.23,47282.76,13923.08
+ORD-10473,2025-03-04,Cybersecurity Peripherals,LATAM,Partner Reseller,4,582.62,2330.48,776.49
+ORD-10569,2025-03-04,Enterprise Server Solutions,LATAM,Partner Reseller,15,1773.29,26599.35,10255.05
+ORD-10572,2025-03-04,Enterprise Server Solutions,North America,Digital Self-Serve,5,2192.68,10963.4,2174.54
+ORD-10882,2025-03-04,Enterprise Server Solutions,EMEA,Partner Reseller,13,1949.53,25343.89,5298.61
+ORD-11108,2025-03-04,Enterprise Server Solutions,EMEA,Direct Enterprise,9,3802.0,34218.0,14062.63
+ORD-10260,2025-03-05,Enterprise Server Solutions,APAC,Digital Self-Serve,2,3806.57,7613.14,3137.44
+ORD-10285,2025-03-05,Cybersecurity Peripherals,EMEA,Direct Enterprise,8,616.56,4932.48,2010.59
+ORD-10345,2025-03-05,Cybersecurity Peripherals,North America,Direct Enterprise,5,883.42,4417.1,1574.87
+ORD-10607,2025-03-05,Enterprise Server Solutions,EMEA,Direct Enterprise,9,1376.4,12387.6,4131.69
+ORD-11002,2025-03-05,Enterprise Server Solutions,EMEA,Partner Reseller,15,2778.27,41674.05,16670.02
+ORD-11104,2025-03-05,Cloud Storage Appliances,North America,Direct Enterprise,7,618.03,4326.21,1319.2
+ORD-10105,2025-03-06,Enterprise Server Solutions,LATAM,Partner Reseller,9,2671.94,24047.46,6064.01
+ORD-11200,2025-03-06,Legacy Replacement Parts,APAC,Digital Self-Serve,4,74.57,298.28,81.83
+ORD-10340,2025-03-07,Cloud Storage Appliances,North America,Partner Reseller,8,1715.11,13720.88,2834.58
+ORD-10619,2025-03-07,Cybersecurity Peripherals,LATAM,Partner Reseller,46,268.14,12334.44,3037.04
+ORD-10645,2025-03-07,Cloud Storage Appliances,EMEA,Partner Reseller,10,657.98,6579.8,2238.37
+ORD-11045,2025-03-07,Cloud Storage Appliances,North America,Digital Self-Serve,5,689.58,3447.9,718.0
+ORD-11170,2025-03-07,Cybersecurity Peripherals,APAC,Direct Enterprise,54,380.52,20548.08,5633.81
+ORD-10359,2025-03-08,Networking Cables & Adapters,EMEA,Partner Reseller,77,19.08,1469.16,617.52
+ORD-10750,2025-03-08,Cloud Storage Appliances,LATAM,Direct Enterprise,15,1095.0,16425.0,3623.37
+ORD-10314,2025-03-09,Cybersecurity Peripherals,LATAM,Partner Reseller,55,479.62,26379.1,10373.14
+ORD-11057,2025-03-09,Cybersecurity Peripherals,North America,Digital Self-Serve,2,782.36,1564.72,375.24
+ORD-11070,2025-03-09,Cybersecurity Peripherals,EMEA,Digital Self-Serve,2,785.68,1571.36,667.87
+ORD-11181,2025-03-09,Enterprise Server Solutions,LATAM,Partner Reseller,12,3049.92,36599.04,6642.15
+ORD-10086,2025-03-10,Cloud Storage Appliances,LATAM,Digital Self-Serve,4,1600.75,6403.0,1948.9
+ORD-10703,2025-03-10,Legacy Replacement Parts,APAC,Partner Reseller,2,75.19,150.38,43.68
+ORD-10824,2025-03-10,Cloud Storage Appliances,LATAM,Direct Enterprise,8,1721.66,13773.28,3211.08
+ORD-10646,2025-03-11,Enterprise Server Solutions,LATAM,Partner Reseller,9,4187.29,37685.61,8620.46
+ORD-10077,2025-03-12,Enterprise Server Solutions,LATAM,Digital Self-Serve,7,2538.15,17767.05,5905.78
+ORD-10138,2025-03-12,Cybersecurity Peripherals,North America,Digital Self-Serve,52,296.52,15419.04,6092.5
+ORD-10506,2025-03-12,Enterprise Server Solutions,LATAM,Partner Reseller,3,3026.66,9079.98,2457.34
+ORD-11122,2025-03-12,Cybersecurity Peripherals,APAC,Direct Enterprise,13,763.88,9930.44,1992.35
+ORD-10001,2025-03-13,Enterprise Server Solutions,EMEA,Partner Reseller,13,3687.51,47937.63,11127.61
+ORD-10173,2025-03-13,Enterprise Server Solutions,EMEA,Digital Self-Serve,10,1987.35,19873.5,8386.68
+ORD-10349,2025-03-13,Enterprise Server Solutions,APAC,Digital Self-Serve,10,1925.97,19259.7,7930.49
+ORD-10742,2025-03-13,Networking Cables & Adapters,EMEA,Partner Reseller,24,29.13,699.12,179.99
+ORD-10943,2025-03-13,Networking Cables & Adapters,LATAM,Partner Reseller,27,34.85,940.95,170.9
+ORD-10145,2025-03-14,Enterprise Server Solutions,North America,Partner Reseller,11,2554.81,28102.91,7203.85
+ORD-11105,2025-03-14,Enterprise Server Solutions,EMEA,Direct Enterprise,8,2273.81,18190.48,5277.42
+ORD-10493,2025-03-15,Enterprise Server Solutions,LATAM,Digital Self-Serve,9,4087.48,36787.32,7469.62
+ORD-10905,2025-03-15,Cybersecurity Peripherals,EMEA,Digital Self-Serve,11,467.1,5138.1,2085.93
+ORD-10952,2025-03-15,Enterprise Server Solutions,LATAM,Partner Reseller,10,4141.46,41414.6,11616.65
+ORD-11147,2025-03-15,Enterprise Server Solutions,EMEA,Partner Reseller,12,3616.82,43401.84,12508.52
+ORD-10375,2025-03-16,Networking Cables & Adapters,APAC,Digital Self-Serve,35,63.08,2207.8,766.53
+ORD-10749,2025-03-16,Legacy Replacement Parts,North America,Partner Reseller,4,20.78,83.12,34.05
+ORD-10849,2025-03-16,Enterprise Server Solutions,APAC,Digital Self-Serve,4,1305.6,5222.4,978.18
+ORD-11016,2025-03-16,Cybersecurity Peripherals,APAC,Digital Self-Serve,7,720.91,5046.37,2134.21
+ORD-11148,2025-03-17,Cloud Storage Appliances,North America,Direct Enterprise,4,1056.06,4224.24,1552.55
+ORD-10053,2025-03-19,Cybersecurity Peripherals,EMEA,Partner Reseller,10,752.92,7529.2,1919.81
+ORD-10430,2025-03-19,Cloud Storage Appliances,APAC,Direct Enterprise,15,710.44,10656.6,1987.06
+ORD-10566,2025-03-19,Cloud Storage Appliances,North America,Direct Enterprise,5,986.13,4930.65,1225.04
+ORD-10914,2025-03-19,Networking Cables & Adapters,APAC,Partner Reseller,60,19.01,1140.6,268.3
+ORD-11145,2025-03-19,Cloud Storage Appliances,EMEA,Partner Reseller,9,1279.83,11518.47,3941.2
+ORD-10076,2025-03-20,Networking Cables & Adapters,EMEA,Direct Enterprise,77,38.52,2966.04,1007.13
+ORD-10291,2025-03-20,Cloud Storage Appliances,APAC,Partner Reseller,15,1673.13,25096.95,9287.99
+ORD-10685,2025-03-20,Legacy Replacement Parts,EMEA,Partner Reseller,4,21.82,87.28,23.3
+ORD-10768,2025-03-20,Cybersecurity Peripherals,LATAM,Partner Reseller,11,893.29,9826.19,3322.28
+ORD-10048,2025-03-22,Cybersecurity Peripherals,APAC,Partner Reseller,13,707.18,9193.34,3994.41
+ORD-10915,2025-03-22,Cybersecurity Peripherals,North America,Digital Self-Serve,11,752.63,8278.93,1598.06
+ORD-10222,2025-03-23,Cloud Storage Appliances,North America,Digital Self-Serve,14,774.64,10844.96,3161.9
+ORD-10526,2025-03-23,Cloud Storage Appliances,EMEA,Partner Reseller,14,640.67,8969.38,3215.55
+ORD-10874,2025-03-23,Enterprise Server Solutions,LATAM,Digital Self-Serve,15,2715.23,40728.45,7394.51
+ORD-11154,2025-03-23,Enterprise Server Solutions,APAC,Partner Reseller,6,4069.5,24417.0,6041.82
+ORD-11184,2025-03-23,Cybersecurity Peripherals,APAC,Direct Enterprise,10,571.51,5715.1,1743.57
+ORD-10320,2025-03-24,Enterprise Server Solutions,APAC,Partner Reseller,14,2004.45,28062.3,11486.41
+ORD-10498,2025-03-24,Legacy Replacement Parts,North America,Direct Enterprise,4,78.0,312.0,71.36
+ORD-10554,2025-03-24,Enterprise Server Solutions,APAC,Partner Reseller,14,1490.81,20871.34,4193.87
+ORD-11008,2025-03-24,Enterprise Server Solutions,LATAM,Digital Self-Serve,2,1518.45,3036.9,774.89
+ORD-10815,2025-03-25,Enterprise Server Solutions,APAC,Digital Self-Serve,3,2742.94,8228.82,2581.68
+ORD-11011,2025-03-25,Enterprise Server Solutions,LATAM,Digital Self-Serve,10,3520.15,35201.5,15349.09
+ORD-10483,2025-03-26,Cybersecurity Peripherals,North America,Digital Self-Serve,9,846.55,7618.95,2445.74
+ORD-10271,2025-03-27,Enterprise Server Solutions,APAC,Direct Enterprise,15,2535.29,38029.35,14862.19
+ORD-10500,2025-03-28,Cybersecurity Peripherals,EMEA,Partner Reseller,25,373.33,9333.25,1718.0
+ORD-10516,2025-03-28,Cloud Storage Appliances,EMEA,Direct Enterprise,2,1537.92,3075.84,965.03
+ORD-10653,2025-03-28,Cybersecurity Peripherals,EMEA,Digital Self-Serve,6,510.04,3060.24,593.28
+ORD-10756,2025-03-28,Enterprise Server Solutions,EMEA,Digital Self-Serve,10,2108.26,21082.6,6727.79
+ORD-10827,2025-03-28,Enterprise Server Solutions,North America,Digital Self-Serve,8,4326.83,34614.64,14817.01
+ORD-10104,2025-03-29,Enterprise Server Solutions,APAC,Direct Enterprise,12,3912.77,46953.24,19103.98
+ORD-10168,2025-03-29,Enterprise Server Solutions,North America,Digital Self-Serve,6,1783.6,10701.6,2855.4
+ORD-10186,2025-03-29,Cloud Storage Appliances,EMEA,Digital Self-Serve,3,1658.39,4975.17,1608.01
+ORD-10242,2025-03-30,Enterprise Server Solutions,LATAM,Digital Self-Serve,7,3061.44,21430.08,7946.69
+ORD-10434,2025-03-30,Enterprise Server Solutions,LATAM,Digital Self-Serve,15,3308.79,49631.85,20210.98
+ORD-10580,2025-03-30,Enterprise Server Solutions,APAC,Direct Enterprise,4,1842.57,7370.28,2008.22
+ORD-10772,2025-03-31,Networking Cables & Adapters,EMEA,Digital Self-Serve,22,47.81,1051.82,242.92
+ORD-10964,2025-03-31,Cybersecurity Peripherals,EMEA,Partner Reseller,13,837.25,10884.25,1998.93
+ORD-10503,2025-04-01,Enterprise Server Solutions,EMEA,Direct Enterprise,13,2768.68,35992.84,13124.87
+ORD-10656,2025-04-01,Legacy Replacement Parts,North America,Partner Reseller,2,75.85,151.7,32.46
+ORD-10836,2025-04-01,Networking Cables & Adapters,North America,Partner Reseller,40,46.37,1854.8,817.75
+ORD-10918,2025-04-01,Cloud Storage Appliances,LATAM,Direct Enterprise,9,1128.43,10155.87,1845.47
+ORD-11035,2025-04-01,Cloud Storage Appliances,APAC,Direct Enterprise,7,716.35,5014.45,1950.26
+ORD-10360,2025-04-02,Enterprise Server Solutions,APAC,Digital Self-Serve,14,3694.65,51725.1,10783.15
+ORD-10840,2025-04-03,Enterprise Server Solutions,North America,Direct Enterprise,4,2210.34,8841.36,2344.03
+ORD-10606,2025-04-04,Legacy Replacement Parts,APAC,Digital Self-Serve,4,33.76,135.04,52.98
+ORD-10759,2025-04-04,Legacy Replacement Parts,APAC,Partner Reseller,4,34.71,138.84,26.04
+ORD-11065,2025-04-04,Enterprise Server Solutions,EMEA,Digital Self-Serve,4,4019.43,16077.72,4449.14
+ORD-10084,2025-04-05,Cloud Storage Appliances,EMEA,Digital Self-Serve,8,733.35,5866.8,1108.78
+ORD-10509,2025-04-05,Networking Cables & Adapters,APAC,Partner Reseller,66,42.63,2813.58,954.85
+ORD-10764,2025-04-05,Enterprise Server Solutions,North America,Digital Self-Serve,14,2977.33,41682.62,8952.94
+ORD-11114,2025-04-05,Networking Cables & Adapters,North America,Partner Reseller,41,47.0,1927.0,647.83
+ORD-10097,2025-04-06,Enterprise Server Solutions,EMEA,Partner Reseller,6,2142.67,12856.02,3426.75
+ORD-11055,2025-04-06,Cybersecurity Peripherals,APAC,Digital Self-Serve,13,757.45,9846.85,3700.74
+ORD-11063,2025-04-06,Cloud Storage Appliances,EMEA,Digital Self-Serve,1,1115.46,1115.46,485.17
+ORD-10505,2025-04-07,Networking Cables & Adapters,APAC,Partner Reseller,78,34.82,2715.96,898.49
+ORD-10533,2025-04-07,Enterprise Server Solutions,EMEA,Digital Self-Serve,12,3195.32,38343.84,17015.22
+ORD-10180,2025-04-08,Enterprise Server Solutions,North America,Digital Self-Serve,4,4369.66,17478.64,4586.18
+ORD-10515,2025-04-08,Networking Cables & Adapters,APAC,Direct Enterprise,11,64.54,709.94,182.6
+ORD-10612,2025-04-08,Cybersecurity Peripherals,EMEA,Digital Self-Serve,11,729.18,8020.98,1606.89
+ORD-10614,2025-04-08,Networking Cables & Adapters,North America,Digital Self-Serve,66,58.61,3868.26,877.73
+ORD-10667,2025-04-08,Cybersecurity Peripherals,APAC,Partner Reseller,13,789.06,10257.78,3870.21
+ORD-10719,2025-04-08,Networking Cables & Adapters,APAC,Digital Self-Serve,38,53.36,2027.68,419.88
+ORD-10792,2025-04-09,Cybersecurity Peripherals,APAC,Direct Enterprise,55,463.42,25488.1,11078.3
+ORD-10843,2025-04-09,Networking Cables & Adapters,LATAM,Digital Self-Serve,52,27.76,1443.52,568.06
+ORD-10238,2025-04-10,Cloud Storage Appliances,APAC,Digital Self-Serve,7,1128.43,7899.01,1670.94
+ORD-10374,2025-04-10,Cloud Storage Appliances,LATAM,Direct Enterprise,1,1090.21,1090.21,352.95
+ORD-10712,2025-04-10,Cloud Storage Appliances,APAC,Digital Self-Serve,13,767.12,9972.56,3082.68
+ORD-10609,2025-04-11,Cybersecurity Peripherals,EMEA,Direct Enterprise,41,382.64,15688.24,3986.88
+ORD-10948,2025-04-11,Enterprise Server Solutions,LATAM,Digital Self-Serve,9,1747.5,15727.5,7045.97
+ORD-10878,2025-04-12,Legacy Replacement Parts,APAC,Partner Reseller,1,52.32,52.32,11.98
+ORD-11051,2025-04-12,Cloud Storage Appliances,EMEA,Direct Enterprise,7,787.96,5515.72,1930.71
+ORD-10028,2025-04-13,Cybersecurity Peripherals,APAC,Direct Enterprise,7,799.08,5593.56,1918.76
+ORD-10162,2025-04-13,Cybersecurity Peripherals,North America,Direct Enterprise,3,798.06,2394.18,753.57
+ORD-10708,2025-04-13,Enterprise Server Solutions,LATAM,Partner Reseller,8,1830.55,14644.4,3602.78
+ORD-11091,2025-04-13,Cybersecurity Peripherals,LATAM,Partner Reseller,1,675.4,675.4,129.29
+ORD-10005,2025-04-14,Enterprise Server Solutions,APAC,Partner Reseller,10,4324.21,43242.1,17031.03
+ORD-10350,2025-04-14,Cybersecurity Peripherals,APAC,Digital Self-Serve,15,907.05,13605.75,4362.45
+ORD-10471,2025-04-14,Cloud Storage Appliances,APAC,Partner Reseller,9,1063.7,9573.3,1783.84
+ORD-10909,2025-04-14,Enterprise Server Solutions,North America,Digital Self-Serve,7,4493.61,31455.27,13145.51
+ORD-11106,2025-04-14,Networking Cables & Adapters,LATAM,Partner Reseller,37,54.75,2025.75,905.78
+ORD-10451,2025-04-15,Enterprise Server Solutions,North America,Digital Self-Serve,8,3410.65,27285.2,6376.63
+ORD-11196,2025-04-15,Cybersecurity Peripherals,North America,Direct Enterprise,43,266.59,11463.37,2210.71
+ORD-10185,2025-04-16,Cybersecurity Peripherals,North America,Digital Self-Serve,15,470.29,7054.35,1507.43
+ORD-10210,2025-04-17,Cybersecurity Peripherals,EMEA,Direct Enterprise,4,624.43,2497.72,951.86
+ORD-11073,2025-04-17,Cloud Storage Appliances,EMEA,Digital Self-Serve,15,891.95,13379.25,2610.14
+ORD-10094,2025-04-18,Enterprise Server Solutions,North America,Direct Enterprise,15,3375.88,50638.2,22210.49
+ORD-10191,2025-04-18,Cloud Storage Appliances,EMEA,Direct Enterprise,11,641.97,7061.67,2923.71
+ORD-10808,2025-04-18,Cloud Storage Appliances,EMEA,Direct Enterprise,10,1073.9,10739.0,4194.8
+ORD-11027,2025-04-19,Cybersecurity Peripherals,APAC,Partner Reseller,51,387.99,19787.49,4686.51
+ORD-11136,2025-04-19,Networking Cables & Adapters,LATAM,Digital Self-Serve,72,32.63,2349.36,742.55
+ORD-10034,2025-04-20,Cloud Storage Appliances,North America,Direct Enterprise,15,749.15,11237.25,3550.72
+ORD-10669,2025-04-20,Cloud Storage Appliances,North America,Partner Reseller,5,1767.57,8837.85,2912.01
+ORD-10753,2025-04-20,Cloud Storage Appliances,APAC,Digital Self-Serve,15,1606.71,24100.65,5907.3
+ORD-10825,2025-04-20,Cybersecurity Peripherals,APAC,Direct Enterprise,12,751.12,9013.44,1706.18
+ORD-10950,2025-04-20,Cloud Storage Appliances,North America,Direct Enterprise,13,709.84,9227.92,2345.57
+ORD-11128,2025-04-20,Cybersecurity Peripherals,LATAM,Partner Reseller,11,821.63,9037.93,3271.11
+ORD-10215,2025-04-21,Enterprise Server Solutions,EMEA,Partner Reseller,14,4475.97,62663.58,11366.62
+ORD-10592,2025-04-21,Cloud Storage Appliances,EMEA,Digital Self-Serve,1,1295.36,1295.36,310.88
+ORD-10832,2025-04-21,Networking Cables & Adapters,North America,Digital Self-Serve,79,23.47,1854.13,561.12
+ORD-10923,2025-04-21,Networking Cables & Adapters,North America,Partner Reseller,24,16.16,387.84,77.7
+ORD-10932,2025-04-21,Enterprise Server Solutions,EMEA,Digital Self-Serve,7,4368.51,30579.57,6533.36
+ORD-10281,2025-04-22,Cybersecurity Peripherals,LATAM,Digital Self-Serve,11,549.27,6041.97,1929.87
+ORD-10648,2025-04-22,Cybersecurity Peripherals,APAC,Partner Reseller,11,615.86,6774.46,2005.27
+ORD-10757,2025-04-22,Legacy Replacement Parts,EMEA,Digital Self-Serve,2,74.31,148.62,52.0
+ORD-10884,2025-04-22,Networking Cables & Adapters,APAC,Direct Enterprise,34,55.12,1874.08,668.6
+ORD-11097,2025-04-22,Legacy Replacement Parts,North America,Direct Enterprise,4,45.28,181.12,69.36
+ORD-11172,2025-04-22,Networking Cables & Adapters,LATAM,Digital Self-Serve,54,55.02,2971.08,904.7
+ORD-10323,2025-04-23,Cloud Storage Appliances,EMEA,Partner Reseller,13,1225.78,15935.14,4417.17
+ORD-10763,2025-04-23,Cloud Storage Appliances,LATAM,Partner Reseller,13,1603.66,20847.58,3959.72
+ORD-10907,2025-04-23,Enterprise Server Solutions,LATAM,Partner Reseller,8,1433.04,11464.32,4931.25
+ORD-10953,2025-04-23,Enterprise Server Solutions,North America,Partner Reseller,8,2469.87,19758.96,5145.52
+ORD-10445,2025-04-24,Networking Cables & Adapters,North America,Partner Reseller,12,42.78,513.36,219.47
+ORD-10876,2025-04-24,Networking Cables & Adapters,EMEA,Direct Enterprise,65,40.99,2664.35,584.02
+ORD-10901,2025-04-24,Enterprise Server Solutions,APAC,Digital Self-Serve,7,1385.27,9696.89,3361.03
+ORD-11110,2025-04-24,Enterprise Server Solutions,APAC,Direct Enterprise,7,1800.04,12600.28,5167.68
+ORD-10079,2025-04-25,Cybersecurity Peripherals,APAC,Direct Enterprise,3,552.72,1658.16,384.87
+ORD-10556,2025-04-25,Legacy Replacement Parts,North America,Digital Self-Serve,2,74.0,148.0,60.52
+ORD-10140,2025-04-26,Cloud Storage Appliances,APAC,Partner Reseller,11,1374.0,15114.0,5838.26
+ORD-10869,2025-04-26,Enterprise Server Solutions,APAC,Direct Enterprise,15,3950.36,59255.4,26478.71
+ORD-10547,2025-04-27,Cloud Storage Appliances,LATAM,Partner Reseller,3,1035.36,3106.08,713.18
+ORD-11056,2025-04-27,Cloud Storage Appliances,EMEA,Digital Self-Serve,12,1732.77,20793.24,7814.99
+ORD-10121,2025-04-28,Networking Cables & Adapters,EMEA,Direct Enterprise,58,35.7,2070.6,706.77
+ORD-10310,2025-04-28,Cloud Storage Appliances,EMEA,Direct Enterprise,6,1748.94,10493.64,2671.25
+ORD-10381,2025-04-28,Cybersecurity Peripherals,EMEA,Digital Self-Serve,6,700.5,4203.0,1074.63
+ORD-10626,2025-04-28,Cybersecurity Peripherals,APAC,Digital Self-Serve,2,695.52,1391.04,525.7
+ORD-10783,2025-04-28,Cloud Storage Appliances,LATAM,Partner Reseller,9,1182.04,10638.36,4328.86
+ORD-10813,2025-04-28,Cloud Storage Appliances,North America,Partner Reseller,9,1229.62,11066.58,3060.03
+ORD-10859,2025-04-28,Cybersecurity Peripherals,LATAM,Digital Self-Serve,1,918.41,918.41,378.42
+ORD-10259,2025-04-29,Cybersecurity Peripherals,APAC,Partner Reseller,3,560.15,1680.45,721.54
+ORD-10659,2025-04-29,Cloud Storage Appliances,North America,Direct Enterprise,7,1638.27,11467.89,5122.2
+ORD-10688,2025-04-29,Cloud Storage Appliances,EMEA,Direct Enterprise,15,1137.82,17067.3,6447.84
+ORD-10913,2025-04-29,Enterprise Server Solutions,EMEA,Direct Enterprise,4,4290.94,17163.76,4886.58
+ORD-10934,2025-04-29,Networking Cables & Adapters,EMEA,Digital Self-Serve,64,56.44,3612.16,687.6
+ORD-11150,2025-04-29,Cybersecurity Peripherals,EMEA,Direct Enterprise,1,594.64,594.64,180.74
+ORD-10195,2025-04-30,Cloud Storage Appliances,LATAM,Direct Enterprise,7,1502.09,10514.63,4307.11
+ORD-10543,2025-04-30,Enterprise Server Solutions,EMEA,Direct Enterprise,12,4214.05,50568.6,20324.62
+ORD-10799,2025-04-30,Enterprise Server Solutions,LATAM,Partner Reseller,2,3522.55,7045.1,1865.74
+ORD-10899,2025-04-30,Enterprise Server Solutions,APAC,Digital Self-Serve,14,3670.82,51391.48,11617.91
+ORD-10031,2025-05-01,Enterprise Server Solutions,EMEA,Direct Enterprise,11,3368.05,37048.55,8539.21
+ORD-10475,2025-05-01,Cloud Storage Appliances,North America,Direct Enterprise,1,837.37,837.37,369.26
+ORD-10960,2025-05-01,Networking Cables & Adapters,APAC,Direct Enterprise,35,33.6,1176.0,407.4
+ORD-10658,2025-05-03,Networking Cables & Adapters,LATAM,Digital Self-Serve,80,33.28,2662.4,968.15
+ORD-10724,2025-05-03,Enterprise Server Solutions,APAC,Direct Enterprise,6,2017.21,12103.26,3715.78
+ORD-10181,2025-05-04,Enterprise Server Solutions,LATAM,Digital Self-Serve,6,3131.51,18789.06,3696.96
+ORD-10394,2025-05-04,Cloud Storage Appliances,APAC,Partner Reseller,6,1645.79,9874.74,1938.53
+ORD-10440,2025-05-04,Cloud Storage Appliances,North America,Direct Enterprise,9,1208.53,10876.77,4729.76
+ORD-11046,2025-05-04,Cloud Storage Appliances,EMEA,Digital Self-Serve,3,1124.13,3372.39,1435.43
+ORD-11189,2025-05-04,Enterprise Server Solutions,APAC,Direct Enterprise,8,3807.8,30462.4,10594.84
+ORD-10078,2025-05-05,Cybersecurity Peripherals,North America,Direct Enterprise,15,854.01,12810.15,3725.9
+ORD-10110,2025-05-05,Cybersecurity Peripherals,North America,Partner Reseller,14,602.29,8432.06,2124.54
+ORD-10372,2025-05-05,Cloud Storage Appliances,North America,Direct Enterprise,9,1610.11,14490.99,4715.88
+ORD-10408,2025-05-05,Cloud Storage Appliances,North America,Partner Reseller,15,1006.49,15097.35,2973.25
+ORD-10508,2025-05-05,Enterprise Server Solutions,North America,Direct Enterprise,1,2216.13,2216.13,875.92
+ORD-11103,2025-05-05,Cloud Storage Appliances,EMEA,Partner Reseller,12,997.2,11966.4,3224.48
+ORD-10088,2025-05-06,Cloud Storage Appliances,APAC,Digital Self-Serve,3,1271.86,3815.58,1343.0
+ORD-10332,2025-05-06,Networking Cables & Adapters,EMEA,Digital Self-Serve,33,61.31,2023.23,466.83
+ORD-11058,2025-05-06,Enterprise Server Solutions,APAC,Direct Enterprise,13,2585.13,33606.69,14176.52
+ORD-10604,2025-05-07,Enterprise Server Solutions,EMEA,Direct Enterprise,2,1651.42,3302.84,1323.7
+ORD-10986,2025-05-07,Legacy Replacement Parts,EMEA,Digital Self-Serve,4,62.27,249.08,96.91
+ORD-10426,2025-05-08,Enterprise Server Solutions,LATAM,Digital Self-Serve,10,2161.2,21612.0,6310.58
+ORD-10802,2025-05-08,Cloud Storage Appliances,North America,Direct Enterprise,6,1070.51,6423.06,2731.43
+ORD-10736,2025-05-09,Enterprise Server Solutions,LATAM,Partner Reseller,2,3941.18,7882.36,2704.5
+ORD-10972,2025-05-09,Cybersecurity Peripherals,LATAM,Partner Reseller,12,911.83,10941.96,4813.28
+ORD-10367,2025-05-10,Enterprise Server Solutions,North America,Direct Enterprise,5,3898.99,19494.95,7806.01
+ORD-10679,2025-05-10,Enterprise Server Solutions,APAC,Direct Enterprise,9,4191.78,37726.02,12916.55
+ORD-10940,2025-05-10,Enterprise Server Solutions,APAC,Digital Self-Serve,3,2564.98,7694.94,3025.35
+ORD-10131,2025-05-11,Cloud Storage Appliances,North America,Partner Reseller,3,819.22,2457.66,1078.39
+ORD-10277,2025-05-11,Enterprise Server Solutions,North America,Direct Enterprise,7,4003.87,28027.09,5469.19
+ORD-10491,2025-05-11,Networking Cables & Adapters,APAC,Direct Enterprise,30,63.33,1899.9,479.87
+ORD-10413,2025-05-12,Enterprise Server Solutions,EMEA,Digital Self-Serve,7,2754.78,19283.46,8031.54
+ORD-11155,2025-05-12,Cloud Storage Appliances,APAC,Partner Reseller,1,1050.25,1050.25,309.07
+ORD-10729,2025-05-13,Enterprise Server Solutions,APAC,Direct Enterprise,8,1216.53,9732.24,3198.65
+ORD-11146,2025-05-13,Enterprise Server Solutions,North America,Direct Enterprise,14,3557.64,49806.96,17937.94
+ORD-10021,2025-05-14,Cloud Storage Appliances,APAC,Digital Self-Serve,2,1590.11,3180.22,1410.65
+ORD-10777,2025-05-14,Enterprise Server Solutions,APAC,Digital Self-Serve,3,3236.94,9710.82,4233.78
+ORD-10793,2025-05-14,Cloud Storage Appliances,LATAM,Partner Reseller,1,892.06,892.06,280.27
+ORD-10041,2025-05-15,Enterprise Server Solutions,North America,Digital Self-Serve,1,1862.3,1862.3,685.29
+ORD-10418,2025-05-15,Networking Cables & Adapters,North America,Partner Reseller,36,54.34,1956.24,837.47
+ORD-10544,2025-05-15,Enterprise Server Solutions,EMEA,Partner Reseller,2,2633.11,5266.22,2211.47
+ORD-10720,2025-05-15,Enterprise Server Solutions,EMEA,Digital Self-Serve,12,2543.9,30526.8,9618.84
+ORD-10925,2025-05-15,Cybersecurity Peripherals,LATAM,Partner Reseller,11,909.91,10009.01,2080.47
+ORD-10429,2025-05-16,Enterprise Server Solutions,LATAM,Digital Self-Serve,7,1755.88,12291.16,5326.47
+ORD-10456,2025-05-16,Enterprise Server Solutions,APAC,Direct Enterprise,5,1617.85,8089.25,1742.87
+ORD-10520,2025-05-16,Enterprise Server Solutions,EMEA,Partner Reseller,15,2586.18,38792.7,13359.42
+ORD-11126,2025-05-16,Enterprise Server Solutions,North America,Digital Self-Serve,14,4018.06,56252.84,14739.13
+ORD-10092,2025-05-17,Networking Cables & Adapters,LATAM,Partner Reseller,37,62.33,2306.21,691.69
+ORD-10341,2025-05-17,Networking Cables & Adapters,North America,Direct Enterprise,21,23.2,487.2,192.02
+ORD-10466,2025-05-17,Legacy Replacement Parts,LATAM,Direct Enterprise,4,60.42,241.68,87.37
+ORD-10033,2025-05-18,Enterprise Server Solutions,APAC,Digital Self-Serve,8,2054.51,16436.08,7030.36
+ORD-10959,2025-05-18,Cloud Storage Appliances,LATAM,Partner Reseller,13,609.14,7918.82,1967.57
+ORD-10167,2025-05-19,Enterprise Server Solutions,LATAM,Partner Reseller,14,2598.0,36372.0,15777.46
+ORD-10494,2025-05-20,Cybersecurity Peripherals,APAC,Direct Enterprise,11,817.07,8987.77,1660.06
+ORD-10795,2025-05-20,Cloud Storage Appliances,LATAM,Digital Self-Serve,4,1217.67,4870.68,2154.02
+ORD-10863,2025-05-20,Cybersecurity Peripherals,APAC,Digital Self-Serve,6,735.29,4411.74,830.41
+ORD-10965,2025-05-20,Cloud Storage Appliances,APAC,Digital Self-Serve,5,1329.94,6649.7,1968.14
+ORD-10970,2025-05-20,Cybersecurity Peripherals,APAC,Digital Self-Serve,14,411.33,5758.62,1761.14
+ORD-11192,2025-05-20,Enterprise Server Solutions,LATAM,Direct Enterprise,12,3382.76,40593.12,16906.79
+ORD-10087,2025-05-21,Cloud Storage Appliances,LATAM,Digital Self-Serve,8,849.14,6793.12,2844.01
+ORD-10781,2025-05-21,Cybersecurity Peripherals,LATAM,Partner Reseller,4,807.02,3228.08,941.46
+ORD-10102,2025-05-22,Cybersecurity Peripherals,North America,Partner Reseller,47,262.85,12353.95,4340.61
+ORD-10250,2025-05-22,Enterprise Server Solutions,APAC,Digital Self-Serve,15,3071.13,46066.95,11222.44
+ORD-10335,2025-05-22,Cloud Storage Appliances,EMEA,Digital Self-Serve,12,768.5,9222.0,2423.06
+ORD-10462,2025-05-22,Cybersecurity Peripherals,APAC,Direct Enterprise,14,799.24,11189.36,2246.07
+ORD-10245,2025-05-23,Enterprise Server Solutions,North America,Partner Reseller,3,3959.97,11879.91,4116.71
+ORD-10376,2025-05-23,Cloud Storage Appliances,North America,Direct Enterprise,1,613.62,613.62,146.48
+ORD-10839,2025-05-23,Cloud Storage Appliances,APAC,Digital Self-Serve,13,1055.02,13715.26,3315.29
+ORD-10871,2025-05-23,Cloud Storage Appliances,APAC,Direct Enterprise,14,1257.2,17600.8,4426.66
+ORD-10174,2025-05-24,Cybersecurity Peripherals,EMEA,Direct Enterprise,10,844.42,8444.2,3242.52
+ORD-10209,2025-05-24,Cloud Storage Appliances,EMEA,Partner Reseller,13,1447.28,18814.64,4282.21
+ORD-10557,2025-05-24,Cybersecurity Peripherals,LATAM,Digital Self-Serve,36,302.0,10872.0,2911.17
+ORD-10613,2025-05-24,Legacy Replacement Parts,APAC,Partner Reseller,1,64.13,64.13,24.22
+ORD-10704,2025-05-24,Cybersecurity Peripherals,APAC,Direct Enterprise,9,545.76,4911.84,1031.83
+ORD-10715,2025-05-24,Cybersecurity Peripherals,North America,Digital Self-Serve,14,949.24,13289.36,3519.46
+ORD-11030,2025-05-24,Enterprise Server Solutions,LATAM,Digital Self-Serve,8,2340.0,18720.0,3465.06
+ORD-11089,2025-05-24,Enterprise Server Solutions,APAC,Digital Self-Serve,6,3339.69,20038.14,5100.78
+ORD-10414,2025-05-25,Cybersecurity Peripherals,APAC,Partner Reseller,13,296.87,3859.31,752.36
+ORD-10567,2025-05-25,Enterprise Server Solutions,LATAM,Direct Enterprise,1,2190.03,2190.03,948.52
+ORD-10796,2025-05-25,Enterprise Server Solutions,EMEA,Partner Reseller,7,4134.61,28942.27,11582.8
+ORD-10930,2025-05-25,Networking Cables & Adapters,EMEA,Partner Reseller,78,35.2,2745.6,701.84
+ORD-10949,2025-05-25,Networking Cables & Adapters,North America,Partner Reseller,56,45.1,2525.6,828.97
+ORD-10234,2025-05-26,Cloud Storage Appliances,EMEA,Direct Enterprise,15,760.66,11409.9,4754.38
+ORD-10570,2025-05-26,Legacy Replacement Parts,North America,Direct Enterprise,4,33.72,134.88,59.82
+ORD-10597,2025-05-26,Enterprise Server Solutions,APAC,Digital Self-Serve,14,3409.33,47730.62,14270.84
+ORD-10670,2025-05-26,Networking Cables & Adapters,North America,Partner Reseller,29,55.82,1618.78,373.21
+ORD-10727,2025-05-26,Cloud Storage Appliances,APAC,Direct Enterprise,13,1023.93,13311.09,5914.33
+ORD-11116,2025-05-26,Enterprise Server Solutions,North America,Digital Self-Serve,11,3437.42,37811.62,9136.01
+ORD-10308,2025-05-27,Enterprise Server Solutions,LATAM,Direct Enterprise,1,2148.95,2148.95,412.42
+ORD-10550,2025-05-27,Cybersecurity Peripherals,LATAM,Partner Reseller,15,634.42,9516.3,1793.69
+ORD-10420,2025-05-28,Cloud Storage Appliances,LATAM,Direct Enterprise,9,1525.51,13729.59,2781.62
+ORD-10541,2025-05-28,Enterprise Server Solutions,North America,Partner Reseller,4,2104.54,8418.16,2296.21
+ORD-10674,2025-05-28,Cybersecurity Peripherals,APAC,Partner Reseller,28,313.18,8769.04,3635.81
+ORD-11031,2025-05-28,Enterprise Server Solutions,APAC,Digital Self-Serve,8,3074.66,24597.28,7784.5
+ORD-10539,2025-05-29,Cybersecurity Peripherals,LATAM,Digital Self-Serve,36,294.68,10608.48,3242.52
+ORD-10845,2025-05-29,Enterprise Server Solutions,APAC,Partner Reseller,8,2976.88,23815.04,6573.88
+ORD-10935,2025-05-29,Cybersecurity Peripherals,LATAM,Direct Enterprise,21,362.52,7612.92,2740.15
+ORD-11084,2025-05-29,Cloud Storage Appliances,EMEA,Digital Self-Serve,2,1798.12,3596.24,904.54
+ORD-10170,2025-05-30,Enterprise Server Solutions,APAC,Direct Enterprise,3,1903.56,5710.68,2458.42
+ORD-10574,2025-05-30,Cloud Storage Appliances,North America,Partner Reseller,11,861.85,9480.35,2311.05
+ORD-10665,2025-05-30,Cybersecurity Peripherals,EMEA,Partner Reseller,17,310.29,5274.93,1523.22
+ORD-10851,2025-05-30,Cloud Storage Appliances,APAC,Partner Reseller,15,632.43,9486.45,3263.05
+ORD-11185,2025-05-30,Cloud Storage Appliances,APAC,Direct Enterprise,11,838.78,9226.58,2455.48
+ORD-10100,2025-05-31,Cybersecurity Peripherals,North America,Digital Self-Serve,19,283.18,5380.42,1203.53
+ORD-10188,2025-05-31,Cloud Storage Appliances,APAC,Digital Self-Serve,3,1269.63,3808.89,1479.31
+ORD-10240,2025-05-31,Enterprise Server Solutions,LATAM,Direct Enterprise,9,3978.29,35804.61,11373.75
+ORD-10411,2025-06-01,Enterprise Server Solutions,APAC,Partner Reseller,1,2968.8,2968.8,579.36
+ORD-10530,2025-06-01,Enterprise Server Solutions,EMEA,Partner Reseller,4,4445.02,17780.08,7551.46
+ORD-10635,2025-06-01,Legacy Replacement Parts,APAC,Digital Self-Serve,3,38.41,115.23,32.31
+ORD-10529,2025-06-02,Enterprise Server Solutions,APAC,Direct Enterprise,13,3871.08,50324.04,9552.54
+ORD-11067,2025-06-02,Enterprise Server Solutions,LATAM,Direct Enterprise,14,2794.81,39127.34,10154.57
+ORD-10559,2025-06-03,Cybersecurity Peripherals,North America,Direct Enterprise,1,944.17,944.17,318.65
+ORD-10790,2025-06-03,Legacy Replacement Parts,LATAM,Partner Reseller,1,42.41,42.41,13.52
+ORD-11088,2025-06-03,Cybersecurity Peripherals,EMEA,Direct Enterprise,14,555.41,7775.74,2139.19
+ORD-10142,2025-06-04,Enterprise Server Solutions,APAC,Digital Self-Serve,9,4075.93,36683.37,12404.8
+ORD-10218,2025-06-04,Enterprise Server Solutions,LATAM,Direct Enterprise,11,2924.94,32174.34,5806.56
+ORD-10992,2025-06-04,Enterprise Server Solutions,North America,Partner Reseller,3,1518.0,4554.0,1160.16
+ORD-10770,2025-06-05,Cloud Storage Appliances,EMEA,Digital Self-Serve,10,1144.06,11440.6,5054.31
+ORD-10988,2025-06-05,Networking Cables & Adapters,EMEA,Digital Self-Serve,70,44.95,3146.5,755.71
+ORD-10029,2025-06-06,Enterprise Server Solutions,APAC,Partner Reseller,13,2926.37,38042.81,15134.34
+ORD-10042,2025-06-06,Cloud Storage Appliances,LATAM,Direct Enterprise,1,1706.97,1706.97,611.52
+ORD-10497,2025-06-07,Cybersecurity Peripherals,APAC,Direct Enterprise,6,832.96,4997.76,1483.43
+ORD-10161,2025-06-08,Cloud Storage Appliances,North America,Partner Reseller,8,944.95,7559.6,1753.64
+ORD-10184,2025-06-08,Enterprise Server Solutions,LATAM,Digital Self-Serve,13,3082.84,40076.92,13276.73
+ORD-10812,2025-06-08,Cybersecurity Peripherals,EMEA,Direct Enterprise,73,478.24,34911.52,12424.04
+ORD-10921,2025-06-08,Enterprise Server Solutions,APAC,Direct Enterprise,3,2653.28,7959.84,3023.8
+ORD-11036,2025-06-08,Cloud Storage Appliances,North America,Direct Enterprise,3,1789.49,5368.47,1176.37
+ORD-10387,2025-06-09,Enterprise Server Solutions,LATAM,Partner Reseller,5,2252.18,11260.9,3993.4
+ORD-10682,2025-06-09,Enterprise Server Solutions,EMEA,Digital Self-Serve,6,3877.32,23263.92,7843.78
+ORD-11026,2025-06-09,Enterprise Server Solutions,LATAM,Direct Enterprise,9,3104.35,27939.15,9854.14
+ORD-10294,2025-06-10,Cybersecurity Peripherals,EMEA,Partner Reseller,62,493.42,30592.04,12567.1
+ORD-10328,2025-06-10,Networking Cables & Adapters,APAC,Direct Enterprise,13,18.22,236.86,95.46
+ORD-10545,2025-06-10,Cloud Storage Appliances,APAC,Direct Enterprise,5,846.25,4231.25,1472.99
+ORD-10600,2025-06-10,Cloud Storage Appliances,APAC,Digital Self-Serve,8,1734.94,13879.52,3427.01
+ORD-10745,2025-06-10,Legacy Replacement Parts,LATAM,Partner Reseller,3,57.52,172.56,34.49
+ORD-10816,2025-06-10,Enterprise Server Solutions,EMEA,Direct Enterprise,15,1571.81,23577.15,9962.52
+ORD-10204,2025-06-11,Cloud Storage Appliances,EMEA,Direct Enterprise,14,707.96,9911.44,2240.78
+ORD-10585,2025-06-11,Legacy Replacement Parts,North America,Digital Self-Serve,4,56.2,224.8,71.14
+ORD-10931,2025-06-11,Networking Cables & Adapters,North America,Direct Enterprise,16,62.42,998.72,268.41
+ORD-10933,2025-06-11,Networking Cables & Adapters,EMEA,Direct Enterprise,78,26.23,2045.94,493.04
+ORD-11043,2025-06-11,Cybersecurity Peripherals,LATAM,Direct Enterprise,12,654.34,7852.08,2174.93
+ORD-11082,2025-06-11,Enterprise Server Solutions,North America,Direct Enterprise,3,2846.48,8539.44,2304.42
+ORD-11101,2025-06-11,Cloud Storage Appliances,LATAM,Digital Self-Serve,11,1247.95,13727.45,6021.25
+ORD-10707,2025-06-12,Cloud Storage Appliances,North America,Digital Self-Serve,9,974.17,8767.53,3619.55
+ORD-10804,2025-06-12,Cloud Storage Appliances,North America,Partner Reseller,10,660.98,6609.8,2232.15
+ORD-10864,2025-06-12,Enterprise Server Solutions,EMEA,Digital Self-Serve,2,1851.79,3703.58,1141.24
+ORD-10177,2025-06-13,Cloud Storage Appliances,LATAM,Partner Reseller,6,1050.82,6304.92,1929.59
+ORD-10329,2025-06-13,Legacy Replacement Parts,LATAM,Digital Self-Serve,4,30.69,122.76,28.59
+ORD-10681,2025-06-13,Enterprise Server Solutions,APAC,Direct Enterprise,14,1657.31,23202.34,8563.1
+ORD-10902,2025-06-13,Networking Cables & Adapters,North America,Digital Self-Serve,15,43.08,646.2,289.18
+ORD-10199,2025-06-14,Enterprise Server Solutions,APAC,Digital Self-Serve,7,1996.68,13976.76,5831.32
+ORD-10470,2025-06-14,Enterprise Server Solutions,EMEA,Digital Self-Serve,12,4053.8,48645.6,21399.61
+ORD-10405,2025-06-15,Cybersecurity Peripherals,LATAM,Direct Enterprise,10,492.44,4924.4,1350.96
+ORD-10701,2025-06-15,Enterprise Server Solutions,LATAM,Direct Enterprise,7,2908.65,20360.55,8147.99
+ORD-11164,2025-06-15,Enterprise Server Solutions,LATAM,Partner Reseller,10,1885.92,18859.2,8076.84
+ORD-10814,2025-06-16,Legacy Replacement Parts,North America,Digital Self-Serve,1,42.78,42.78,16.41
+ORD-10268,2025-06-17,Cloud Storage Appliances,EMEA,Digital Self-Serve,13,1375.6,17882.8,7899.25
+ORD-10492,2025-06-17,Enterprise Server Solutions,APAC,Partner Reseller,11,3740.77,41148.47,14818.72
+ORD-10752,2025-06-17,Cloud Storage Appliances,EMEA,Partner Reseller,9,1753.36,15780.24,3730.7
+ORD-10766,2025-06-17,Networking Cables & Adapters,APAC,Digital Self-Serve,26,50.94,1324.44,479.34
+ORD-10844,2025-06-17,Enterprise Server Solutions,LATAM,Direct Enterprise,1,4088.51,4088.51,1411.7
+ORD-10955,2025-06-17,Cybersecurity Peripherals,LATAM,Partner Reseller,6,600.57,3603.42,1158.9
+ORD-10581,2025-06-18,Cybersecurity Peripherals,North America,Digital Self-Serve,11,648.1,7129.1,2680.84
+ORD-10668,2025-06-18,Cybersecurity Peripherals,LATAM,Partner Reseller,8,576.87,4614.96,1535.42
+ORD-10459,2025-06-19,Networking Cables & Adapters,North America,Digital Self-Serve,41,56.27,2307.07,751.99
+ORD-10622,2025-06-19,Enterprise Server Solutions,EMEA,Direct Enterprise,13,2389.33,31061.29,13000.06
+ORD-10820,2025-06-19,Enterprise Server Solutions,EMEA,Direct Enterprise,9,1595.09,14355.81,5434.87
+ORD-10739,2025-06-20,Cloud Storage Appliances,North America,Digital Self-Serve,4,1545.72,6182.88,2171.81
+ORD-10819,2025-06-20,Legacy Replacement Parts,APAC,Partner Reseller,4,60.43,241.72,95.02
+ORD-10107,2025-06-21,Enterprise Server Solutions,APAC,Direct Enterprise,7,1593.88,11157.16,3635.46
+ORD-10448,2025-06-21,Cloud Storage Appliances,North America,Digital Self-Serve,5,868.7,4343.5,1580.19
+ORD-10912,2025-06-21,Cloud Storage Appliances,EMEA,Digital Self-Serve,3,639.7,1919.1,799.19
+ORD-10190,2025-06-22,Cloud Storage Appliances,North America,Digital Self-Serve,15,938.97,14084.55,4832.3
+ORD-10227,2025-06-22,Enterprise Server Solutions,APAC,Digital Self-Serve,7,3841.28,26888.96,5175.03
+ORD-10637,2025-06-22,Enterprise Server Solutions,EMEA,Direct Enterprise,5,3809.98,19049.9,7173.97
+ORD-10886,2025-06-22,Enterprise Server Solutions,LATAM,Digital Self-Serve,15,4458.17,66872.55,19315.04
+ORD-11017,2025-06-22,Cloud Storage Appliances,APAC,Digital Self-Serve,12,1454.27,17451.24,3737.32
+ORD-11121,2025-06-22,Enterprise Server Solutions,EMEA,Direct Enterprise,1,4292.94,4292.94,1558.59
+ORD-11169,2025-06-22,Legacy Replacement Parts,EMEA,Direct Enterprise,4,65.99,263.96,99.69
+ORD-10203,2025-06-23,Legacy Replacement Parts,LATAM,Direct Enterprise,2,71.54,143.08,51.29
+ORD-10377,2025-06-23,Enterprise Server Solutions,APAC,Direct Enterprise,10,3058.37,30583.7,9647.53
+ORD-10853,2025-06-23,Enterprise Server Solutions,LATAM,Digital Self-Serve,5,4365.96,21829.8,5665.52
+ORD-10888,2025-06-23,Legacy Replacement Parts,APAC,Direct Enterprise,2,55.14,110.28,35.88
+ORD-11037,2025-06-23,Networking Cables & Adapters,EMEA,Direct Enterprise,21,58.17,1221.57,239.57
+ORD-10523,2025-06-24,Cloud Storage Appliances,North America,Digital Self-Serve,5,1670.69,8353.45,1913.05
+ORD-10586,2025-06-24,Enterprise Server Solutions,LATAM,Digital Self-Serve,11,3950.7,43457.7,17544.44
+ORD-10012,2025-06-25,Legacy Replacement Parts,North America,Partner Reseller,1,32.57,32.57,10.08
+ORD-10356,2025-06-25,Cloud Storage Appliances,LATAM,Digital Self-Serve,4,1230.77,4923.08,1077.59
+ORD-10722,2025-06-25,Networking Cables & Adapters,North America,Partner Reseller,80,34.71,2776.8,849.3
+ORD-10189,2025-06-26,Legacy Replacement Parts,North America,Partner Reseller,2,55.97,111.94,22.33
+ORD-10311,2025-06-26,Cybersecurity Peripherals,APAC,Direct Enterprise,3,506.03,1518.09,487.26
+ORD-10621,2025-06-27,Cybersecurity Peripherals,EMEA,Direct Enterprise,15,664.99,9974.85,3418.08
+ORD-10868,2025-06-27,Enterprise Server Solutions,EMEA,Partner Reseller,5,1526.52,7632.6,1440.78
+ORD-10998,2025-06-27,Cybersecurity Peripherals,LATAM,Digital Self-Serve,2,744.05,1488.1,343.14
+ORD-10463,2025-06-28,Cybersecurity Peripherals,EMEA,Digital Self-Serve,9,678.55,6106.95,2204.74
+ORD-10616,2025-06-28,Cybersecurity Peripherals,LATAM,Digital Self-Serve,59,327.69,19333.71,7366.19
+ORD-10826,2025-06-28,Enterprise Server Solutions,EMEA,Partner Reseller,1,2185.27,2185.27,562.33
+ORD-10106,2025-06-29,Cloud Storage Appliances,North America,Digital Self-Serve,1,1246.19,1246.19,507.92
+ORD-10348,2025-06-29,Enterprise Server Solutions,APAC,Direct Enterprise,12,3094.19,37130.28,11157.53
+ORD-10432,2025-06-29,Cloud Storage Appliances,North America,Partner Reseller,7,674.09,4718.63,922.29
+ORD-10601,2025-06-29,Cloud Storage Appliances,LATAM,Direct Enterprise,6,1001.68,6010.08,2222.96
+ORD-10760,2025-06-29,Networking Cables & Adapters,APAC,Digital Self-Serve,26,37.64,978.64,244.7
+ORD-10939,2025-06-29,Cloud Storage Appliances,APAC,Digital Self-Serve,4,1248.69,4994.76,1092.33
+ORD-10342,2025-06-30,Cloud Storage Appliances,APAC,Partner Reseller,6,896.9,5381.4,1964.82
+ORD-10806,2025-06-30,Enterprise Server Solutions,North America,Direct Enterprise,3,2581.63,7744.89,1763.95
+ORD-10321,2025-07-01,Cybersecurity Peripherals,North America,Digital Self-Serve,6,878.04,5268.24,1758.81
+ORD-11179,2025-07-01,Cybersecurity Peripherals,EMEA,Direct Enterprise,25,283.45,7086.25,1879.69
+ORD-10262,2025-07-02,Enterprise Server Solutions,EMEA,Digital Self-Serve,10,1512.97,15129.7,3270.22
+ORD-10655,2025-07-02,Cybersecurity Peripherals,EMEA,Digital Self-Serve,3,676.9,2030.7,527.35
+ORD-10746,2025-07-02,Cloud Storage Appliances,APAC,Partner Reseller,11,1164.88,12813.68,3728.89
+ORD-10782,2025-07-02,Enterprise Server Solutions,North America,Digital Self-Serve,3,1945.73,5837.19,1075.62
+ORD-11123,2025-07-02,Networking Cables & Adapters,APAC,Direct Enterprise,75,58.52,4389.0,973.43
+ORD-10363,2025-07-03,Enterprise Server Solutions,APAC,Direct Enterprise,11,3279.79,36077.69,13638.64
+ORD-10535,2025-07-03,Enterprise Server Solutions,EMEA,Direct Enterprise,15,3264.75,48971.25,19671.25
+ORD-10651,2025-07-03,Cloud Storage Appliances,LATAM,Partner Reseller,6,1690.92,10145.52,3556.19
+ORD-10143,2025-07-04,Enterprise Server Solutions,North America,Digital Self-Serve,9,1640.46,14764.14,5752.84
+ORD-10330,2025-07-04,Enterprise Server Solutions,EMEA,Partner Reseller,2,1626.61,3253.22,914.08
+ORD-10672,2025-07-04,Networking Cables & Adapters,LATAM,Direct Enterprise,36,50.94,1833.84,361.94
+ORD-10817,2025-07-04,Enterprise Server Solutions,APAC,Partner Reseller,9,2336.29,21026.61,7717.19
+ORD-11034,2025-07-04,Enterprise Server Solutions,APAC,Digital Self-Serve,12,1239.35,14872.2,5100.28
+ORD-10054,2025-07-05,Enterprise Server Solutions,LATAM,Partner Reseller,3,3249.78,9749.34,3229.49
+ORD-10775,2025-07-05,Networking Cables & Adapters,EMEA,Digital Self-Serve,16,50.17,802.72,213.6
+ORD-10954,2025-07-05,Cybersecurity Peripherals,North America,Direct Enterprise,10,527.01,5270.1,1982.48
+ORD-10214,2025-07-06,Cloud Storage Appliances,North America,Partner Reseller,4,1006.43,4025.72,1043.73
+ORD-10226,2025-07-06,Cybersecurity Peripherals,North America,Digital Self-Serve,14,422.94,5921.16,2265.4
+ORD-11159,2025-07-06,Cybersecurity Peripherals,EMEA,Partner Reseller,12,836.11,10033.32,3795.67
+ORD-10767,2025-07-08,Cloud Storage Appliances,North America,Direct Enterprise,9,1591.23,14321.07,3472.94
+ORD-10331,2025-07-09,Cloud Storage Appliances,APAC,Direct Enterprise,9,1570.18,14131.62,3825.24
+ORD-10388,2025-07-09,Legacy Replacement Parts,EMEA,Digital Self-Serve,4,37.93,151.72,38.19
+ORD-11132,2025-07-09,Enterprise Server Solutions,APAC,Digital Self-Serve,7,2628.87,18402.09,5993.36
+ORD-10412,2025-07-10,Enterprise Server Solutions,North America,Direct Enterprise,10,2613.19,26131.9,9760.66
+ORD-10684,2025-07-10,Cybersecurity Peripherals,APAC,Partner Reseller,2,770.54,1541.08,391.0
+ORD-10032,2025-07-11,Cybersecurity Peripherals,LATAM,Partner Reseller,65,336.69,21884.85,8382.83
+ORD-10119,2025-07-11,Networking Cables & Adapters,APAC,Direct Enterprise,30,27.26,817.8,267.86
+ORD-10478,2025-07-11,Cybersecurity Peripherals,APAC,Partner Reseller,13,767.84,9981.92,2908.37
+ORD-10246,2025-07-12,Cloud Storage Appliances,North America,Partner Reseller,3,1466.56,4399.68,1669.25
+ORD-10908,2025-07-12,Legacy Replacement Parts,North America,Direct Enterprise,3,42.09,126.27,34.07
+ORD-10916,2025-07-12,Cloud Storage Appliances,EMEA,Partner Reseller,7,1379.3,9655.1,2542.21
+ORD-10938,2025-07-12,Cloud Storage Appliances,LATAM,Direct Enterprise,11,790.69,8697.59,2548.37
+ORD-11004,2025-07-12,Cybersecurity Peripherals,LATAM,Digital Self-Serve,72,307.74,22157.28,6962.31
+ORD-10292,2025-07-13,Cloud Storage Appliances,EMEA,Digital Self-Serve,8,642.09,5136.72,2041.62
+ORD-10591,2025-07-13,Cloud Storage Appliances,APAC,Digital Self-Serve,15,1364.86,20472.9,6297.98
+ORD-11099,2025-07-13,Enterprise Server Solutions,LATAM,Digital Self-Serve,14,2015.21,28212.94,11507.29
+ORD-10537,2025-07-14,Enterprise Server Solutions,LATAM,Digital Self-Serve,1,2373.98,2373.98,869.92
+ORD-10587,2025-07-14,Enterprise Server Solutions,LATAM,Digital Self-Serve,15,2547.94,38219.1,12819.64
+ORD-10920,2025-07-15,Enterprise Server Solutions,APAC,Partner Reseller,7,4484.59,31392.13,10298.49
+ORD-11012,2025-07-15,Cloud Storage Appliances,APAC,Direct Enterprise,3,1237.87,3713.61,943.03
+ORD-11193,2025-07-15,Enterprise Server Solutions,EMEA,Digital Self-Serve,7,2272.53,15907.71,5237.04
+ORD-10098,2025-07-16,Cybersecurity Peripherals,EMEA,Direct Enterprise,38,445.47,16927.86,7454.81
+ORD-10317,2025-07-16,Cybersecurity Peripherals,LATAM,Digital Self-Serve,64,263.04,16834.56,3652.62
+ORD-10927,2025-07-16,Enterprise Server Solutions,LATAM,Digital Self-Serve,10,3659.79,36597.9,16311.16
+ORD-10983,2025-07-16,Cybersecurity Peripherals,APAC,Digital Self-Serve,4,672.98,2691.92,1004.43
+ORD-10339,2025-07-17,Legacy Replacement Parts,LATAM,Digital Self-Serve,1,35.0,35.0,15.59
+ORD-10967,2025-07-17,Cloud Storage Appliances,North America,Direct Enterprise,9,1320.1,11880.9,4670.92
+ORD-10502,2025-07-18,Enterprise Server Solutions,APAC,Direct Enterprise,1,3277.96,3277.96,610.52
+ORD-10615,2025-07-18,Enterprise Server Solutions,LATAM,Partner Reseller,10,4257.25,42572.5,14469.42
+ORD-10898,2025-07-18,Cloud Storage Appliances,EMEA,Digital Self-Serve,15,1075.19,16127.85,3005.56
+ORD-11160,2025-07-18,Enterprise Server Solutions,North America,Direct Enterprise,15,2885.96,43289.4,18651.82
+ORD-11014,2025-07-19,Cloud Storage Appliances,North America,Partner Reseller,2,1587.4,3174.8,1010.13
+ORD-11086,2025-07-19,Networking Cables & Adapters,APAC,Partner Reseller,20,50.93,1018.6,323.76
+ORD-10216,2025-07-20,Cloud Storage Appliances,LATAM,Direct Enterprise,6,833.09,4998.54,2194.19
+ORD-10287,2025-07-20,Cloud Storage Appliances,North America,Digital Self-Serve,1,1331.43,1331.43,292.72
+ORD-10522,2025-07-21,Enterprise Server Solutions,North America,Digital Self-Serve,1,3912.27,3912.27,1491.24
+ORD-10183,2025-07-22,Enterprise Server Solutions,North America,Direct Enterprise,14,1876.71,26273.94,8032.06
+ORD-10393,2025-07-22,Enterprise Server Solutions,LATAM,Partner Reseller,5,4194.59,20972.95,6240.36
+ORD-10472,2025-07-23,Legacy Replacement Parts,EMEA,Partner Reseller,2,23.47,46.94,18.53
+ORD-10698,2025-07-23,Cloud Storage Appliances,North America,Digital Self-Serve,11,693.47,7628.17,3296.59
+ORD-10842,2025-07-23,Cybersecurity Peripherals,North America,Digital Self-Serve,76,349.52,26563.52,6845.8
+ORD-10063,2025-07-24,Enterprise Server Solutions,EMEA,Partner Reseller,6,4417.41,26504.46,8636.66
+ORD-10239,2025-07-24,Networking Cables & Adapters,APAC,Partner Reseller,65,63.79,4146.35,1192.91
+ORD-10399,2025-07-24,Cloud Storage Appliances,EMEA,Partner Reseller,8,696.17,5569.36,2246.41
+ORD-10480,2025-07-24,Cloud Storage Appliances,North America,Partner Reseller,7,1289.9,9029.3,3656.44
+ORD-11117,2025-07-24,Networking Cables & Adapters,LATAM,Digital Self-Serve,26,64.37,1673.62,548.09
+ORD-10627,2025-07-25,Legacy Replacement Parts,APAC,Digital Self-Serve,4,32.32,129.28,28.5
+ORD-11010,2025-07-25,Legacy Replacement Parts,LATAM,Partner Reseller,3,37.74,113.22,30.14
+ORD-10232,2025-07-26,Enterprise Server Solutions,North America,Partner Reseller,14,3239.22,45349.08,17218.29
+ORD-10873,2025-07-26,Enterprise Server Solutions,APAC,Digital Self-Serve,4,2418.24,9672.96,2409.8
+ORD-10887,2025-07-26,Legacy Replacement Parts,EMEA,Direct Enterprise,2,75.13,150.26,65.0
+ORD-11087,2025-07-26,Enterprise Server Solutions,North America,Direct Enterprise,15,4054.04,60810.6,17979.44
+ORD-10156,2025-07-27,Enterprise Server Solutions,North America,Partner Reseller,13,2881.14,37454.82,11174.3
+ORD-10589,2025-07-27,Cloud Storage Appliances,EMEA,Partner Reseller,7,943.64,6605.48,1957.59
+ORD-10652,2025-07-27,Cybersecurity Peripherals,APAC,Direct Enterprise,2,901.73,1803.46,548.44
+ORD-11038,2025-07-27,Cybersecurity Peripherals,North America,Digital Self-Serve,38,362.01,13756.38,3611.64
+ORD-11076,2025-07-27,Enterprise Server Solutions,North America,Partner Reseller,1,1475.59,1475.59,399.01
+ORD-10057,2025-07-28,Enterprise Server Solutions,EMEA,Partner Reseller,1,3522.91,3522.91,1197.96
+ORD-10664,2025-07-28,Cybersecurity Peripherals,North America,Partner Reseller,6,708.17,4249.02,1712.36
+ORD-10810,2025-07-28,Cloud Storage Appliances,North America,Direct Enterprise,13,653.13,8490.69,3598.98
+ORD-10926,2025-07-28,Legacy Replacement Parts,APAC,Partner Reseller,1,38.88,38.88,15.25
+ORD-10997,2025-07-28,Networking Cables & Adapters,LATAM,Digital Self-Serve,42,61.08,2565.36,482.33
+ORD-10771,2025-07-29,Cybersecurity Peripherals,APAC,Direct Enterprise,6,760.93,4565.58,1984.38
+ORD-10897,2025-07-29,Cloud Storage Appliances,LATAM,Partner Reseller,8,691.13,5529.04,2463.47
+ORD-10279,2025-07-30,Cloud Storage Appliances,APAC,Partner Reseller,7,1623.19,11362.33,3599.54
+ORD-10319,2025-07-30,Cybersecurity Peripherals,LATAM,Direct Enterprise,23,295.83,6804.09,1711.37
+ORD-10818,2025-07-30,Enterprise Server Solutions,North America,Digital Self-Serve,1,3477.1,3477.1,815.55
+ORD-10823,2025-07-30,Cybersecurity Peripherals,APAC,Digital Self-Serve,3,903.06,2709.18,726.19
+ORD-11174,2025-07-30,Networking Cables & Adapters,APAC,Direct Enterprise,34,60.26,2048.84,900.4
+ORD-10660,2025-07-31,Enterprise Server Solutions,EMEA,Digital Self-Serve,9,1329.92,11969.28,2423.16
+ORD-10779,2025-07-31,Enterprise Server Solutions,APAC,Digital Self-Serve,11,2180.83,23989.13,6010.05
+ORD-11131,2025-07-31,Cybersecurity Peripherals,EMEA,Digital Self-Serve,10,800.72,8007.2,1613.19
+ORD-10301,2025-08-01,Networking Cables & Adapters,North America,Direct Enterprise,59,31.03,1830.77,500.28
+ORD-10395,2025-08-01,Networking Cables & Adapters,EMEA,Digital Self-Serve,77,57.84,4453.68,1312.84
+ORD-10460,2025-08-01,Cybersecurity Peripherals,APAC,Direct Enterprise,6,860.6,5163.6,2236.91
+ORD-11075,2025-08-01,Cloud Storage Appliances,APAC,Direct Enterprise,7,707.59,4953.13,1708.44
+ORD-11167,2025-08-02,Enterprise Server Solutions,North America,Digital Self-Serve,15,1879.17,28187.55,7403.94
+ORD-10237,2025-08-03,Networking Cables & Adapters,APAC,Digital Self-Serve,22,63.99,1407.78,502.27
+ORD-10447,2025-08-03,Cybersecurity Peripherals,North America,Direct Enterprise,41,250.49,10270.09,3628.93
+ORD-10538,2025-08-05,Cloud Storage Appliances,LATAM,Partner Reseller,9,1310.28,11792.52,3564.24
+ORD-10769,2025-08-05,Cybersecurity Peripherals,APAC,Partner Reseller,16,351.5,5624.0,2426.89
+ORD-10837,2025-08-05,Cloud Storage Appliances,APAC,Partner Reseller,6,1767.44,10604.64,3230.19
+ORD-11062,2025-08-05,Enterprise Server Solutions,North America,Digital Self-Serve,3,2543.57,7630.71,1484.25
+ORD-10090,2025-08-06,Enterprise Server Solutions,LATAM,Digital Self-Serve,4,3758.82,15035.28,4075.44
+ORD-11047,2025-08-06,Cloud Storage Appliances,EMEA,Direct Enterprise,1,621.1,621.1,268.77
+ORD-10800,2025-08-07,Enterprise Server Solutions,LATAM,Direct Enterprise,15,3819.05,57285.75,24687.29
+ORD-10126,2025-08-08,Cloud Storage Appliances,EMEA,Digital Self-Serve,2,835.83,1671.66,550.52
+ORD-10733,2025-08-08,Cybersecurity Peripherals,APAC,Partner Reseller,1,625.71,625.71,165.38
+ORD-10981,2025-08-08,Networking Cables & Adapters,North America,Partner Reseller,30,62.49,1874.7,448.91
+ORD-10224,2025-08-09,Enterprise Server Solutions,LATAM,Digital Self-Serve,14,2304.12,32257.68,7516.31
+ORD-10542,2025-08-09,Enterprise Server Solutions,EMEA,Partner Reseller,15,3306.5,49597.5,16177.87
+ORD-10518,2025-08-10,Enterprise Server Solutions,LATAM,Direct Enterprise,2,1592.05,3184.1,1288.0
+ORD-10978,2025-08-10,Cloud Storage Appliances,LATAM,Direct Enterprise,5,1214.54,6072.7,2704.36
+ORD-10583,2025-08-11,Legacy Replacement Parts,EMEA,Direct Enterprise,4,41.24,164.96,59.04
+ORD-10599,2025-08-11,Cloud Storage Appliances,EMEA,Digital Self-Serve,3,818.9,2456.7,693.51
+ORD-10629,2025-08-11,Cloud Storage Appliances,North America,Partner Reseller,1,833.95,833.95,210.36
+ORD-10987,2025-08-11,Cybersecurity Peripherals,LATAM,Partner Reseller,14,683.72,9572.08,2752.94
+ORD-10071,2025-08-12,Enterprise Server Solutions,EMEA,Digital Self-Serve,15,3372.02,50580.3,9125.08
+ORD-10276,2025-08-12,Cybersecurity Peripherals,LATAM,Digital Self-Serve,4,690.24,2760.96,807.43
+ORD-10299,2025-08-12,Enterprise Server Solutions,APAC,Partner Reseller,3,4459.59,13378.77,5591.72
+ORD-10686,2025-08-12,Legacy Replacement Parts,LATAM,Partner Reseller,1,43.7,43.7,12.6
+ORD-10723,2025-08-12,Enterprise Server Solutions,North America,Direct Enterprise,8,2229.54,17836.32,5338.38
+ORD-10875,2025-08-12,Legacy Replacement Parts,LATAM,Digital Self-Serve,4,25.27,101.08,26.46
+ORD-11130,2025-08-12,Enterprise Server Solutions,EMEA,Digital Self-Serve,11,3530.29,38833.19,13144.82
+ORD-10822,2025-08-13,Cloud Storage Appliances,EMEA,Digital Self-Serve,7,909.45,6366.15,1592.84
+ORD-10903,2025-08-13,Legacy Replacement Parts,LATAM,Partner Reseller,3,49.89,149.67,56.36
+ORD-11064,2025-08-13,Cloud Storage Appliances,North America,Direct Enterprise,5,789.48,3947.4,1313.06
+ORD-11199,2025-08-13,Enterprise Server Solutions,EMEA,Direct Enterprise,12,2684.73,32216.76,8743.35
+ORD-10391,2025-08-14,Cybersecurity Peripherals,LATAM,Digital Self-Serve,14,604.18,8458.52,2223.38
+ORD-10588,2025-08-14,Cloud Storage Appliances,EMEA,Partner Reseller,12,898.73,10784.76,4674.03
+ORD-10858,2025-08-14,Enterprise Server Solutions,EMEA,Direct Enterprise,2,2690.96,5381.92,2003.25
+ORD-11158,2025-08-14,Enterprise Server Solutions,EMEA,Digital Self-Serve,11,1813.43,19947.73,4477.78
+ORD-10219,2025-08-15,Enterprise Server Solutions,North America,Partner Reseller,1,4151.59,4151.59,902.05
+ORD-10892,2025-08-15,Cloud Storage Appliances,LATAM,Partner Reseller,13,1243.86,16170.18,4918.71
+ORD-10894,2025-08-16,Cybersecurity Peripherals,APAC,Digital Self-Serve,12,720.8,8649.6,3755.01
+ORD-10368,2025-08-18,Enterprise Server Solutions,LATAM,Digital Self-Serve,8,2456.56,19652.48,7772.59
+ORD-10675,2025-08-18,Enterprise Server Solutions,EMEA,Partner Reseller,14,2514.38,35201.32,15403.84
+ORD-11081,2025-08-18,Enterprise Server Solutions,APAC,Direct Enterprise,2,4281.86,8563.72,3005.55
+ORD-10638,2025-08-19,Cloud Storage Appliances,North America,Partner Reseller,5,1227.48,6137.4,1752.47
+ORD-11000,2025-08-19,Cloud Storage Appliances,APAC,Direct Enterprise,8,1632.19,13057.52,2439.45
+ORD-10364,2025-08-20,Cybersecurity Peripherals,EMEA,Partner Reseller,12,888.73,10664.76,1988.16
+ORD-10558,2025-08-20,Enterprise Server Solutions,APAC,Partner Reseller,7,4059.8,28418.6,7319.57
+ORD-10212,2025-08-21,Networking Cables & Adapters,LATAM,Digital Self-Serve,67,28.96,1940.32,732.71
+ORD-10249,2025-08-21,Cybersecurity Peripherals,LATAM,Digital Self-Serve,39,492.46,19205.94,8590.86
+ORD-10709,2025-08-21,Networking Cables & Adapters,EMEA,Digital Self-Serve,24,63.78,1530.72,603.04
+ORD-11096,2025-08-21,Enterprise Server Solutions,EMEA,Direct Enterprise,12,3706.26,44475.12,16512.46
+ORD-10047,2025-08-22,Cloud Storage Appliances,North America,Direct Enterprise,2,1389.38,2778.76,941.87
+ORD-10073,2025-08-22,Enterprise Server Solutions,APAC,Partner Reseller,8,3316.72,26533.76,6342.65
+ORD-10895,2025-08-22,Cloud Storage Appliances,North America,Digital Self-Serve,9,1035.0,9315.0,2862.49
+ORD-10062,2025-08-24,Networking Cables & Adapters,EMEA,Direct Enterprise,43,61.31,2636.33,641.66
+ORD-10235,2025-08-24,Enterprise Server Solutions,EMEA,Direct Enterprise,3,2348.25,7044.75,1986.86
+ORD-10573,2025-08-24,Cloud Storage Appliances,North America,Digital Self-Serve,10,1380.45,13804.5,4576.55
+ORD-10911,2025-08-24,Enterprise Server Solutions,APAC,Direct Enterprise,6,1281.54,7689.24,2927.74
+ORD-10474,2025-08-25,Cybersecurity Peripherals,APAC,Direct Enterprise,7,791.72,5542.04,2451.42
+ORD-10477,2025-08-25,Enterprise Server Solutions,EMEA,Digital Self-Serve,13,3137.46,40786.98,7451.49
+ORD-10642,2025-08-25,Networking Cables & Adapters,APAC,Digital Self-Serve,46,17.81,819.26,167.12
+ORD-10064,2025-08-26,Enterprise Server Solutions,LATAM,Digital Self-Serve,4,1761.74,7046.96,2295.68
+ORD-11022,2025-08-26,Cybersecurity Peripherals,EMEA,Partner Reseller,10,659.17,6591.7,2162.39
+ORD-10643,2025-08-27,Enterprise Server Solutions,LATAM,Partner Reseller,11,2099.65,23096.15,8242.89
+ORD-10007,2025-08-28,Networking Cables & Adapters,EMEA,Digital Self-Serve,38,38.37,1458.06,590.63
+ORD-10169,2025-08-28,Cybersecurity Peripherals,APAC,Digital Self-Serve,4,696.17,2784.68,1033.17
+ORD-10283,2025-08-28,Enterprise Server Solutions,North America,Partner Reseller,4,2531.82,10127.28,4142.17
+ORD-10676,2025-08-28,Cloud Storage Appliances,LATAM,Digital Self-Serve,5,1151.01,5755.05,1921.24
+ORD-10866,2025-08-28,Networking Cables & Adapters,LATAM,Direct Enterprise,25,17.43,435.75,145.55
+ORD-11009,2025-08-28,Cloud Storage Appliances,APAC,Digital Self-Serve,9,1718.34,15465.06,6134.66
+ORD-11068,2025-08-28,Legacy Replacement Parts,EMEA,Digital Self-Serve,4,50.29,201.16,67.27
+ORD-10379,2025-08-29,Enterprise Server Solutions,EMEA,Digital Self-Serve,8,2764.87,22118.96,8473.3
+ORD-10725,2025-08-29,Cybersecurity Peripherals,North America,Digital Self-Serve,18,311.91,5614.38,2320.54
+ORD-10789,2025-08-29,Cybersecurity Peripherals,LATAM,Partner Reseller,2,792.52,1585.04,493.41
+ORD-10990,2025-08-29,Cybersecurity Peripherals,EMEA,Partner Reseller,1,866.29,866.29,355.08
+ORD-11061,2025-08-29,Enterprise Server Solutions,North America,Partner Reseller,11,3535.23,38887.53,9744.35
+ORD-10147,2025-08-30,Cybersecurity Peripherals,North America,Digital Self-Serve,12,550.73,6608.76,2129.6
+ORD-10282,2025-08-30,Cloud Storage Appliances,EMEA,Direct Enterprise,13,790.85,10281.05,3857.9
+ORD-10390,2025-08-30,Legacy Replacement Parts,North America,Partner Reseller,1,43.01,43.01,12.91
+ORD-10880,2025-08-30,Enterprise Server Solutions,North America,Direct Enterprise,4,1425.09,5700.36,1626.64
+ORD-10951,2025-08-30,Cloud Storage Appliances,EMEA,Partner Reseller,12,1625.73,19508.76,5346.16
+ORD-10357,2025-09-01,Enterprise Server Solutions,EMEA,Direct Enterprise,12,2726.94,32723.28,6086.49
+ORD-10407,2025-09-01,Cloud Storage Appliances,EMEA,Partner Reseller,12,1548.57,18582.84,7077.19
+ORD-10846,2025-09-01,Cloud Storage Appliances,EMEA,Partner Reseller,9,1592.81,14335.29,4648.29
+ORD-11021,2025-09-01,Enterprise Server Solutions,EMEA,Digital Self-Serve,10,2794.92,27949.2,9315.83
+ORD-11113,2025-09-01,Cloud Storage Appliances,North America,Direct Enterprise,4,763.76,3055.04,1136.54
+ORD-10074,2025-09-02,Cybersecurity Peripherals,EMEA,Digital Self-Serve,4,940.23,3760.92,1338.51
+ORD-10125,2025-09-02,Enterprise Server Solutions,North America,Digital Self-Serve,15,3731.56,55973.4,12396.6
+ORD-10383,2025-09-02,Networking Cables & Adapters,North America,Direct Enterprise,79,41.11,3247.69,868.7
+ORD-10513,2025-09-02,Cybersecurity Peripherals,APAC,Direct Enterprise,47,343.07,16124.29,3251.47
+ORD-10584,2025-09-02,Networking Cables & Adapters,LATAM,Partner Reseller,64,38.56,2467.84,742.53
+ORD-11120,2025-09-02,Enterprise Server Solutions,LATAM,Direct Enterprise,6,1204.28,7225.68,1950.2
+ORD-10037,2025-09-03,Enterprise Server Solutions,North America,Digital Self-Serve,7,3468.2,24277.4,7006.59
+ORD-10135,2025-09-03,Enterprise Server Solutions,North America,Digital Self-Serve,8,1395.0,11160.0,4957.7
+ORD-10761,2025-09-03,Cloud Storage Appliances,EMEA,Direct Enterprise,5,1138.93,5694.65,1497.41
+ORD-11135,2025-09-03,Cybersecurity Peripherals,APAC,Digital Self-Serve,79,461.45,36454.55,9390.22
+ORD-10030,2025-09-04,Cybersecurity Peripherals,EMEA,Partner Reseller,66,447.92,29562.72,9865.47
+ORD-10993,2025-09-04,Cybersecurity Peripherals,APAC,Partner Reseller,46,368.51,16951.46,4832.07
+ORD-10058,2025-09-05,Cloud Storage Appliances,North America,Direct Enterprise,14,1007.97,14111.58,5759.8
+ORD-10108,2025-09-05,Cloud Storage Appliances,APAC,Partner Reseller,10,1670.32,16703.2,6120.63
+ORD-10200,2025-09-05,Enterprise Server Solutions,EMEA,Digital Self-Serve,10,2025.41,20254.1,4554.7
+ORD-10728,2025-09-05,Cybersecurity Peripherals,APAC,Direct Enterprise,44,279.9,12315.6,3622.27
+ORD-10419,2025-09-06,Cybersecurity Peripherals,LATAM,Direct Enterprise,50,407.43,20371.5,8826.69
+ORD-10495,2025-09-06,Cloud Storage Appliances,North America,Digital Self-Serve,14,1671.03,23394.42,5191.28
+ORD-11024,2025-09-06,Cloud Storage Appliances,EMEA,Digital Self-Serve,7,1059.77,7418.39,3132.68
+ORD-10946,2025-09-07,Enterprise Server Solutions,APAC,Digital Self-Serve,8,3823.22,30585.76,6539.65
+ORD-10958,2025-09-07,Enterprise Server Solutions,EMEA,Digital Self-Serve,9,1715.5,15439.5,4354.66
+ORD-11197,2025-09-07,Enterprise Server Solutions,LATAM,Direct Enterprise,14,3965.1,55511.4,23776.88
+ORD-10153,2025-09-08,Networking Cables & Adapters,EMEA,Direct Enterprise,22,23.22,510.84,116.79
+ORD-11042,2025-09-08,Cybersecurity Peripherals,APAC,Digital Self-Serve,13,483.26,6282.38,2734.6
+ORD-10197,2025-09-09,Cloud Storage Appliances,APAC,Direct Enterprise,11,1499.88,16498.68,3266.33
+ORD-10353,2025-09-09,Enterprise Server Solutions,North America,Direct Enterprise,5,2611.33,13056.65,5508.67
+ORD-10486,2025-09-09,Networking Cables & Adapters,EMEA,Partner Reseller,10,47.54,475.4,174.6
+ORD-10726,2025-09-09,Enterprise Server Solutions,EMEA,Direct Enterprise,8,1447.06,11576.48,3800.64
+ORD-10794,2025-09-09,Enterprise Server Solutions,LATAM,Digital Self-Serve,4,4339.53,17358.12,6818.34
+ORD-10980,2025-09-09,Networking Cables & Adapters,EMEA,Direct Enterprise,54,27.08,1462.32,408.12
+ORD-10385,2025-09-10,Networking Cables & Adapters,APAC,Partner Reseller,22,25.06,551.32,208.99
+ORD-10409,2025-09-10,Enterprise Server Solutions,North America,Digital Self-Serve,3,2836.24,8508.72,3094.43
+ORD-10680,2025-09-11,Cloud Storage Appliances,EMEA,Digital Self-Serve,14,1207.91,16910.74,6739.05
+ORD-11029,2025-09-11,Enterprise Server Solutions,EMEA,Direct Enterprise,6,3700.2,22201.2,5623.19
+ORD-10044,2025-09-12,Cloud Storage Appliances,North America,Direct Enterprise,12,817.84,9814.08,2873.75
+ORD-10751,2025-09-12,Legacy Replacement Parts,EMEA,Partner Reseller,4,71.64,286.56,123.64
+ORD-11119,2025-09-12,Enterprise Server Solutions,APAC,Partner Reseller,7,4174.57,29221.99,7922.7
+ORD-10527,2025-09-13,Enterprise Server Solutions,EMEA,Digital Self-Serve,2,2239.48,4478.96,1866.42
+ORD-10400,2025-09-14,Enterprise Server Solutions,APAC,Digital Self-Serve,1,2402.06,2402.06,1075.57
+ORD-10744,2025-09-14,Enterprise Server Solutions,North America,Direct Enterprise,1,1351.94,1351.94,417.27
+ORD-10889,2025-09-14,Enterprise Server Solutions,LATAM,Digital Self-Serve,10,4049.28,40492.8,10382.42
+ORD-10264,2025-09-15,Cloud Storage Appliances,EMEA,Direct Enterprise,12,978.03,11736.36,2440.83
+ORD-10511,2025-09-15,Legacy Replacement Parts,EMEA,Digital Self-Serve,2,25.51,51.02,21.55
+ORD-10416,2025-09-16,Legacy Replacement Parts,EMEA,Partner Reseller,1,52.42,52.42,12.91
+ORD-10442,2025-09-16,Cloud Storage Appliances,LATAM,Digital Self-Serve,6,1473.61,8841.66,2677.53
+ORD-10731,2025-09-16,Enterprise Server Solutions,North America,Digital Self-Serve,5,3994.01,19970.05,7752.87
+ORD-10741,2025-09-16,Cybersecurity Peripherals,EMEA,Digital Self-Serve,8,546.87,4374.96,1095.06
+ORD-10881,2025-09-16,Enterprise Server Solutions,LATAM,Direct Enterprise,11,1954.39,21498.29,8017.16
+ORD-10893,2025-09-16,Enterprise Server Solutions,APAC,Digital Self-Serve,2,3311.4,6622.8,2441.43
+ORD-10963,2025-09-16,Legacy Replacement Parts,EMEA,Direct Enterprise,1,20.61,20.61,7.87
+ORD-10127,2025-09-17,Cybersecurity Peripherals,LATAM,Direct Enterprise,8,540.35,4322.8,1570.44
+ORD-10179,2025-09-17,Cloud Storage Appliances,LATAM,Direct Enterprise,10,1798.52,17985.2,6906.7
+ORD-10243,2025-09-17,Enterprise Server Solutions,APAC,Partner Reseller,7,1200.33,8402.31,2734.9
+ORD-10267,2025-09-18,Cloud Storage Appliances,EMEA,Partner Reseller,7,1591.18,11138.26,4401.46
+ORD-11190,2025-09-18,Networking Cables & Adapters,APAC,Digital Self-Serve,78,39.99,3119.22,844.04
+ORD-10155,2025-09-19,Cybersecurity Peripherals,North America,Direct Enterprise,22,340.16,7483.52,3360.31
+ORD-10718,2025-09-19,Cloud Storage Appliances,EMEA,Digital Self-Serve,12,1330.67,15968.04,4306.27
+ORD-10791,2025-09-19,Legacy Replacement Parts,APAC,Digital Self-Serve,3,58.86,176.58,59.09
+ORD-10075,2025-09-20,Cloud Storage Appliances,APAC,Direct Enterprise,10,771.41,7714.1,1805.14
+ORD-10325,2025-09-20,Cybersecurity Peripherals,EMEA,Digital Self-Serve,1,769.15,769.15,159.4
+ORD-10436,2025-09-20,Enterprise Server Solutions,EMEA,Direct Enterprise,12,3124.31,37491.72,13626.1
+ORD-10833,2025-09-20,Legacy Replacement Parts,North America,Digital Self-Serve,1,79.41,79.41,27.83
+ORD-10855,2025-09-20,Cloud Storage Appliances,LATAM,Digital Self-Serve,11,992.16,10913.76,4648.85
+ORD-11052,2025-09-20,Enterprise Server Solutions,LATAM,Digital Self-Serve,12,1939.57,23274.84,8596.57
+ORD-10182,2025-09-21,Cloud Storage Appliances,North America,Partner Reseller,14,1684.97,23589.58,10093.09
+ORD-10258,2025-09-21,Enterprise Server Solutions,North America,Direct Enterprise,5,3235.97,16179.85,3247.91
+ORD-10061,2025-09-22,Cloud Storage Appliances,EMEA,Direct Enterprise,12,1751.46,21017.52,4639.29
+ORD-10435,2025-09-22,Networking Cables & Adapters,North America,Partner Reseller,17,27.08,460.36,90.77
+ORD-11077,2025-09-22,Enterprise Server Solutions,North America,Digital Self-Serve,8,4036.01,32288.08,12351.17
+ORD-10248,2025-09-23,Cloud Storage Appliances,APAC,Digital Self-Serve,7,1729.95,12109.65,3583.34
+ORD-10856,2025-09-23,Legacy Replacement Parts,LATAM,Direct Enterprise,4,61.14,244.56,61.87
+ORD-11049,2025-09-23,Cloud Storage Appliances,APAC,Direct Enterprise,7,1320.04,9240.28,2691.32
+ORD-10449,2025-09-24,Enterprise Server Solutions,North America,Direct Enterprise,14,2253.93,31555.02,10683.69
+ORD-10579,2025-09-24,Cloud Storage Appliances,LATAM,Direct Enterprise,8,1374.26,10994.08,3960.26
+ORD-10968,2025-09-24,Cybersecurity Peripherals,EMEA,Direct Enterprise,7,945.81,6620.67,2044.05
+ORD-11092,2025-09-24,Networking Cables & Adapters,EMEA,Direct Enterprise,10,64.56,645.6,119.78
+ORD-10035,2025-09-25,Networking Cables & Adapters,APAC,Partner Reseller,69,61.39,4235.91,1124.02
+ORD-10969,2025-09-25,Enterprise Server Solutions,APAC,Digital Self-Serve,11,4091.52,45006.72,18580.54
+ORD-10633,2025-09-26,Enterprise Server Solutions,North America,Digital Self-Serve,9,3063.75,27573.75,12176.84
+ORD-10778,2025-09-26,Cybersecurity Peripherals,APAC,Direct Enterprise,15,506.26,7593.9,2416.61
+ORD-10984,2025-09-26,Enterprise Server Solutions,North America,Partner Reseller,1,4042.93,4042.93,806.92
+ORD-10038,2025-09-27,Enterprise Server Solutions,APAC,Partner Reseller,10,4343.57,43435.7,8924.84
+ORD-10045,2025-09-27,Enterprise Server Solutions,LATAM,Partner Reseller,4,4422.75,17691.0,6765.18
+ORD-10103,2025-09-27,Cybersecurity Peripherals,LATAM,Direct Enterprise,34,296.68,10087.12,3818.37
+ORD-10275,2025-09-27,Enterprise Server Solutions,APAC,Direct Enterprise,10,3658.02,36580.2,15058.65
+ORD-10336,2025-09-27,Cloud Storage Appliances,LATAM,Direct Enterprise,4,1375.13,5500.52,1046.77
+ORD-10748,2025-09-27,Cloud Storage Appliances,EMEA,Digital Self-Serve,12,1662.65,19951.8,5468.33
+ORD-11019,2025-09-27,Cloud Storage Appliances,North America,Direct Enterprise,11,749.6,8245.6,2212.82
+ORD-11025,2025-09-27,Legacy Replacement Parts,EMEA,Partner Reseller,2,58.57,117.14,25.96
+ORD-10003,2025-09-28,Enterprise Server Solutions,APAC,Partner Reseller,8,4300.77,34406.16,13147.66
+ORD-10014,2025-09-28,Networking Cables & Adapters,North America,Direct Enterprise,17,46.65,793.05,182.44
+ORD-11080,2025-09-28,Enterprise Server Solutions,EMEA,Digital Self-Serve,1,1603.46,1603.46,595.53
+ORD-10059,2025-09-29,Legacy Replacement Parts,APAC,Digital Self-Serve,3,24.43,73.29,19.39
+ORD-10241,2025-09-29,Cybersecurity Peripherals,LATAM,Direct Enterprise,5,704.53,3522.65,1194.51
+ORD-10273,2025-09-29,Enterprise Server Solutions,APAC,Direct Enterprise,13,2181.03,28353.39,9710.13
+ORD-10302,2025-09-29,Enterprise Server Solutions,North America,Direct Enterprise,10,1421.08,14210.8,6131.06
+ORD-10561,2025-09-29,Networking Cables & Adapters,APAC,Digital Self-Serve,48,42.68,2048.64,580.19
+ORD-10261,2025-09-30,Enterprise Server Solutions,LATAM,Digital Self-Serve,12,3441.94,41303.28,8118.33
+ORD-10326,2025-09-30,Enterprise Server Solutions,North America,Direct Enterprise,6,4034.9,24209.4,6437.63
+ORD-11083,2025-09-30,Enterprise Server Solutions,North America,Digital Self-Serve,8,1282.17,10257.36,2199.48
+ORD-10040,2025-10-01,Networking Cables & Adapters,North America,Digital Self-Serve,60,51.8,3108.0,1072.56
+ORD-10144,2025-10-01,Legacy Replacement Parts,EMEA,Direct Enterprise,2,39.02,78.04,21.0
+ORD-10150,2025-10-01,Cloud Storage Appliances,EMEA,Digital Self-Serve,6,1279.19,7675.14,2728.05
+ORD-10313,2025-10-01,Cybersecurity Peripherals,APAC,Partner Reseller,11,501.22,5513.42,2080.56
+ORD-10443,2025-10-01,Enterprise Server Solutions,EMEA,Partner Reseller,1,4289.17,4289.17,1684.9
+ORD-10450,2025-10-01,Enterprise Server Solutions,LATAM,Direct Enterprise,8,2778.43,22227.44,8969.68
+ORD-10636,2025-10-01,Cloud Storage Appliances,EMEA,Partner Reseller,13,1195.24,15538.12,6093.48
+ORD-10689,2025-10-01,Cybersecurity Peripherals,EMEA,Direct Enterprise,26,372.73,9690.98,1770.6
+ORD-10956,2025-10-01,Cybersecurity Peripherals,EMEA,Digital Self-Serve,72,493.5,35532.0,7924.8
+ORD-11040,2025-10-01,Enterprise Server Solutions,LATAM,Digital Self-Serve,10,2996.53,29965.3,6364.66
+ORD-10085,2025-10-02,Cloud Storage Appliances,EMEA,Digital Self-Serve,6,1735.41,10412.46,2341.87
+ORD-10129,2025-10-02,Cybersecurity Peripherals,EMEA,Partner Reseller,10,651.19,6511.9,2673.78
+ORD-10392,2025-10-02,Cybersecurity Peripherals,LATAM,Direct Enterprise,4,844.98,3379.92,1074.06
+ORD-10446,2025-10-02,Cloud Storage Appliances,APAC,Partner Reseller,15,960.51,14407.65,3742.89
+ORD-10560,2025-10-02,Enterprise Server Solutions,APAC,Direct Enterprise,9,1790.89,16118.01,4991.24
+ORD-10673,2025-10-02,Cybersecurity Peripherals,North America,Direct Enterprise,11,706.44,7770.84,3000.94
+ORD-10829,2025-10-02,Cybersecurity Peripherals,North America,Partner Reseller,41,285.29,11696.89,3122.79
+ORD-10095,2025-10-03,Enterprise Server Solutions,APAC,Digital Self-Serve,15,3165.96,47489.4,21126.02
+ORD-10272,2025-10-03,Cybersecurity Peripherals,EMEA,Digital Self-Serve,2,836.82,1673.64,552.89
+ORD-10280,2025-10-04,Cybersecurity Peripherals,North America,Digital Self-Serve,79,405.17,32008.43,7095.61
+ORD-10900,2025-10-04,Legacy Replacement Parts,LATAM,Digital Self-Serve,2,79.3,158.6,62.75
+ORD-10929,2025-10-04,Networking Cables & Adapters,North America,Digital Self-Serve,28,64.31,1800.68,629.25
+ORD-10024,2025-10-05,Cybersecurity Peripherals,EMEA,Partner Reseller,6,515.43,3092.58,1159.46
+ORD-10159,2025-10-05,Enterprise Server Solutions,APAC,Partner Reseller,3,4482.05,13446.15,2537.99
+ORD-10805,2025-10-05,Cloud Storage Appliances,APAC,Digital Self-Serve,7,1149.91,8049.37,1762.97
+ORD-10192,2025-10-07,Enterprise Server Solutions,APAC,Digital Self-Serve,3,2629.89,7889.67,2869.47
+ORD-10487,2025-10-07,Legacy Replacement Parts,APAC,Direct Enterprise,1,47.68,47.68,21.25
+ORD-11041,2025-10-07,Enterprise Server Solutions,EMEA,Partner Reseller,5,3564.56,17822.8,7493.22
+ORD-10461,2025-10-08,Legacy Replacement Parts,LATAM,Digital Self-Serve,2,50.03,100.06,19.65
+ORD-10838,2025-10-08,Cybersecurity Peripherals,EMEA,Partner Reseller,1,673.4,673.4,185.79
+ORD-11173,2025-10-08,Enterprise Server Solutions,APAC,Partner Reseller,9,1423.57,12812.13,2805.54
+ORD-10133,2025-10-09,Enterprise Server Solutions,EMEA,Digital Self-Serve,7,3869.6,27087.2,7464.46
+ORD-11060,2025-10-09,Cloud Storage Appliances,LATAM,Digital Self-Serve,15,785.31,11779.65,5019.65
+ORD-11137,2025-10-09,Cybersecurity Peripherals,LATAM,Partner Reseller,11,341.81,3759.91,1439.24
+ORD-10406,2025-10-10,Enterprise Server Solutions,North America,Digital Self-Serve,2,3282.77,6565.54,2392.06
+ORD-10847,2025-10-10,Enterprise Server Solutions,LATAM,Partner Reseller,9,4261.95,38357.55,14080.33
+ORD-10977,2025-10-10,Legacy Replacement Parts,APAC,Digital Self-Serve,2,77.91,155.82,30.98
+ORD-10019,2025-10-11,Cloud Storage Appliances,APAC,Partner Reseller,14,830.76,11630.64,4796.34
+ORD-10230,2025-10-11,Cybersecurity Peripherals,APAC,Direct Enterprise,14,674.1,9437.4,2743.6
+ORD-10318,2025-10-11,Enterprise Server Solutions,APAC,Direct Enterprise,13,2946.44,38303.72,8017.13
+ORD-10369,2025-10-11,Enterprise Server Solutions,APAC,Direct Enterprise,12,2480.67,29768.04,7388.25
+ORD-10582,2025-10-11,Cloud Storage Appliances,APAC,Digital Self-Serve,8,1466.72,11733.76,3657.05
+ORD-10425,2025-10-12,Cloud Storage Appliances,APAC,Partner Reseller,3,949.36,2848.08,856.15
+ORD-11186,2025-10-12,Enterprise Server Solutions,EMEA,Direct Enterprise,11,2078.56,22864.16,8607.63
+ORD-10151,2025-10-13,Enterprise Server Solutions,APAC,Partner Reseller,4,2597.76,10391.04,2830.07
+ORD-10352,2025-10-13,Enterprise Server Solutions,LATAM,Direct Enterprise,13,2670.4,34715.2,11605.47
+ORD-10937,2025-10-13,Enterprise Server Solutions,APAC,Partner Reseller,13,2573.39,33454.07,14772.31
+ORD-11048,2025-10-13,Networking Cables & Adapters,APAC,Digital Self-Serve,76,57.13,4341.88,1089.43
+ORD-10257,2025-10-14,Enterprise Server Solutions,North America,Partner Reseller,3,2339.6,7018.8,2092.97
+ORD-10705,2025-10-14,Enterprise Server Solutions,LATAM,Direct Enterprise,9,2343.5,21091.5,7014.53
+ORD-11138,2025-10-14,Cybersecurity Peripherals,APAC,Partner Reseller,3,865.53,2596.59,894.81
+ORD-11194,2025-10-14,Cybersecurity Peripherals,EMEA,Partner Reseller,4,711.92,2847.68,944.75
+ORD-10860,2025-10-15,Enterprise Server Solutions,EMEA,Direct Enterprise,15,2562.31,38434.65,13959.98
+ORD-10936,2025-10-15,Cloud Storage Appliances,LATAM,Partner Reseller,6,1592.46,9554.76,2406.4
+ORD-10721,2025-10-16,Enterprise Server Solutions,LATAM,Direct Enterprise,3,4423.48,13270.44,5218.41
+ORD-11149,2025-10-16,Cybersecurity Peripherals,EMEA,Digital Self-Serve,8,818.39,6547.12,2561.0
+ORD-10334,2025-10-17,Enterprise Server Solutions,APAC,Direct Enterprise,1,2651.67,2651.67,761.9
+ORD-10521,2025-10-17,Enterprise Server Solutions,North America,Direct Enterprise,9,2476.9,22292.1,7627.32
+ORD-11095,2025-10-17,Cybersecurity Peripherals,LATAM,Digital Self-Serve,6,589.21,3535.26,1546.73
+ORD-10437,2025-10-18,Legacy Replacement Parts,North America,Digital Self-Serve,3,42.43,127.29,56.71
+ORD-10571,2025-10-18,Enterprise Server Solutions,APAC,Direct Enterprise,5,1346.44,6732.2,2048.29
+ORD-10384,2025-10-19,Networking Cables & Adapters,APAC,Digital Self-Serve,46,29.3,1347.8,561.1
+ORD-10595,2025-10-19,Networking Cables & Adapters,EMEA,Digital Self-Serve,58,52.5,3045.0,1098.91
+ORD-10693,2025-10-19,Enterprise Server Solutions,LATAM,Digital Self-Serve,11,1465.9,16124.9,6578.68
+ORD-10848,2025-10-19,Cloud Storage Appliances,APAC,Digital Self-Serve,4,1104.84,4419.36,1709.56
+ORD-10312,2025-10-20,Legacy Replacement Parts,North America,Direct Enterprise,3,79.95,239.85,77.36
+ORD-10944,2025-10-20,Enterprise Server Solutions,EMEA,Digital Self-Serve,5,2702.67,13513.35,3346.67
+ORD-10194,2025-10-21,Cybersecurity Peripherals,EMEA,Partner Reseller,40,351.01,14040.4,2915.04
+ORD-10496,2025-10-21,Cloud Storage Appliances,North America,Partner Reseller,5,676.65,3383.25,1463.51
+ORD-10610,2025-10-21,Cybersecurity Peripherals,LATAM,Partner Reseller,12,679.69,8156.28,2611.23
+ORD-10152,2025-10-22,Legacy Replacement Parts,North America,Digital Self-Serve,2,61.34,122.68,31.22
+ORD-10454,2025-10-22,Cybersecurity Peripherals,LATAM,Partner Reseller,13,575.56,7482.28,2098.39
+ORD-10590,2025-10-22,Cybersecurity Peripherals,North America,Digital Self-Serve,2,708.23,1416.46,333.62
+ORD-10697,2025-10-22,Cloud Storage Appliances,APAC,Digital Self-Serve,7,856.73,5997.11,1799.16
+ORD-10714,2025-10-22,Cybersecurity Peripherals,EMEA,Digital Self-Serve,15,745.4,11181.0,3288.87
+ORD-10957,2025-10-22,Cloud Storage Appliances,EMEA,Digital Self-Serve,13,1501.66,19521.58,7149.45
+ORD-10378,2025-10-23,Enterprise Server Solutions,North America,Direct Enterprise,13,2052.89,26687.57,9170.93
+ORD-10013,2025-10-24,Cloud Storage Appliances,LATAM,Direct Enterprise,5,1447.91,7239.55,1670.1
+ORD-10128,2025-10-24,Cloud Storage Appliances,LATAM,Direct Enterprise,8,654.12,5232.96,2183.65
+ORD-10256,2025-10-24,Enterprise Server Solutions,North America,Partner Reseller,1,4228.48,4228.48,1893.11
+ORD-10298,2025-10-24,Cloud Storage Appliances,EMEA,Direct Enterprise,7,1634.57,11441.99,3472.8
+ORD-10602,2025-10-24,Cloud Storage Appliances,EMEA,Direct Enterprise,13,1738.51,22600.63,4589.58
+ORD-10730,2025-10-24,Enterprise Server Solutions,North America,Digital Self-Serve,1,4310.18,4310.18,802.19
+ORD-10841,2025-10-24,Enterprise Server Solutions,APAC,Partner Reseller,13,4321.78,56183.14,19154.1
+ORD-11072,2025-10-24,Networking Cables & Adapters,EMEA,Direct Enterprise,47,38.03,1787.41,454.83
+ORD-10564,2025-10-25,Networking Cables & Adapters,LATAM,Direct Enterprise,72,58.11,4183.92,1383.22
+ORD-11078,2025-10-25,Enterprise Server Solutions,EMEA,Direct Enterprise,8,4498.02,35984.16,11367.32
+ORD-11125,2025-10-25,Enterprise Server Solutions,EMEA,Partner Reseller,9,2407.66,21668.94,9140.47
+ORD-10018,2025-10-26,Cloud Storage Appliances,North America,Direct Enterprise,9,911.34,8202.06,2444.07
+ORD-10641,2025-10-26,Enterprise Server Solutions,APAC,Partner Reseller,5,4463.12,22315.6,4197.67
+ORD-10605,2025-10-27,Enterprise Server Solutions,APAC,Partner Reseller,15,3763.49,56452.35,23903.79
+ORD-10654,2025-10-27,Legacy Replacement Parts,LATAM,Digital Self-Serve,4,60.06,240.24,87.08
+ORD-10010,2025-10-28,Cybersecurity Peripherals,LATAM,Partner Reseller,13,900.64,11708.32,3688.98
+ORD-10354,2025-10-28,Networking Cables & Adapters,APAC,Partner Reseller,38,38.75,1472.5,425.37
+ORD-11162,2025-10-28,Cybersecurity Peripherals,APAC,Digital Self-Serve,11,601.55,6617.05,2442.45
+ORD-11166,2025-10-28,Enterprise Server Solutions,EMEA,Partner Reseller,12,2016.88,24202.56,10376.84
+ORD-10134,2025-10-29,Cloud Storage Appliances,APAC,Direct Enterprise,9,636.58,5729.22,1633.65
+ORD-10603,2025-10-29,Cybersecurity Peripherals,North America,Direct Enterprise,12,894.39,10732.68,4508.68
+ORD-10687,2025-10-29,Enterprise Server Solutions,North America,Partner Reseller,7,4088.22,28617.54,11662.96
+ORD-10695,2025-10-29,Cybersecurity Peripherals,North America,Direct Enterprise,10,795.18,7951.8,2854.5
+ORD-10945,2025-10-29,Legacy Replacement Parts,North America,Direct Enterprise,1,36.51,36.51,9.47
+ORD-11188,2025-10-29,Enterprise Server Solutions,EMEA,Direct Enterprise,10,2083.73,20837.3,6012.43
+ORD-10015,2025-10-30,Cloud Storage Appliances,North America,Partner Reseller,1,1321.81,1321.81,308.38
+ORD-10922,2025-10-30,Cloud Storage Appliances,APAC,Digital Self-Serve,11,1533.2,16865.2,5440.51
+ORD-10565,2025-11-01,Cloud Storage Appliances,LATAM,Direct Enterprise,15,732.47,10987.05,2812.92
+ORD-10941,2025-11-01,Networking Cables & Adapters,APAC,Direct Enterprise,23,34.9,802.7,184.1
+ORD-10176,2025-11-02,Enterprise Server Solutions,North America,Partner Reseller,12,1253.98,15047.76,4189.51
+ORD-10221,2025-11-02,Legacy Replacement Parts,APAC,Partner Reseller,3,22.03,66.09,25.72
+ORD-11018,2025-11-02,Enterprise Server Solutions,LATAM,Digital Self-Serve,6,1775.04,10650.24,3444.47
+ORD-11032,2025-11-02,Enterprise Server Solutions,APAC,Direct Enterprise,9,3956.63,35609.67,10274.38
+ORD-10036,2025-11-03,Cybersecurity Peripherals,APAC,Direct Enterprise,2,586.08,1172.16,241.14
+ORD-10438,2025-11-03,Cloud Storage Appliances,LATAM,Partner Reseller,13,606.08,7879.04,2215.54
+ORD-11141,2025-11-03,Cloud Storage Appliances,North America,Partner Reseller,6,1725.89,10355.34,3988.93
+ORD-10422,2025-11-04,Enterprise Server Solutions,APAC,Digital Self-Serve,5,4072.86,20364.3,7752.96
+ORD-10489,2025-11-04,Legacy Replacement Parts,APAC,Digital Self-Serve,2,23.15,46.3,9.7
+ORD-10835,2025-11-04,Networking Cables & Adapters,APAC,Digital Self-Serve,26,16.76,435.76,109.43
+ORD-11023,2025-11-04,Enterprise Server Solutions,APAC,Partner Reseller,15,1731.03,25965.45,10327.04
+ORD-10201,2025-11-05,Cloud Storage Appliances,North America,Direct Enterprise,14,1761.74,24664.36,5090.44
+ORD-11028,2025-11-05,Cloud Storage Appliances,North America,Digital Self-Serve,13,820.55,10667.15,3311.46
+ORD-10146,2025-11-06,Enterprise Server Solutions,North America,Direct Enterprise,15,2721.45,40821.75,7597.64
+ORD-10788,2025-11-06,Legacy Replacement Parts,LATAM,Partner Reseller,1,32.65,32.65,7.2
+ORD-10961,2025-11-06,Enterprise Server Solutions,APAC,Digital Self-Serve,10,3608.55,36085.5,9142.89
+ORD-10049,2025-11-07,Enterprise Server Solutions,EMEA,Partner Reseller,2,1886.24,3772.48,835.62
+ORD-10562,2025-11-07,Enterprise Server Solutions,LATAM,Partner Reseller,10,4494.38,44943.8,15352.79
+ORD-10596,2025-11-07,Enterprise Server Solutions,APAC,Digital Self-Serve,6,3553.01,21318.06,8970.25
+ORD-10974,2025-11-07,Cybersecurity Peripherals,EMEA,Digital Self-Serve,69,382.94,26422.86,9523.43
+ORD-10397,2025-11-08,Cybersecurity Peripherals,LATAM,Partner Reseller,2,743.91,1487.82,430.88
+ORD-10166,2025-11-09,Enterprise Server Solutions,LATAM,Digital Self-Serve,4,1560.42,6241.68,1289.73
+ORD-10694,2025-11-10,Enterprise Server Solutions,EMEA,Partner Reseller,1,4145.88,4145.88,1297.25
+ORD-10716,2025-11-10,Enterprise Server Solutions,North America,Partner Reseller,2,2613.73,5227.46,1384.52
+ORD-10762,2025-11-10,Enterprise Server Solutions,EMEA,Digital Self-Serve,11,1229.37,13523.07,4925.85
+ORD-10396,2025-11-11,Enterprise Server Solutions,APAC,Partner Reseller,9,2967.2,26704.8,5303.51
+ORD-11053,2025-11-11,Cybersecurity Peripherals,North America,Digital Self-Serve,1,623.43,623.43,162.06
+ORD-10118,2025-11-12,Enterprise Server Solutions,LATAM,Partner Reseller,15,3826.72,57400.8,25403.41
+ORD-10193,2025-11-12,Networking Cables & Adapters,LATAM,Direct Enterprise,43,27.38,1177.34,300.54
+ORD-10661,2025-11-12,Cloud Storage Appliances,North America,Partner Reseller,12,713.66,8563.92,1833.66
+ORD-10780,2025-11-12,Enterprise Server Solutions,LATAM,Direct Enterprise,15,1664.81,24972.15,8949.31
+ORD-10628,2025-11-13,Cybersecurity Peripherals,LATAM,Partner Reseller,45,344.76,15514.2,4873.61
+ORD-10358,2025-11-14,Enterprise Server Solutions,EMEA,Digital Self-Serve,8,2604.15,20833.2,8390.76
+ORD-10421,2025-11-14,Networking Cables & Adapters,APAC,Digital Self-Serve,59,32.94,1943.46,373.48
+ORD-10424,2025-11-14,Networking Cables & Adapters,LATAM,Partner Reseller,37,60.05,2221.85,418.95
+ORD-10630,2025-11-14,Enterprise Server Solutions,EMEA,Direct Enterprise,2,2061.33,4122.66,1364.82
+ORD-10755,2025-11-14,Cloud Storage Appliances,LATAM,Digital Self-Serve,8,1305.34,10442.72,4674.15
+ORD-11112,2025-11-14,Enterprise Server Solutions,North America,Digital Self-Serve,9,3662.37,32961.33,9604.45
+ORD-11161,2025-11-14,Enterprise Server Solutions,EMEA,Digital Self-Serve,12,3457.77,41493.24,7891.25
+ORD-11178,2025-11-14,Cybersecurity Peripherals,EMEA,Partner Reseller,71,436.28,30975.88,6710.06
+ORD-11191,2025-11-14,Cloud Storage Appliances,North America,Digital Self-Serve,10,1756.78,17567.8,4474.53
+ORD-10171,2025-11-15,Enterprise Server Solutions,LATAM,Partner Reseller,12,3778.52,45342.24,20079.34
+ORD-10306,2025-11-15,Cybersecurity Peripherals,APAC,Partner Reseller,63,295.83,18637.29,3928.92
+ORD-10427,2025-11-15,Cybersecurity Peripherals,APAC,Direct Enterprise,6,934.73,5608.38,1410.28
+ORD-10043,2025-11-16,Cybersecurity Peripherals,EMEA,Direct Enterprise,5,585.01,2925.05,549.89
+ORD-10469,2025-11-16,Cybersecurity Peripherals,APAC,Digital Self-Serve,5,624.5,3122.5,614.08
+ORD-10132,2025-11-17,Cybersecurity Peripherals,North America,Direct Enterprise,1,823.84,823.84,348.55
+ORD-11163,2025-11-17,Legacy Replacement Parts,LATAM,Digital Self-Serve,3,63.7,191.1,40.79
+ORD-10020,2025-11-18,Cloud Storage Appliances,APAC,Partner Reseller,7,1446.57,10125.99,1855.08
+ORD-10039,2025-11-18,Cybersecurity Peripherals,North America,Partner Reseller,10,528.0,5280.0,1328.67
+ORD-10052,2025-11-18,Cybersecurity Peripherals,LATAM,Digital Self-Serve,9,522.96,4706.64,2048.62
+ORD-10089,2025-11-18,Cloud Storage Appliances,LATAM,Direct Enterprise,13,1240.32,16124.16,4448.62
+ORD-10593,2025-11-18,Cloud Storage Appliances,APAC,Direct Enterprise,15,1415.1,21226.5,5866.63
+ORD-10891,2025-11-18,Enterprise Server Solutions,North America,Digital Self-Serve,3,4214.94,12644.82,5062.37
+ORD-11171,2025-11-18,Enterprise Server Solutions,APAC,Partner Reseller,11,2186.81,24054.91,6122.11
+ORD-10208,2025-11-19,Enterprise Server Solutions,APAC,Partner Reseller,1,1846.53,1846.53,534.26
+ORD-10211,2025-11-20,Networking Cables & Adapters,EMEA,Partner Reseller,44,38.13,1677.72,418.08
+ORD-10300,2025-11-20,Networking Cables & Adapters,North America,Partner Reseller,51,57.52,2933.52,1096.02
+ORD-10465,2025-11-20,Enterprise Server Solutions,LATAM,Partner Reseller,15,2822.96,42344.4,13067.15
+ORD-10517,2025-11-20,Enterprise Server Solutions,APAC,Direct Enterprise,15,1518.56,22778.4,7252.17
+ORD-10576,2025-11-20,Enterprise Server Solutions,APAC,Digital Self-Serve,5,2850.61,14253.05,6340.49
+ORD-10717,2025-11-20,Cloud Storage Appliances,North America,Digital Self-Serve,5,619.14,3095.7,1282.23
+ORD-10867,2025-11-20,Legacy Replacement Parts,LATAM,Partner Reseller,1,62.39,62.39,11.4
+ORD-10966,2025-11-20,Enterprise Server Solutions,EMEA,Direct Enterprise,10,3888.83,38888.3,8971.7
+ORD-10971,2025-11-20,Cloud Storage Appliances,EMEA,Partner Reseller,5,1620.77,8103.85,3426.1
+ORD-10991,2025-11-20,Enterprise Server Solutions,APAC,Direct Enterprise,3,2075.04,6225.12,1981.29
+ORD-10575,2025-11-21,Cloud Storage Appliances,APAC,Partner Reseller,12,1679.0,20148.0,5083.95
+ORD-11156,2025-11-21,Networking Cables & Adapters,LATAM,Partner Reseller,11,16.29,179.19,43.56
+ORD-10123,2025-11-22,Cybersecurity Peripherals,LATAM,Direct Enterprise,62,253.26,15702.12,5605.45
+ORD-10347,2025-11-22,Enterprise Server Solutions,EMEA,Direct Enterprise,8,3225.75,25806.0,9882.71
+ORD-10051,2025-11-23,Cybersecurity Peripherals,LATAM,Partner Reseller,12,853.31,10239.72,2042.05
+ORD-10404,2025-11-23,Enterprise Server Solutions,North America,Digital Self-Serve,6,1271.82,7630.92,1865.05
+ORD-10141,2025-11-24,Legacy Replacement Parts,North America,Partner Reseller,4,41.63,166.52,65.31
+ORD-10678,2025-11-24,Cloud Storage Appliances,EMEA,Direct Enterprise,10,917.72,9177.2,3092.1
+ORD-10081,2025-11-25,Legacy Replacement Parts,APAC,Digital Self-Serve,4,20.09,80.36,27.59
+ORD-10114,2025-11-25,Cybersecurity Peripherals,EMEA,Partner Reseller,10,891.78,8917.8,1684.65
+ORD-10289,2025-11-25,Cybersecurity Peripherals,North America,Partner Reseller,5,570.88,2854.4,1229.58
+ORD-10304,2025-11-25,Cloud Storage Appliances,EMEA,Partner Reseller,7,1092.84,7649.88,2393.18
+ORD-10403,2025-11-25,Cybersecurity Peripherals,LATAM,Digital Self-Serve,14,553.13,7743.82,3164.33
+ORD-10594,2025-11-25,Cloud Storage Appliances,North America,Direct Enterprise,15,1627.51,24412.65,7090.32
+ORD-10975,2025-11-25,Cloud Storage Appliances,North America,Partner Reseller,3,1151.16,3453.48,966.98
+ORD-10178,2025-11-26,Cybersecurity Peripherals,LATAM,Partner Reseller,47,260.84,12259.48,4455.81
+ORD-10337,2025-11-26,Enterprise Server Solutions,EMEA,Direct Enterprise,5,1438.77,7193.85,1455.48
+ORD-10534,2025-11-26,Cybersecurity Peripherals,North America,Partner Reseller,15,500.88,7513.2,2848.3
+ORD-10979,2025-11-26,Cloud Storage Appliances,LATAM,Direct Enterprise,15,1799.55,26993.25,11676.2
+ORD-10175,2025-11-27,Legacy Replacement Parts,North America,Digital Self-Serve,4,67.09,268.36,94.52
+ORD-10743,2025-11-27,Enterprise Server Solutions,LATAM,Direct Enterprise,1,2483.26,2483.26,1072.92
+ORD-10807,2025-11-27,Cloud Storage Appliances,EMEA,Digital Self-Serve,2,845.65,1691.3,731.32
+ORD-10885,2025-11-27,Cloud Storage Appliances,LATAM,Direct Enterprise,2,1615.16,3230.32,1361.54
+ORD-11066,2025-11-27,Legacy Replacement Parts,LATAM,Direct Enterprise,2,32.28,64.56,11.76
+ORD-10563,2025-11-28,Legacy Replacement Parts,EMEA,Digital Self-Serve,2,44.37,88.74,26.09
+ORD-11127,2025-11-28,Enterprise Server Solutions,LATAM,Digital Self-Serve,8,3500.15,28001.2,7251.73
+ORD-10536,2025-11-29,Networking Cables & Adapters,LATAM,Digital Self-Serve,13,39.24,510.12,107.17
+ORD-10973,2025-11-29,Cloud Storage Appliances,LATAM,Partner Reseller,2,1310.95,2621.9,689.36
+ORD-11198,2025-11-29,Networking Cables & Adapters,APAC,Direct Enterprise,78,43.88,3422.64,1119.16
+ORD-10206,2025-11-30,Cybersecurity Peripherals,North America,Partner Reseller,9,940.02,8460.18,2767.46
+ORD-10453,2025-11-30,Cloud Storage Appliances,LATAM,Digital Self-Serve,10,1587.12,15871.2,5654.06
+ORD-11001,2025-11-30,Enterprise Server Solutions,North America,Digital Self-Serve,6,1443.83,8662.98,2176.94
+ORD-11100,2025-11-30,Cloud Storage Appliances,APAC,Direct Enterprise,14,1228.24,17195.36,5961.51
+ORD-10305,2025-12-01,Cybersecurity Peripherals,EMEA,Direct Enterprise,3,837.97,2513.91,894.86
+ORD-10307,2025-12-01,Cybersecurity Peripherals,APAC,Digital Self-Serve,7,770.24,5391.68,1805.2
+ORD-10402,2025-12-01,Legacy Replacement Parts,North America,Digital Self-Serve,3,69.96,209.88,48.34
+ORD-10433,2025-12-01,Enterprise Server Solutions,LATAM,Direct Enterprise,7,1564.18,10949.26,3708.79
+ORD-10700,2025-12-01,Cloud Storage Appliances,APAC,Digital Self-Serve,4,1006.84,4027.36,1219.75
+ORD-10994,2025-12-01,Enterprise Server Solutions,EMEA,Digital Self-Serve,13,1851.79,24073.27,7745.38
+ORD-10468,2025-12-02,Enterprise Server Solutions,North America,Direct Enterprise,1,4420.81,4420.81,1835.87
+ORD-10608,2025-12-02,Enterprise Server Solutions,EMEA,Partner Reseller,4,2698.85,10795.4,2710.47
+ORD-11102,2025-12-02,Cybersecurity Peripherals,EMEA,Direct Enterprise,7,796.25,5573.75,2118.19
+ORD-10148,2025-12-03,Cloud Storage Appliances,LATAM,Digital Self-Serve,9,938.93,8450.37,2840.08
+ORD-10834,2025-12-03,Cloud Storage Appliances,EMEA,Direct Enterprise,7,1302.59,9118.13,4032.31
+ORD-10982,2025-12-03,Cybersecurity Peripherals,APAC,Partner Reseller,24,435.35,10448.4,2066.02
+ORD-10025,2025-12-04,Cybersecurity Peripherals,LATAM,Digital Self-Serve,42,295.89,12427.38,5524.16
+ORD-10455,2025-12-05,Cybersecurity Peripherals,LATAM,Partner Reseller,12,351.46,4217.52,1287.34
+ORD-10617,2025-12-05,Enterprise Server Solutions,LATAM,Partner Reseller,9,1926.53,17338.77,7719.58
+ORD-11143,2025-12-05,Cloud Storage Appliances,APAC,Direct Enterprise,8,1695.26,13562.08,4669.04
+ORD-10099,2025-12-06,Enterprise Server Solutions,North America,Direct Enterprise,6,3421.23,20527.38,6189.81
+ORD-10441,2025-12-06,Cloud Storage Appliances,North America,Digital Self-Serve,6,1220.03,7320.18,2292.92
+ORD-10512,2025-12-06,Enterprise Server Solutions,LATAM,Digital Self-Serve,9,4197.0,37773.0,8498.75
+ORD-10514,2025-12-06,Cybersecurity Peripherals,North America,Direct Enterprise,14,932.57,13055.98,3509.21
+ORD-10549,2025-12-06,Enterprise Server Solutions,North America,Partner Reseller,15,3453.26,51798.9,9816.64
+ORD-10009,2025-12-07,Cloud Storage Appliances,EMEA,Digital Self-Serve,12,1483.6,17803.2,5077.32
+ORD-10546,2025-12-07,Legacy Replacement Parts,EMEA,Partner Reseller,1,64.71,64.71,21.69
+ORD-10706,2025-12-07,Cloud Storage Appliances,APAC,Digital Self-Serve,11,1478.23,16260.53,6073.23
+ORD-10713,2025-12-07,Legacy Replacement Parts,North America,Partner Reseller,1,60.03,60.03,25.46
+ORD-10989,2025-12-07,Cybersecurity Peripherals,North America,Digital Self-Serve,8,631.63,5053.04,1211.3
+ORD-10233,2025-12-08,Cloud Storage Appliances,North America,Direct Enterprise,3,899.73,2699.19,1088.38
+ORD-10548,2025-12-08,Enterprise Server Solutions,North America,Direct Enterprise,4,4048.88,16195.52,3870.72
+ORD-10011,2025-12-09,Legacy Replacement Parts,North America,Direct Enterprise,2,72.17,144.34,50.68
+ORD-10458,2025-12-09,Cloud Storage Appliances,North America,Partner Reseller,6,1079.83,6478.98,1732.09
+ORD-10578,2025-12-09,Cloud Storage Appliances,North America,Digital Self-Serve,3,1045.07,3135.21,567.92
+ORD-10172,2025-12-10,Cloud Storage Appliances,EMEA,Partner Reseller,1,1097.57,1097.57,287.75
+ORD-10017,2025-12-11,Enterprise Server Solutions,EMEA,Direct Enterprise,9,3147.85,28330.65,11534.93
+ORD-10417,2025-12-11,Enterprise Server Solutions,APAC,Digital Self-Serve,6,1872.71,11236.26,4823.07
+ORD-10773,2025-12-11,Cybersecurity Peripherals,LATAM,Partner Reseller,54,344.9,18624.6,6144.01
+ORD-11153,2025-12-11,Cloud Storage Appliances,EMEA,Digital Self-Serve,15,1219.73,18295.95,3716.81
+ORD-10265,2025-12-12,Enterprise Server Solutions,EMEA,Partner Reseller,15,1805.22,27078.3,11404.03
+ORD-11090,2025-12-12,Cloud Storage Appliances,EMEA,Direct Enterprise,13,1229.58,15984.54,5937.86
+ORD-10008,2025-12-13,Legacy Replacement Parts,LATAM,Direct Enterprise,4,56.6,226.4,85.72
+ORD-10091,2025-12-13,Legacy Replacement Parts,EMEA,Direct Enterprise,2,41.46,82.92,35.74
+ORD-11007,2025-12-13,Cloud Storage Appliances,APAC,Direct Enterprise,8,881.28,7050.24,2568.85
+ORD-10117,2025-12-14,Enterprise Server Solutions,EMEA,Partner Reseller,12,2686.99,32243.88,11773.97
+ORD-10333,2025-12-14,Cloud Storage Appliances,APAC,Digital Self-Serve,1,1009.68,1009.68,348.13
+ORD-10346,2025-12-14,Networking Cables & Adapters,LATAM,Digital Self-Serve,34,32.99,1121.66,384.87
+ORD-10504,2025-12-14,Enterprise Server Solutions,APAC,Partner Reseller,4,3361.39,13445.56,3940.59
+ORD-11187,2025-12-14,Cloud Storage Appliances,LATAM,Digital Self-Serve,9,1237.94,11141.46,4644.56
+ORD-10784,2025-12-15,Cloud Storage Appliances,APAC,Digital Self-Serve,13,844.43,10977.59,4896.42
+ORD-10270,2025-12-16,Cybersecurity Peripherals,LATAM,Direct Enterprise,52,414.22,21539.44,9032.55
+ORD-10137,2025-12-17,Enterprise Server Solutions,EMEA,Digital Self-Serve,5,3170.73,15853.65,6986.95
+ORD-10149,2025-12-17,Cloud Storage Appliances,North America,Digital Self-Serve,6,1052.33,6313.98,1482.62
+ORD-10297,2025-12-17,Networking Cables & Adapters,APAC,Digital Self-Serve,10,29.32,293.2,77.33
+ORD-11107,2025-12-17,Cloud Storage Appliances,North America,Partner Reseller,5,631.24,3156.2,919.67
+ORD-11175,2025-12-17,Enterprise Server Solutions,EMEA,Digital Self-Serve,8,1804.67,14437.36,5135.06
+ORD-10322,2025-12-18,Legacy Replacement Parts,North America,Direct Enterprise,4,21.19,84.76,17.32
+ORD-10343,2025-12-18,Legacy Replacement Parts,APAC,Partner Reseller,1,21.82,21.82,4.17
+ORD-10734,2025-12-18,Cloud Storage Appliances,EMEA,Direct Enterprise,10,1004.09,10040.9,3042.4
+ORD-10879,2025-12-18,Cybersecurity Peripherals,North America,Direct Enterprise,5,567.66,2838.3,970.03
+ORD-11098,2025-12-18,Networking Cables & Adapters,APAC,Direct Enterprise,71,42.16,2993.36,1071.39
+ORD-10093,2025-12-19,Enterprise Server Solutions,LATAM,Partner Reseller,10,2167.15,21671.5,4636.12
+ORD-10229,2025-12-19,Cloud Storage Appliances,APAC,Direct Enterprise,13,613.0,7969.0,2786.9
+ORD-10295,2025-12-19,Cybersecurity Peripherals,APAC,Direct Enterprise,73,285.58,20847.34,5085.65
+ORD-10861,2025-12-19,Cloud Storage Appliances,EMEA,Digital Self-Serve,8,1688.97,13511.76,3813.42
+ORD-10947,2025-12-19,Enterprise Server Solutions,EMEA,Direct Enterprise,7,3085.6,21599.2,6498.88
+ORD-10055,2025-12-20,Enterprise Server Solutions,North America,Partner Reseller,7,4431.45,31020.15,9308.34
+ORD-10139,2025-12-20,Cloud Storage Appliances,North America,Partner Reseller,8,1237.36,9898.88,1808.7
+ORD-10187,2025-12-20,Networking Cables & Adapters,LATAM,Digital Self-Serve,33,17.5,577.5,211.96
+ORD-10870,2025-12-20,Networking Cables & Adapters,LATAM,Direct Enterprise,10,38.68,386.8,152.6
+ORD-11182,2025-12-20,Enterprise Server Solutions,LATAM,Digital Self-Serve,15,2081.79,31226.85,6598.2
+ORD-10164,2025-12-21,Enterprise Server Solutions,LATAM,Partner Reseller,4,3325.95,13303.8,3376.04
+ORD-10444,2025-12-21,Cloud Storage Appliances,APAC,Digital Self-Serve,4,717.43,2869.72,1136.28
+ORD-10499,2025-12-21,Cloud Storage Appliances,EMEA,Direct Enterprise,4,650.35,2601.4,897.8
+ORD-10507,2025-12-21,Legacy Replacement Parts,LATAM,Digital Self-Serve,1,40.48,40.48,9.84
+ORD-10830,2025-12-21,Enterprise Server Solutions,EMEA,Direct Enterprise,10,1382.43,13824.3,3819.77
+ORD-10919,2025-12-21,Enterprise Server Solutions,EMEA,Digital Self-Serve,10,3050.48,30504.8,10040.51
+ORD-10060,2025-12-22,Cybersecurity Peripherals,LATAM,Direct Enterprise,3,635.67,1907.01,767.96
+ORD-10066,2025-12-22,Cybersecurity Peripherals,APAC,Direct Enterprise,15,279.96,4199.4,1651.36
+ORD-10290,2025-12-22,Cloud Storage Appliances,North America,Partner Reseller,8,923.99,7391.92,2182.77
+ORD-10431,2025-12-22,Cloud Storage Appliances,LATAM,Direct Enterprise,12,887.45,10649.4,2969.85
+ORD-10568,2025-12-22,Enterprise Server Solutions,EMEA,Digital Self-Serve,8,1880.69,15045.52,2890.52
+ORD-10857,2025-12-22,Cybersecurity Peripherals,North America,Partner Reseller,15,368.84,5532.6,1340.41
+ORD-10198,2025-12-23,Legacy Replacement Parts,North America,Direct Enterprise,4,23.47,93.88,37.69
+ORD-10309,2025-12-23,Networking Cables & Adapters,EMEA,Partner Reseller,52,44.47,2312.44,469.64
+ORD-10634,2025-12-23,Cybersecurity Peripherals,North America,Direct Enterprise,12,891.63,10699.56,3580.3
+ORD-10666,2025-12-23,Enterprise Server Solutions,EMEA,Direct Enterprise,5,3498.1,17490.5,5457.2
+ORD-10371,2025-12-24,Networking Cables & Adapters,LATAM,Partner Reseller,66,53.14,3507.24,808.62
+ORD-10479,2025-12-24,Cloud Storage Appliances,North America,Digital Self-Serve,1,1098.53,1098.53,236.47
+ORD-10883,2025-12-24,Networking Cables & Adapters,APAC,Direct Enterprise,20,59.62,1192.4,404.44
+ORD-10269,2025-12-25,Enterprise Server Solutions,North America,Digital Self-Serve,13,2247.17,29213.21,6786.84
+ORD-10366,2025-12-25,Cybersecurity Peripherals,North America,Partner Reseller,4,949.3,3797.2,1378.48
+ORD-10370,2025-12-25,Cybersecurity Peripherals,APAC,Direct Enterprise,13,489.08,6358.04,2075.43
+ORD-11168,2025-12-25,Enterprise Server Solutions,EMEA,Direct Enterprise,4,1807.31,7229.24,2240.39
+ORD-10096,2025-12-26,Cloud Storage Appliances,EMEA,Partner Reseller,4,1758.35,7033.4,1966.68
+ORD-10618,2025-12-26,Cloud Storage Appliances,APAC,Partner Reseller,3,1588.08,4764.24,1050.31
+ORD-10890,2025-12-26,Enterprise Server Solutions,APAC,Direct Enterprise,7,3885.04,27195.28,10311.82
+ORD-10220,2025-12-27,Cybersecurity Peripherals,LATAM,Direct Enterprise,12,769.71,9236.52,2011.93
+ORD-10065,2025-12-28,Cybersecurity Peripherals,EMEA,Partner Reseller,11,906.7,9973.7,3730.0
+ORD-10488,2025-12-28,Networking Cables & Adapters,APAC,Digital Self-Serve,10,40.14,401.4,121.25
+ORD-11115,2025-12-28,Cloud Storage Appliances,EMEA,Direct Enterprise,3,1254.41,3763.23,1541.99
+ORD-10228,2025-12-29,Cybersecurity Peripherals,APAC,Partner Reseller,12,451.7,5420.4,1119.52
+ORD-10457,2025-12-29,Enterprise Server Solutions,LATAM,Digital Self-Serve,4,4096.2,16384.8,5361.71
+ORD-10985,2025-12-29,Enterprise Server Solutions,North America,Digital Self-Serve,7,4065.03,28455.21,6332.32
+ORD-10996,2025-12-29,Cloud Storage Appliances,North America,Partner Reseller,13,1237.98,16093.74,3616.92
+ORD-11054,2025-12-29,Enterprise Server Solutions,EMEA,Direct Enterprise,12,2788.9,33466.8,7495.09
+ORD-10022,2025-12-30,Cloud Storage Appliances,EMEA,Digital Self-Serve,13,782.59,10173.67,3409.77
+ORD-10154,2025-12-30,Legacy Replacement Parts,North America,Digital Self-Serve,4,23.47,93.88,32.98
+ORD-10158,2025-12-30,Enterprise Server Solutions,LATAM,Partner Reseller,3,1582.89,4748.67,1623.48
+ORD-10163,2025-12-30,Enterprise Server Solutions,North America,Digital Self-Serve,4,2723.09,10892.36,2200.3
+ORD-11013,2025-12-30,Cloud Storage Appliances,APAC,Digital Self-Serve,10,1102.79,11027.9,2609.79
+ORD-10006,2025-12-31,Cybersecurity Peripherals,LATAM,Partner Reseller,1,932.89,932.89,241.1
+ORD-10362,2025-12-31,Networking Cables & Adapters,EMEA,Partner Reseller,56,62.96,3525.76,1006.66
+ORD-10423,2025-12-31,Cloud Storage Appliances,APAC,Digital Self-Serve,9,1589.07,14301.63,3728.45
+ORD-10552,2026-01-01,Legacy Replacement Parts,EMEA,Digital Self-Serve,3,71.49,214.47,51.76
