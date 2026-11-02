@@ -39,7 +39,8 @@ class AgentOrchestrator:
     def get_task_state(self, task_id: str) -> TaskState | None:
         if task_id in self._active_tasks:
             return self._active_tasks[task_id]
-        # Fall back to database checkpoint
+        # Checkpoint loading restores only the encrypted, validated artifact
+        # manifest alongside the minimal lifecycle state.
         return checkpointer.load_checkpoint(task_id)
 
     def register_event_listener(self, task_id: str) -> asyncio.Queue[tuple[int, TaskEvent]]:

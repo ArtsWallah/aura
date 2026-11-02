@@ -85,7 +85,7 @@ def list_tasks(limit: int = 25):
 def get_task(task_id: str):
     state = orchestrator.get_task_state(task_id)
     if not state:
-        raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found.")
+        raise HTTPException(status_code=404, detail="Task not found.")
     return _status_response(state)
 
 
@@ -103,21 +103,27 @@ def _scoped_report_path(state: TaskState, extension: Literal["html", "md"]) -> P
     if not isinstance(report_id, str) or not re.fullmatch(r"report_[a-f0-9]{10}", report_id):
         raise HTTPException(status_code=404, detail="Task artifact not found.")
     root = settings.REPORTS_DIR.resolve()
-    path = (root / f"{report_id}.{extension}.enc").resolve()
-    if path.parent != root or not path.is_file():
+    artifact_name = f"{report_id}.{extension}.enc"
+    path = (root / artifact_name).resolve()
+    listed_path = any(Path(artifact).resolve() == path for artifact in state.artifacts)
+    if not listed_path or path.parent != root or not path.is_file():
         raise HTTPException(status_code=404, detail="Task artifact not found.")
     return path
 
 
 def _scoped_chart_path(state: TaskState, chart_index: int) -> Path:
-    chart_names = [
-        Path(artifact).name for artifact in state.artifacts
-        if Path(artifact).name.startswith("chart_")
-        and re.fullmatch(r"chart_[a-f0-9]{10}\.png\.enc", Path(artifact).name)
-    ]
+    root = settings.CHARTS_DIR.resolve()
+    chart_names = []
+    for artifact in state.artifacts:
+        candidate = Path(artifact).resolve()
+        if (
+            candidate.parent == root
+            and re.fullmatch(r"chart_[a-f0-9]{10}\.png\.enc", candidate.name)
+            and candidate.is_file()
+        ):
+            chart_names.append(candidate.name)
     if chart_index < 0 or chart_index >= len(chart_names):
         raise HTTPException(status_code=404, detail="Task artifact not found.")
-    root = settings.CHARTS_DIR.resolve()
     path = (root / chart_names[chart_index]).resolve()
     if path.parent != root or not path.is_file():
         raise HTTPException(status_code=404, detail="Task artifact not found.")
@@ -132,10 +138,13 @@ def get_task_artifacts(task_id: str):
     html_path = _scoped_report_path(state, "html")
     markdown_path = _scoped_report_path(state, "md")
     chart_urls = []
-    chart_count = sum(
-        1 for artifact in state.artifacts
-        if re.fullmatch(r"chart_[a-f0-9]{10}\.png\.enc", Path(artifact).name)
-    )
+    chart_count = 0
+    for artifact in state.artifacts:
+        try:
+            _scoped_chart_path(state, chart_count)
+        except HTTPException:
+            break
+        chart_count += 1
     for index in range(chart_count):
         _scoped_chart_path(state, index)
         chart_urls.append(f"/api/tasks/{task_id}/artifacts/chart/{index}")
@@ -188,7 +197,7 @@ def get_task_chart_artifact(task_id: str, chart_index: int):
 async def cancel_task(task_id: str):
     state = orchestrator.get_task_state(task_id)
     if not state:
-        raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found.")
+        raise HTTPException(status_code=404, detail="Task not found.")
     resulting_status = await task_execution_service.cancel(task_id)
     message = "Cancellation requested; active synchronous work will finish before cancellation is confirmed."
     return {"message": message, "status": resulting_status}
@@ -220,13 +229,45 @@ async def stream_task_events(task_id: str, last_event_id: str | None = Header(de
             payload = json.dumps(event.model_dump(), separators=(",", ":"))
             return f"id: {sequence}\nevent: {event.event_type}\ndata: {payload}\n\n"
 
-        try:
-            batch = await asyncio.to_thread(checkpointer.read_events, task_id, cursor)
+        async def replay_window() -> tuple[list[str], bool, int]:
+            """Replay retained events, replacing an expired history with a safe snapshot."""
+            nonlocal cursor
+            latest, earliest, batch = await asyncio.to_thread(
+                checkpointer.read_event_window, task_id, cursor
+            )
+            if (earliest is None and cursor < latest) or (
+                earliest is not None and cursor < earliest - 1
+            ):
+                current = orchestrator.get_task_state(task_id)
+                current_status = current.status.value if current else "unknown"
+                gap = TaskEvent(
+                    event_type="task.history_gap",
+                    task_id=task_id,
+                    message="Earlier task events expired; the current task status is shown.",
+                    data={"status": current_status, "history_gap": True},
+                )
+                cursor = latest
+                return [f"id: {latest}\nevent: task.history_gap\ndata: "
+                        f"{json.dumps(gap.model_dump(), separators=(',', ':'))}\n\n"], False, latest
+
+            frames = []
+            terminal = False
             for sequence, event in batch:
+                if sequence <= cursor:
+                    continue
                 cursor = sequence
-                yield encode(sequence, event)
+                frames.append(encode(sequence, event))
                 if event.event_type in terminal_types:
-                    return
+                    terminal = True
+                    break
+            return frames, terminal, latest
+
+        try:
+            frames, terminal, _ = await replay_window()
+            for frame in frames:
+                yield frame
+            if terminal:
+                return
 
             # A created task always has a durable task.created event. This safe
             # snapshot covers pre-migration rows that have no event history.
@@ -251,17 +292,14 @@ async def stream_task_events(task_id: str, last_event_id: str | None = Header(de
                 try:
                     await asyncio.wait_for(queue.get(), timeout=20.0)
                     while True:
-                        batch = await asyncio.to_thread(checkpointer.read_events, task_id, cursor)
-                        if not batch:
+                        frames, terminal, latest = await replay_window()
+                        for frame in frames:
+                            yield frame
+                        if terminal:
+                            return
+                        if cursor >= latest:
                             break
-                        for sequence, event in batch:
-                            if sequence <= cursor:
-                                continue
-                            cursor = sequence
-                            yield encode(sequence, event)
-                            if event.event_type in terminal_types:
-                                return
-                        if len(batch) < 1000:
+                        if len(frames) < 1000:
                             break
                 except asyncio.TimeoutError:
                     yield ": ping\n\n"

@@ -1,11 +1,14 @@
 import asyncio
+import re
 import time
+from pathlib import Path
 from typing import Any
 from app.agent.state import ExecutionStep, StepStatus, TaskState, TaskEvent, TaskStatus
 from app.agent.evaluator import evaluator
 from app.tools.registry import tool_registry
 from app.tools.schemas import ToolResult
 from app.core.logging import logger
+from app.core.config import settings
 
 class PlanExecutor:
     def __init__(self):
@@ -147,16 +150,21 @@ class PlanExecutor:
         """
         params = dict(step.parameters)
         
-        # Inject chart image paths into generate_report
+        # Inject only charts already produced in this task. Their order matches
+        # the task-scoped chart index used by the artifact routes.
         if step.tool_name == "generate_report":
+            chart_root = settings.CHARTS_DIR.resolve()
             chart_artifacts = []
-            for dep_id in step.dependencies:
-                dep_res = task_state.step_results.get(dep_id, {})
-                artifacts = dep_res.get("artifacts", [])
-                chart_artifacts.extend([a for a in artifacts if a.endswith(".png") or "chart" in a])
-                
-            if chart_artifacts:
-                params["chart_paths"] = list(set(chart_artifacts))
+            for artifact in task_state.artifacts:
+                candidate = Path(artifact).resolve()
+                if (
+                    candidate.parent == chart_root
+                    and re.fullmatch(r"chart_[a-f0-9]{10}\.png\.enc", candidate.name)
+                    and candidate.is_file()
+                ):
+                    chart_artifacts.append(str(candidate))
+            params["chart_paths"] = chart_artifacts
+            params["task_id"] = task_state.task_id
 
             # If findings are generic, enhance with quantitative figures from analytics steps
             for dep_id in step.dependencies:

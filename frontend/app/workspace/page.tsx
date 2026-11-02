@@ -83,6 +83,7 @@ function WorkspaceContent() {
       const eventNames = [
         "task.created", "task_started", "plan_created", "step_started", "step_completed",
         "step_failed", "step_retry", "task_completed", "task_failed", "task_cancelled", "task.snapshot",
+        "task.history_gap",
       ];
       eventNames.forEach((eventName) => {
         eventSource.addEventListener(eventName, (event: MessageEvent) => {
@@ -101,6 +102,25 @@ function WorkspaceContent() {
             },
           ]);
           fetchTask(initialTask.task_id).then(setCurrentTask);
+
+          if (eventName === "task.history_gap") {
+            fetchTask(initialTask.task_id).then((task) => {
+              setCurrentTask(task);
+              if (["completed", "failed", "cancelled"].includes(task.status)) {
+                eventSource.close();
+                setIsRunning(false);
+                if (task.status === "completed") {
+                  fetchTaskArtifacts(initialTask.task_id).then((artifacts) => {
+                    setTaskArtifacts(artifacts);
+                    return fetchTaskMarkdown(initialTask.task_id);
+                  }).then((report) => setMarkdownReport(report.content)).catch(() => {
+                    setTaskArtifacts(null);
+                    setMarkdownReport(null);
+                  });
+                }
+              }
+            });
+          }
 
           if (terminalEvents.has(eventName)) {
             eventSource.close();

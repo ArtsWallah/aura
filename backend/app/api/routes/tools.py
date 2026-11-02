@@ -25,7 +25,7 @@ def list_tools(category: ToolCategory | None = None):
 def get_tool(tool_name: str):
     tool = tool_registry.get_tool_definition(tool_name)
     if not tool:
-        raise HTTPException(status_code=404, detail=f"Tool '{tool_name}' not found.")
+        raise HTTPException(status_code=404, detail="Tool not found.")
     return tool
 
 @router.post("/execute")

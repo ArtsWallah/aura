@@ -1,7 +1,7 @@
 import uuid
-from pathlib import Path
 from html import escape
 from typing import Any
+from urllib.parse import quote
 from pydantic import BaseModel, Field
 
 from app.tools.schemas import ToolCategory, ExecutionLocation, PermissionLevel
@@ -20,6 +20,7 @@ class GenerateReportInput(BaseModel):
         default=["Analysis based strictly on provided dataset.", "Outliers and missing values handled as documented."],
         description="Explicit limitations and assumptions."
     )
+    task_id: str | None = Field(default=None, exclude=True)
 
 @tool_registry.register(
     name="generate_report",
@@ -45,12 +46,16 @@ def generate_report(params: GenerateReportInput) -> dict[str, Any]:
     for f in params.findings:
         md_lines.append(f"- {f}")
         
-    if params.chart_paths:
+    chart_urls = [
+        f"/api/tasks/{quote(params.task_id, safe='')}/artifacts/chart/{index}"
+        for index, _ in enumerate(params.chart_paths)
+    ] if params.task_id else []
+
+    if chart_urls:
         md_lines.append("")
         md_lines.append("## Visual Insights")
-        for cp in params.chart_paths:
-            chart_filename = Path(cp).name
-            md_lines.append(f"![Visual Chart](/api/artifacts/{chart_filename})")
+        for chart_url in chart_urls:
+            md_lines.append(f"![Visual Chart]({chart_url})")
             md_lines.append("")
 
     if params.recommendations:
@@ -67,11 +72,11 @@ def generate_report(params: GenerateReportInput) -> dict[str, Any]:
     
     # 2. Build polished HTML version
     html_charts = ""
-    for cp in params.chart_paths:
-        chart_filename = escape(Path(cp).name, quote=True)
+    for chart_url in chart_urls:
+        safe_chart_url = escape(chart_url, quote=True)
         html_charts += f"""
         <div style="margin: 20px 0; text-align: center;">
-            <img src="/api/artifacts/{chart_filename}" style="max-width: 100%; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);" alt="Chart" />
+            <img src="{safe_chart_url}" style="max-width: 100%; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);" alt="Chart" />
         </div>
         """
 
@@ -127,8 +132,8 @@ def generate_report(params: GenerateReportInput) -> dict[str, Any]:
         "markdown_content": markdown_content,
         "markdown_path": str(md_path),
         "html_path": str(html_path),
-        "relative_markdown_url": f"/api/artifacts/{report_id}.md.enc",
-        "relative_html_url": f"/api/artifacts/{report_id}.html.enc",
+        "relative_markdown_url": f"/api/tasks/{quote(params.task_id, safe='')}/artifacts/markdown" if params.task_id else None,
+        "relative_html_url": f"/api/tasks/{quote(params.task_id, safe='')}/artifacts/html" if params.task_id else None,
         "artifacts": [str(md_path), str(html_path)]
     }
 

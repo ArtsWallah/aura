@@ -165,7 +165,7 @@ def test_checkpoint_schema_migration_preserves_encrypted_rows_without_or_with_wr
     with closing(sqlite3.connect(db_path)) as conn:
         assert conn.execute("SELECT state_json FROM task_checkpoints").fetchone()[0] == encrypted
         added_columns = {row[1] for row in conn.execute("PRAGMA table_info(task_checkpoints)")}
-        assert {"claimed_by", "claimed_at", "event_seq", "recovery_required"} <= added_columns
+        assert {"claimed_by", "claimed_at", "event_seq", "recovery_required", "artifact_manifest"} <= added_columns
         assert conn.execute("SELECT name FROM sqlite_master WHERE name='task_events'").fetchone()
     assert no_key_store.load_checkpoint("legacy-encrypted") is None
 
@@ -305,6 +305,72 @@ async def test_enqueue_event_failure_rolls_back_queue_row_and_payload(phase2_tem
     assert service._payloads == {}
     assert store.load_checkpoint(state.task_id) is None
     assert store.claim_next_queued_task("rollback-check") is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("blocked_stage", ["enqueue", "event"])
+async def test_cancelled_enqueue_drains_database_thread_and_rolls_back_before_worker_claim(
+    phase2_temp_dir, monkeypatch, blocked_stage
+):
+    import asyncio
+    import sqlite3
+    import threading
+    from contextlib import closing
+    import app.agent.service as service_module
+    from app.agent.service import TaskExecutionService
+
+    store = SQLiteCheckpointer(phase2_temp_dir / f"cancel-enqueue-{blocked_stage}.db")
+    monkeypatch.setattr(service_module, "checkpointer", store)
+    committed = threading.Event()
+    release_return = threading.Event()
+    executions = []
+
+    def block_after_commit(operation):
+        def wrapped(*args):
+            result = operation(*args)
+            committed.set()
+            assert release_return.wait(timeout=4)
+            return result
+        return wrapped
+
+    if blocked_stage == "enqueue":
+        store.enqueue_task = block_after_commit(store.enqueue_task)
+    else:
+        store.append_event = block_after_commit(store.append_event)
+
+    class RecordingOrchestrator:
+        async def run_task(self, **kwargs):
+            executions.append(kwargs["task_id"])
+
+    service = TaskExecutionService(RecordingOrchestrator())
+    service._running = True
+    service._wake = asyncio.Event()
+    state = TaskState(task_id=f"cancelled-enqueue-{blocked_stage}", objective="private objective")
+    enqueue_task = asyncio.create_task(service.enqueue(state))
+    await asyncio.wait_for(asyncio.to_thread(committed.wait), timeout=2)
+
+    worker = asyncio.create_task(service._worker_loop("cancel-race-worker"))
+    enqueue_task.cancel()
+    await asyncio.sleep(0.05)
+    assert not enqueue_task.done()
+    assert executions == []
+
+    release_return.set()
+    with pytest.raises(asyncio.CancelledError):
+        await asyncio.wait_for(enqueue_task, timeout=2)
+
+    service._running = False
+    service._wake.set()
+    await asyncio.wait_for(worker, timeout=2)
+
+    assert executions == []
+    assert state.task_id not in service._payloads
+    assert store.load_checkpoint(state.task_id) is None
+    assert store.claim_next_queued_task("post-cancel-check") is None
+    with closing(sqlite3.connect(store.db_path)) as conn:
+        assert conn.execute(
+            "SELECT COUNT(*) FROM task_events WHERE task_id = ?", (state.task_id,)
+        ).fetchone()[0] == 0
 
 
 def test_restart_recovery_marks_inflight_work_ambiguous_without_replaying_it(phase2_temp_dir):

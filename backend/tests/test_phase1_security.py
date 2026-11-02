@@ -21,6 +21,7 @@ from app.core.security import validate_safe_path
 from app.core.config import Settings
 from app.main import app
 from app.privacy.encryption import AtRestEncryption, encryption_service
+import app.privacy.encryption as encryption_module
 from app.privacy.outbound import PrivacyAwareAsyncClient, privacy_scope
 from app.tools.registry import tool_registry
 from app.api.routes import files as files_route
@@ -169,6 +170,78 @@ def test_encryption_key_survives_service_recreation_and_wrong_key_fails(monkeypa
     monkeypatch.setattr(settings, "ENCRYPTION_KEY", Fernet.generate_key().decode("ascii"))
     with pytest.raises(ValueError, match="authenticated"):
         encryption_service().decrypt_bytes(encrypted)
+
+
+def test_in_place_encryption_preserves_predictable_staging_file(managed_test_dir):
+    target = managed_test_dir / "legacy.csv"
+    target.write_bytes(b"name,value\nA,1\n")
+    predictable = managed_test_dir / ".legacy.csv.encrypting"
+    sentinel = b"unrelated staging data"
+    predictable.write_bytes(sentinel)
+
+    encryption_service().encrypt_file_in_place(target)
+
+    assert predictable.read_bytes() == sentinel
+    assert encryption_service().decrypt_bytes(target.read_bytes()) == b"name,value\nA,1\n"
+
+
+def test_in_place_encryption_retries_unique_staging_collision(managed_test_dir, monkeypatch):
+    target = managed_test_dir / "legacy.csv"
+    raw = b"name,value\nA,1\n"
+    target.write_bytes(raw)
+    collision_id, next_id = "a" * 32, "b" * 32
+    collision = managed_test_dir / f".legacy.csv.{collision_id}.encrypting"
+    sentinel = b"must survive unique-name collision"
+    collision.write_bytes(sentinel)
+    ids = iter((collision_id, next_id))
+    monkeypatch.setattr(
+        encryption_module.uuid, "uuid4", lambda: SimpleNamespace(hex=next(ids))
+    )
+
+    encryption_service().encrypt_file_in_place(target)
+
+    assert collision.read_bytes() == sentinel
+    assert encryption_service().decrypt_bytes(target.read_bytes()) == raw
+    assert not (managed_test_dir / f".legacy.csv.{next_id}.encrypting").exists()
+
+
+def test_in_place_encryption_failure_cleans_only_owned_temp_and_preserves_source(
+    managed_test_dir, monkeypatch
+):
+    target = managed_test_dir / "legacy.csv"
+    raw = b"name,value\nA,1\n"
+    target.write_bytes(raw)
+    owned_id, unrelated_id = "c" * 32, "d" * 32
+    unrelated = managed_test_dir / f".legacy.csv.{unrelated_id}.encrypting"
+    sentinel = b"unrelated staging file"
+    unrelated.write_bytes(sentinel)
+    monkeypatch.setattr(
+        encryption_module.uuid, "uuid4", lambda: SimpleNamespace(hex=owned_id)
+    )
+    cipher = encryption_service()
+
+    def fail_encryption(_raw):
+        raise RuntimeError("simulated encryption failure")
+
+    monkeypatch.setattr(cipher, "encrypt_bytes", fail_encryption)
+    with pytest.raises(RuntimeError, match="simulated encryption failure"):
+        cipher.encrypt_file_in_place(target)
+
+    assert target.read_bytes() == raw
+    assert unrelated.read_bytes() == sentinel
+    assert not (managed_test_dir / f".legacy.csv.{owned_id}.encrypting").exists()
+
+
+def test_in_place_encryption_keeps_fernet_format_and_migration_skips_ciphertext(managed_test_dir):
+    target = managed_test_dir / "already.csv"
+    raw = b"existing source content"
+    cipher = encryption_service()
+    target.write_bytes(cipher.encrypt_bytes(raw))
+    encrypted_before = target.read_bytes()
+
+    assert encryption_module.migrate_plaintext_files([target]) == []
+    assert target.read_bytes() == encrypted_before
+    assert cipher.decrypt_bytes(target.read_bytes()) == raw
 
 
 @pytest.mark.asyncio
@@ -320,10 +393,10 @@ def test_report_escapes_script_tags_handlers_attributes_and_is_encrypted():
     assert "&lt;script&gt;" in html
     assert "&lt;img src=x onerror=&quot;alert(2)&quot;&gt;" in html
     assert "<script>alert(1)</script>" not in html
+    # Filename-only access is intentionally disabled; only a task manifest can
+    # authorize artifact retrieval.
     response = client.get(f"/api/artifacts/{Path(result['html_path']).name}")
-    assert response.status_code == 200
-    assert "sandbox" in response.headers["content-security-policy"]
-    assert "<script>alert(1)</script>" not in response.text
+    assert response.status_code == 404
 
 
 def test_encrypted_uploaded_dataset_remains_usable_by_analytics(managed_test_dir, monkeypatch):

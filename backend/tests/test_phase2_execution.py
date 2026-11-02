@@ -437,3 +437,84 @@ async def test_sse_replay_catches_events_produced_concurrently(execution_data_di
     assert "event: task_completed" in terminal
     with pytest.raises(StopAsyncIteration):
         await asyncio.wait_for(iterator.__anext__(), timeout=1)
+
+
+@pytest.mark.asyncio
+async def test_sse_replay_reports_expired_history_and_keeps_safe_cursor(execution_data_dir, monkeypatch):
+    import app.api.routes.tasks as task_routes
+
+    store = SQLiteCheckpointer(execution_data_dir / "history-gap.db")
+    state = TaskState(
+        task_id="history-gap-task", objective="PRIVATE_OBJECTIVE_390182",
+        status=TaskStatus.COMPLETED,
+    )
+    store.save_checkpoint(state)
+    for index in range(1, 6):
+        store.append_event(TaskEvent(
+            event_type="task_completed" if index == 5 else "task_started",
+            task_id=state.task_id,
+            message=f"PRIVATE_EVENT_{index}",
+            data={"objective": "PRIVATE_OBJECTIVE_390182", "status": "completed"},
+        ), retention=3)
+
+    runner = AgentOrchestrator()
+    runner._active_tasks[state.task_id] = state
+    monkeypatch.setattr(task_routes, "checkpointer", store)
+    monkeypatch.setattr(task_routes, "orchestrator", runner)
+
+    latest, earliest, events = store.read_event_window(state.task_id, 0)
+    assert (latest, earliest) == (5, 3)
+    assert [sequence for sequence, _ in events] == [3, 4, 5]
+
+    response = await task_routes.stream_task_events(state.task_id, last_event_id="0")
+    iterator = response.body_iterator
+    gap = await iterator.__anext__()
+    assert "id: 5" in gap
+    assert "event: task.history_gap" in gap
+    assert '"status":"completed"' in gap
+    assert '"history_gap":true' in gap
+    assert "PRIVATE_OBJECTIVE_390182" not in gap
+    assert "PRIVATE_EVENT" not in gap
+    with pytest.raises(StopAsyncIteration):
+        await iterator.__anext__()
+
+
+@pytest.mark.asyncio
+async def test_sse_replay_handles_valid_empty_and_future_cursors(execution_data_dir, monkeypatch):
+    import app.api.routes.tasks as task_routes
+    from fastapi import HTTPException
+
+    store = SQLiteCheckpointer(execution_data_dir / "event-cursors.db")
+    state = TaskState(task_id="event-cursors", objective="private", status=TaskStatus.COMPLETED)
+    store.save_checkpoint(state)
+    for index in range(1, 6):
+        store.append_event(TaskEvent(
+            event_type="task_completed" if index == 5 else "task_started",
+            task_id=state.task_id,
+            message="safe event",
+        ), retention=3)
+
+    runner = AgentOrchestrator()
+    runner._active_tasks[state.task_id] = state
+    monkeypatch.setattr(task_routes, "checkpointer", store)
+    monkeypatch.setattr(task_routes, "orchestrator", runner)
+
+    valid = await task_routes.stream_task_events(state.task_id, last_event_id="3")
+    valid_text = "".join([frame async for frame in valid.body_iterator])
+    assert "event: task.history_gap" not in valid_text
+    assert "id: 4" in valid_text and "id: 5" in valid_text
+
+    # Simulate all retained rows expiring while the task sequence remains durable.
+    with closing(sqlite3.connect(store.db_path)) as conn:
+        conn.execute("DELETE FROM task_events WHERE task_id = ?", (state.task_id,))
+        conn.commit()
+    latest, earliest, events = store.read_event_window(state.task_id, 0)
+    assert latest == 5 and earliest is None and events == []
+    empty = await task_routes.stream_task_events(state.task_id, last_event_id="0")
+    empty_text = "".join([frame async for frame in empty.body_iterator])
+    assert "event: task.history_gap" in empty_text
+    assert "id: 5" in empty_text
+
+    with pytest.raises(HTTPException) as future:
+        await task_routes.stream_task_events(state.task_id, last_event_id="6")
+    assert future.value.status_code == 400

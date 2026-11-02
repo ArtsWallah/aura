@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi import Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -39,6 +40,45 @@ app.add_middleware(
 )
 
 
+@app.exception_handler(RequestValidationError)
+async def sanitized_request_validation_error(request: Request, exc: RequestValidationError):
+    """Return validation locations/categories without values or raw messages."""
+    safe_sources = {"body", "query", "path", "header", "cookie"}
+    category_map = {
+        "missing": "missing_value",
+        "string_type": "invalid_type",
+        "int_type": "invalid_type",
+        "float_type": "invalid_type",
+        "bool_type": "invalid_type",
+        "list_type": "invalid_type",
+        "dict_type": "invalid_type",
+        "model_type": "invalid_type",
+        "literal_error": "invalid_choice",
+        "int_parsing": "invalid_integer",
+        "float_parsing": "invalid_number",
+        "bool_parsing": "invalid_boolean",
+        "json_invalid": "invalid_json",
+        "greater_than": "out_of_range",
+        "greater_than_equal": "out_of_range",
+        "less_than": "out_of_range",
+        "less_than_equal": "out_of_range",
+        "too_short": "invalid_length",
+        "too_long": "invalid_length",
+    }
+    safe_errors = []
+    for error in exc.errors():
+        raw_location = error.get("loc", ())
+        source = raw_location[0] if raw_location and raw_location[0] in safe_sources else "request"
+        safe_errors.append({
+            "location": [source, "field"] if len(raw_location) > 1 else [source],
+            "category": category_map.get(error.get("type"), "invalid_value"),
+        })
+    return JSONResponse(
+        status_code=422,
+        content={"detail": safe_errors, "message": "Request validation failed."},
+    )
+
+
 @app.middleware("http")
 async def local_single_user_boundary(request: Request, call_next):
     """This application supports one local OS user; it has no remote user model."""
@@ -66,8 +106,8 @@ app.include_router(files.router, prefix=settings.API_V1_STR) # /api/files
 app.include_router(artifacts.router, prefix=settings.API_V1_STR)
 app.include_router(settings_routes.router, prefix=settings.API_V1_STR) # /api/settings
 
-# Mount static directories for charts and reports
-# Artifacts are served only through the authenticated-at-rest decryption route.
+# Artifacts are served through task-scoped routes that validate each artifact
+# against the completed task's generated artifact list.
 
 if __name__ == "__main__":
     import uvicorn

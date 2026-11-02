@@ -5,6 +5,7 @@ provided as a URL-safe base64 Fernet key via ENCRYPTION_KEY.
 """
 from pathlib import Path
 import os
+import uuid
 
 from cryptography.fernet import Fernet, InvalidToken
 
@@ -45,17 +46,52 @@ class AtRestEncryption:
     def encrypt_file_in_place(self, path: str | Path) -> None:
         """Atomically replace a legacy plaintext file with ciphertext at the same path."""
         target = Path(path)
-        temporary = target.with_name(f".{target.name}.encrypting")
-        raw = target.read_bytes()
+        temporary: Path | None = None
+        temporary_identity: tuple[int, int] | None = None
+        descriptor: int | None = None
         try:
+            # Exclusive creation prevents a collision from truncating an
+            # unrelated file. Retry names are in the target directory so the
+            # final replace remains atomic on the same filesystem.
+            for _ in range(10):
+                candidate = target.with_name(
+                    f".{target.name}.{uuid.uuid4().hex}.encrypting"
+                )
+                try:
+                    descriptor = os.open(
+                        candidate,
+                        os.O_CREAT | os.O_EXCL | os.O_WRONLY | getattr(os, "O_BINARY", 0),
+                        0o600,
+                    )
+                    temporary = candidate
+                    info = os.fstat(descriptor)
+                    temporary_identity = (info.st_dev, info.st_ino)
+                    break
+                except FileExistsError:
+                    continue
+            if descriptor is None or temporary is None:
+                raise FileExistsError("Could not create a unique encryption staging file.")
+
+            raw = target.read_bytes()
             encrypted = self.encrypt_bytes(raw)
-            temporary.write_bytes(encrypted)
+            with os.fdopen(descriptor, "wb") as stream:
+                descriptor = None
+                stream.write(encrypted)
+                stream.flush()
+                os.fsync(stream.fileno())
             if self.decrypt_bytes(temporary.read_bytes()) != raw:
                 raise ValueError("Encrypted file verification failed.")
             os.replace(temporary, target)
         finally:
-            if temporary.exists():
-                temporary.unlink()
+            if descriptor is not None:
+                os.close(descriptor)
+            if temporary is not None and temporary_identity is not None:
+                try:
+                    current = temporary.lstat()
+                    if (current.st_dev, current.st_ino) == temporary_identity:
+                        temporary.unlink()
+                except FileNotFoundError:
+                    pass
 
 
 def encryption_service() -> AtRestEncryption:

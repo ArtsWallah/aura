@@ -1,6 +1,8 @@
 """Lifecycle-managed workers for the SQLite-backed persistent task queue."""
 import asyncio
 import uuid
+from collections.abc import Callable
+from typing import Any
 
 from app.agent.checkpoint import checkpointer
 from app.agent.orchestrator import AgentOrchestrator, orchestrator
@@ -20,6 +22,34 @@ class TaskExecutionService:
         # Keep a committed queue row invisible to workers until its process-local
         # executable payload and initial event have both been published.
         self._queue_lock = asyncio.Lock()
+
+    @staticmethod
+    async def _run_blocking_to_completion(
+        operation: Callable[..., Any], *args: Any
+    ) -> tuple[Any, Exception | None, bool]:
+        """Drain a database thread even if its awaiting coroutine is cancelled."""
+        work = asyncio.create_task(asyncio.to_thread(operation, *args))
+        cancellation_requested = False
+        while True:
+            try:
+                return await asyncio.shield(work), None, cancellation_requested
+            except asyncio.CancelledError:
+                cancellation_requested = True
+                # Do not release queue coordination while the SQLite thread can
+                # still commit a row or event.
+                continue
+            except Exception as exc:
+                return None, exc, cancellation_requested
+
+    async def _rollback_enqueue(self, task_id: str) -> tuple[bool, bool]:
+        self._payloads.pop(task_id, None)
+        rolled_back, error, cancellation_requested = await self._run_blocking_to_completion(
+            checkpointer.discard_unclaimed_queued_task, task_id
+        )
+        if error is not None or not rolled_back:
+            logger.error("Task enqueue could not be rolled back safely.")
+            return False, cancellation_requested
+        return True, cancellation_requested
 
     async def start(self) -> None:
         if self._running:
@@ -62,19 +92,34 @@ class TaskExecutionService:
 
     async def enqueue(self, task: TaskState) -> None:
         async with self._queue_lock:
-            await asyncio.to_thread(checkpointer.enqueue_task, task)
+            _, persist_error, persist_cancelled = await self._run_blocking_to_completion(
+                checkpointer.enqueue_task, task
+            )
+            if persist_error is not None or persist_cancelled:
+                rollback_ok, rollback_cancelled = await self._rollback_enqueue(task.task_id)
+                if not rollback_ok:
+                    raise RuntimeError("Task enqueue rollback failed; the task was not made available to workers.") from persist_error
+                if persist_cancelled or rollback_cancelled:
+                    raise asyncio.CancelledError
+                raise persist_error
+
             self._payloads[task.task_id] = task.model_copy(deep=True)
-            try:
-                await asyncio.to_thread(checkpointer.append_event, TaskEvent(
+            _, event_error, event_cancelled = await self._run_blocking_to_completion(
+                checkpointer.append_event,
+                TaskEvent(
                     event_type="task.created",
                     task_id=task.task_id,
                     message="Task accepted.",
                     data={"status": "queued"},
-                ))
-            except Exception:
-                self._payloads.pop(task.task_id, None)
-                await asyncio.to_thread(checkpointer.discard_unclaimed_queued_task, task.task_id)
-                raise
+                ),
+            )
+            if event_error is not None or event_cancelled:
+                rollback_ok, rollback_cancelled = await self._rollback_enqueue(task.task_id)
+                if not rollback_ok:
+                    raise RuntimeError("Task enqueue rollback failed; the task was not made available to workers.") from event_error
+                if event_cancelled or rollback_cancelled:
+                    raise asyncio.CancelledError
+                raise event_error
         if self._wake is not None:
             self._wake.set()
 
@@ -97,8 +142,22 @@ class TaskExecutionService:
         while self._running:
             try:
                 async with self._queue_lock:
-                    task = await asyncio.to_thread(checkpointer.claim_next_queued_task, worker_id)
+                    task, claim_error, claim_cancelled = await self._run_blocking_to_completion(
+                        checkpointer.claim_next_queued_task, worker_id
+                    )
+                    if claim_error is not None:
+                        raise claim_error
+                    if claim_cancelled:
+                        if task is not None:
+                            _, release_error, _ = await self._run_blocking_to_completion(
+                                checkpointer.release_task_claim, task.task_id, worker_id
+                            )
+                            if release_error is not None:
+                                logger.error("Cancelled task worker could not release its queue claim.")
+                        raise asyncio.CancelledError
                     payload = self._payloads.pop(task.task_id, None) if task is not None else None
+            except asyncio.CancelledError:
+                raise
             except Exception:
                 logger.error("Task worker could not claim queued work.")
                 task = None
