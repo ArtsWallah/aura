@@ -2,6 +2,15 @@ from abc import ABC, abstractmethod
 from typing import Any, Literal
 from pydantic import BaseModel, Field
 
+
+class ProviderRequestError(RuntimeError):
+    """Sanitized provider failure that never carries a response body or secret."""
+
+    def __init__(self, code: str):
+        self.code = code
+        super().__init__("The selected language model provider could not complete the request.")
+
+
 class MessageRole(str):
     SYSTEM = "system"
     USER = "user"

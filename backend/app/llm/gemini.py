@@ -1,7 +1,7 @@
 import json
 import httpx
 from typing import Any
-from app.llm.base import BaseLLMProvider, LLMMessage, LLMResponse, LLMToolCall
+from app.llm.base import BaseLLMProvider, LLMMessage, LLMResponse, LLMToolCall, ProviderRequestError
 from app.core.config import settings
 from app.core.logging import logger
 from app.privacy.outbound import PrivacyAwareAsyncClient
@@ -24,7 +24,7 @@ class GeminiProvider(BaseLLMProvider):
         response_format_json: bool = False
     ) -> LLMResponse:
         if not self.is_available():
-            raise ValueError("Gemini API key is missing. Set GEMINI_API_KEY in environment or settings.")
+            raise ProviderRequestError("missing_api_key")
 
         url = f"{self.base_url}/{self.model}:generateContent?key={self.api_key}"
         
@@ -83,8 +83,8 @@ class GeminiProvider(BaseLLMProvider):
             try:
                 response = await client.post(url, json=payload, headers={"Content-Type": "application/json"})
                 if response.status_code != 200:
-                    logger.error(f"Gemini API returned error code {response.status_code}.")
-                    raise RuntimeError(f"Gemini API request failed with status {response.status_code}.")
+                    logger.error("Gemini request failed with an HTTP error.")
+                    raise ProviderRequestError("http_failure")
 
                 data = response.json()
                 candidate = data.get("candidates", [{}])[0]
@@ -110,15 +110,25 @@ class GeminiProvider(BaseLLMProvider):
                 return LLMResponse(
                     content=text_content or None,
                     tool_calls=tool_calls,
-                    raw_response=data,
+                    # Do not retain the provider body in the response object.
+                    raw_response={},
                     prompt_tokens=usage_metadata.get("promptTokenCount", 0),
                     completion_tokens=usage_metadata.get("candidatesTokenCount", 0),
                     model=self.model,
                     provider="gemini"
                 )
             except httpx.TimeoutException:
-                raise TimeoutError(f"Gemini API request timed out after {settings.LLM_TIMEOUT_SECONDS}s.")
-            except Exception as e:
-                logger.error("Gemini execution failed.")
+                logger.error("Gemini request timed out.")
+                raise ProviderRequestError("timeout") from None
+            except ProviderRequestError:
                 raise
+            except PermissionError:
+                # Preserve the outbound privacy boundary's explicit refusal.
+                raise
+            except httpx.HTTPError:
+                logger.error("Gemini transport request failed.")
+                raise ProviderRequestError("http_failure") from None
+            except Exception:
+                logger.error("Gemini response was invalid or the request failed.")
+                raise ProviderRequestError("invalid_response") from None
 

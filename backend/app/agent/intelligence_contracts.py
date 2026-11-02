@@ -57,8 +57,15 @@ class PlanningResponseType(str, Enum):
     CLARIFICATION = "CLARIFICATION"
 
 
+class ProviderIdentity(str, Enum):
+    GEMINI = "gemini"
+    LOCAL_DETERMINISTIC_PLANNER = "local_deterministic_planner"
+    TEST_MOCK_PROVIDER = "test_mock_provider"
+
+
 class PlanningResponse(StrictContract):
     response_type: PlanningResponseType
+    provider_identity: ProviderIdentity = ProviderIdentity.LOCAL_DETERMINISTIC_PLANNER
     plan: ExecutionPlan | None = None
     clarification_question: str | None = Field(default=None, min_length=1, max_length=500)
     explanation: str = Field(min_length=1, max_length=500)
@@ -86,6 +93,8 @@ class IssueCode(str, Enum):
     OBJECTIVE_UNCOVERED = "objective_uncovered"
     DEPENDENCY_FAILED = "dependency_failed"
     POLICY_REJECTED = "policy_rejected"
+    MISSING_EVIDENCE = "missing_evidence"
+    MISSING_INPUT = "missing_input"
     UNKNOWN = "unknown"
 
 
@@ -93,6 +102,15 @@ class AlternativeReason(str, Enum):
     TOOL_UNAVAILABLE = "tool_unavailable"
     OUTPUT_INVALID = "output_invalid"
     INSUFFICIENT_COVERAGE = "insufficient_coverage"
+
+
+class EvaluationStatus(str, Enum):
+    PLAN_VALID = "plan_valid"
+    INCOMPLETE_COVERAGE = "incomplete_coverage"
+    INVALID_PLAN = "invalid_plan"
+    EXECUTION_FAILED = "execution_failed"
+    SUCCEEDED = "succeeded"
+    INCONCLUSIVE = "inconclusive"
 
 
 _ToolId = Annotated[str, Field(pattern=r"^[a-z][a-z0-9_]{0,63}$")]
@@ -107,25 +125,57 @@ class SafeAlternativeRecommendation(StrictContract):
 class EvaluationResult(StrictContract):
     execution_valid: bool
     objective_coverage: float = Field(ge=0.0, le=1.0)
+    evaluation_status: EvaluationStatus | None = None
     issues: list[IssueCode] = Field(default_factory=list, max_length=32)
     retry_recommendation: RetryRecommendation = RetryRecommendation.NONE
     alternative: SafeAlternativeRecommendation | None = None
 
     @model_validator(mode="after")
     def constrain_recommendations(self) -> "EvaluationResult":
-        if self.execution_valid and self.issues:
-            raise ValueError("A valid execution cannot contain unresolved issues.")
+        if self.evaluation_status is None:
+            # Preserve Phase 3.1.1 semantics for callers that have not adopted
+            # the additive status field yet.
+            if self.execution_valid and self.issues:
+                raise ValueError("A valid execution cannot contain unresolved issues.")
+        else:
+            if self.execution_valid and self.issues and not (
+                self.evaluation_status == EvaluationStatus.INCOMPLETE_COVERAGE
+                and set(self.issues) == {IssueCode.OBJECTIVE_UNCOVERED}
+            ):
+                raise ValueError("A valid plan or execution cannot contain unrelated unresolved issues.")
+            if self.evaluation_status in {
+                EvaluationStatus.INVALID_PLAN,
+                EvaluationStatus.EXECUTION_FAILED,
+                EvaluationStatus.INCONCLUSIVE,
+            } and self.execution_valid:
+                raise ValueError("Invalid, failed, or inconclusive evaluations cannot be marked valid.")
+            if self.evaluation_status == EvaluationStatus.SUCCEEDED and (
+                not self.execution_valid or self.objective_coverage != 1.0 or self.issues
+            ):
+                raise ValueError("Successful evaluations require valid execution and complete coverage.")
+            if self.evaluation_status == EvaluationStatus.INCOMPLETE_COVERAGE and (
+                not self.execution_valid or self.objective_coverage >= 1.0
+            ):
+                raise ValueError("Incomplete coverage requires a valid plan or execution with coverage below 1.")
+            if self.evaluation_status == EvaluationStatus.PLAN_VALID and (
+                not self.execution_valid or self.objective_coverage != 1.0 or self.issues
+            ):
+                raise ValueError("A valid plan requires structural validity and complete capability coverage.")
+            if self.evaluation_status in {EvaluationStatus.INVALID_PLAN, EvaluationStatus.EXECUTION_FAILED} and not self.issues:
+                raise ValueError("Invalid plans and failed executions must identify at least one issue.")
+            if self.evaluation_status == EvaluationStatus.INCONCLUSIVE and not self.issues:
+                raise ValueError("Inconclusive evaluations must identify why the evidence was insufficient.")
+            if (
+                self.evaluation_status == EvaluationStatus.INCOMPLETE_COVERAGE
+                and self.issues
+                and set(self.issues) != {IssueCode.OBJECTIVE_UNCOVERED}
+            ):
+                raise ValueError("Incomplete coverage may only report the uncovered-objective issue.")
         if self.retry_recommendation == RetryRecommendation.REPLAN and self.alternative is None:
             raise ValueError("REPLAN requires a safe alternative recommendation.")
         if self.retry_recommendation != RetryRecommendation.REPLAN and self.alternative is not None:
             raise ValueError("Alternative metadata is only valid with REPLAN.")
         return self
-
-
-class ProviderIdentity(str, Enum):
-    GEMINI = "gemini"
-    LOCAL_DETERMINISTIC_PLANNER = "local_deterministic_planner"
-    TEST_MOCK_PROVIDER = "test_mock_provider"
 
 
 class ValidationOutcome(str, Enum):

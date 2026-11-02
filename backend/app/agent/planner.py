@@ -35,6 +35,14 @@ Schema expected:
 }
 """
 
+
+class ProviderPlanError(RuntimeError):
+    """Safe failure for an invalid provider-generated execution plan."""
+
+    def __init__(self):
+        super().__init__("The selected provider did not return a valid execution plan.")
+
+
 class TaskPlanner:
     def __init__(self, llm_provider: BaseLLMProvider):
         self.llm = llm_provider
@@ -102,10 +110,11 @@ Create a structured execution plan to achieve the objective."""
                 goal=objective,
                 steps=steps
             )
-        except Exception as e:
-            logger.error("Failed to parse LLM plan output; falling back to the deterministic plan.")
-            # Fallback deterministic plan construction
-            plan = self._create_fallback_plan(objective, file_path)
+        except Exception:
+            # A provider response failure is not silently presented as a
+            # provider-generated plan. Callers receive a safe typed failure.
+            logger.error("Provider returned an invalid execution plan.")
+            raise ProviderPlanError() from None
 
         # File paths are server-authorized inputs. Never trust an LLM supplied path,
         # and pass the selected upload through to every tool that accepts one.

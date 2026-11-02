@@ -3,7 +3,16 @@ from app.llm.base import BaseLLMProvider
 from app.llm.gemini import GeminiProvider
 from app.llm.mock_provider import TestReasoningProvider
 from app.core.config import settings
-from app.core.logging import logger
+
+
+class ProviderSelectionError(RuntimeError):
+    """Safe failure raised when the explicitly configured provider is unavailable."""
+
+    def __init__(self, provider_id: str, code: str):
+        self.provider_id = provider_id
+        self.code = code
+        super().__init__("The configured provider is unavailable; no replacement was selected.")
+
 
 class LLMRouter:
     def __init__(self):
@@ -19,21 +28,22 @@ class LLMRouter:
     ) -> BaseLLMProvider:
         if privacy_mode not in {"local_only", "hybrid", "cloud_enabled"}:
             raise ValueError("Unknown privacy mode; refusing cloud routing.")
-        # STRICT PRIVACY ENFORCEMENT:
-        # If privacy_mode is "local_only", cloud LLMs MUST NOT receive data.
+        # Local-only mode selects the offline test implementation. Its output
+        # identifies itself as test_reasoner rather than as Gemini.
         if privacy_mode == "local_only":
-            logger.info("Privacy Mode is 'local_only': Routing exclusively to local/offline deterministic engine.")
+            # This is an explicit local policy route. The response remains
+            # labeled test_mock_provider by TestReasoningProvider.
             return self._providers["test_reasoner"]
 
         target = requested_provider or settings.DEFAULT_LLM_PROVIDER
         
         provider = self._providers.get(target)
-        if provider and provider.is_available():
-            return provider
-            
-        # Fallback to test_reasoner if requested provider lacks credentials
-        logger.warning(f"Provider '{target}' is unavailable (e.g. missing API key). Falling back to TestReasoningProvider.")
-        return self._providers["test_reasoner"]
+        if provider is None:
+            raise ProviderSelectionError(str(target), "unknown_provider")
+        if not provider.is_available():
+            code = "missing_api_key" if target == "gemini" else "provider_unavailable"
+            raise ProviderSelectionError(str(target), code)
+        return provider
 
     def list_providers(self) -> list[dict[str, Any]]:
         return [
