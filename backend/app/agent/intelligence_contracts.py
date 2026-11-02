@@ -1,0 +1,155 @@
+"""Typed contracts for the intelligence layer.
+
+These models are deliberately not wired into task execution yet. Trace models
+are allowlisted schemas: they have no free-form objective, prompt, parameter,
+file, dataset, or output fields, and reject unknown fields.
+"""
+
+from enum import Enum
+from typing import Annotated
+
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+from app.agent.state import ExecutionPlan, StepStatus
+
+
+class StrictContract(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+
+class IntentCategory(str, Enum):
+    DATA_ANALYSIS = "data_analysis"
+    STATISTICAL_ANALYSIS = "statistical_analysis"
+    VISUALIZATION = "visualization"
+    SQL_QUERY = "sql_query"
+    DOCUMENT_ANALYSIS = "document_analysis"
+    WEB_RESEARCH = "web_research"
+    REPORT_GENERATION = "report_generation"
+    MULTI_STEP_ANALYSIS = "multi_step_analysis"
+    SYSTEM_HEALTH = "system_health"
+    UNKNOWN = "unknown"
+
+
+class RequiredInputKind(str, Enum):
+    DATASET = "dataset"
+    DOCUMENT = "document"
+    DATABASE = "database"
+    RESEARCH_TOPIC = "research_topic"
+    ANALYSIS_GOAL = "analysis_goal"
+    CLARIFICATION = "clarification"
+
+
+class InputRequirement(StrictContract):
+    kind: RequiredInputKind
+    required: bool = True
+
+
+class IntentAssessment(StrictContract):
+    category: IntentCategory
+    confidence: float = Field(ge=0.0, le=1.0)
+    required_inputs: list[InputRequirement] = Field(default_factory=list, max_length=32)
+    missing_inputs: list[InputRequirement] = Field(default_factory=list, max_length=32)
+    is_multi_step: bool
+
+
+class PlanningResponseType(str, Enum):
+    PLAN = "PLAN"
+    CLARIFICATION = "CLARIFICATION"
+
+
+class PlanningResponse(StrictContract):
+    response_type: PlanningResponseType
+    plan: ExecutionPlan | None = None
+    clarification_question: str | None = Field(default=None, min_length=1, max_length=500)
+    explanation: str = Field(min_length=1, max_length=500)
+
+    @model_validator(mode="after")
+    def validate_variant(self) -> "PlanningResponse":
+        if self.response_type == PlanningResponseType.PLAN:
+            if self.plan is None or self.clarification_question is not None:
+                raise ValueError("PLAN responses require a plan and cannot include a clarification question.")
+        elif self.plan is not None or self.clarification_question is None:
+            raise ValueError("CLARIFICATION responses require a question and cannot include a plan.")
+        return self
+
+
+class RetryRecommendation(str, Enum):
+    NONE = "none"
+    RETRY = "retry"
+    REPLAN = "replan"
+
+
+class IssueCode(str, Enum):
+    TOOL_FAILED = "tool_failed"
+    OUTPUT_INVALID = "output_invalid"
+    OUTPUT_EMPTY = "output_empty"
+    OBJECTIVE_UNCOVERED = "objective_uncovered"
+    DEPENDENCY_FAILED = "dependency_failed"
+    POLICY_REJECTED = "policy_rejected"
+    UNKNOWN = "unknown"
+
+
+class AlternativeReason(str, Enum):
+    TOOL_UNAVAILABLE = "tool_unavailable"
+    OUTPUT_INVALID = "output_invalid"
+    INSUFFICIENT_COVERAGE = "insufficient_coverage"
+
+
+_ToolId = Annotated[str, Field(pattern=r"^[a-z][a-z0-9_]{0,63}$")]
+
+
+class SafeAlternativeRecommendation(StrictContract):
+    tool_name: _ToolId
+    reason: AlternativeReason
+    requires_plan_revalidation: bool = True
+
+
+class EvaluationResult(StrictContract):
+    execution_valid: bool
+    objective_coverage: float = Field(ge=0.0, le=1.0)
+    issues: list[IssueCode] = Field(default_factory=list, max_length=32)
+    retry_recommendation: RetryRecommendation = RetryRecommendation.NONE
+    alternative: SafeAlternativeRecommendation | None = None
+
+    @model_validator(mode="after")
+    def constrain_recommendations(self) -> "EvaluationResult":
+        if self.execution_valid and self.issues:
+            raise ValueError("A valid execution cannot contain unresolved issues.")
+        if self.retry_recommendation == RetryRecommendation.REPLAN and self.alternative is None:
+            raise ValueError("REPLAN requires a safe alternative recommendation.")
+        if self.retry_recommendation != RetryRecommendation.REPLAN and self.alternative is not None:
+            raise ValueError("Alternative metadata is only valid with REPLAN.")
+        return self
+
+
+class ProviderIdentity(str, Enum):
+    GEMINI = "gemini"
+    LOCAL_DETERMINISTIC_PLANNER = "local_deterministic_planner"
+    TEST_MOCK_PROVIDER = "test_mock_provider"
+
+
+class ValidationOutcome(str, Enum):
+    ACCEPTED = "accepted"
+    REJECTED = "rejected"
+
+
+class TraceStep(StrictContract):
+    step_id: Annotated[str, Field(pattern=r"^step_[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")]
+    tool_name: _ToolId
+    status: StepStatus
+    duration_ms: float = Field(ge=0.0, le=86_400_000)
+
+
+class ExecutionTiming(StrictContract):
+    planning_ms: float = Field(default=0.0, ge=0.0, le=86_400_000)
+    validation_ms: float = Field(default=0.0, ge=0.0, le=86_400_000)
+    execution_ms: float = Field(default=0.0, ge=0.0, le=86_400_000)
+
+
+class ExecutionTrace(StrictContract):
+    intent_category: IntentCategory
+    provider_identity: ProviderIdentity
+    selected_tools: list[_ToolId] = Field(default_factory=list, max_length=128)
+    step_statuses: list[TraceStep] = Field(default_factory=list, max_length=128)
+    validation_outcome: ValidationOutcome
+    timing: ExecutionTiming = Field(default_factory=ExecutionTiming)
