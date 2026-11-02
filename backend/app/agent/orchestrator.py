@@ -9,6 +9,7 @@ from app.agent.evaluator import evaluator
 from app.agent.checkpoint import checkpointer
 from app.llm.router import llm_router
 from app.core.logging import logger
+from app.privacy.outbound import privacy_scope
 
 class AgentOrchestrator:
     def __init__(self):
@@ -36,6 +37,16 @@ class AgentOrchestrator:
             await q.put(event)
 
     async def run_task(
+        self,
+        objective: str,
+        file_path: str | None = None,
+        privacy_mode: str = "hybrid",
+        task_id: str | None = None
+    ) -> TaskState:
+        with privacy_scope(privacy_mode):
+            return await self._run_task(objective, file_path, privacy_mode, task_id)
+
+    async def _run_task(
         self,
         objective: str,
         file_path: str | None = None,
@@ -112,7 +123,7 @@ class AgentOrchestrator:
                         break # No more actionable steps
 
                 # Execute ready steps in parallel when more than 1 are independent
-                logger.info(f"Executing batch of {len(ready_steps)} step(s) in parallel: {[s.step_id for s in ready_steps]}")
+                logger.info(f"Executing a batch of {len(ready_steps)} tool step(s).")
                 batch_tasks = [
                     executor.execute_step(step, state, queue_for_executor)
                     for step in ready_steps
@@ -168,18 +179,19 @@ class AgentOrchestrator:
 
         except Exception as e:
             state.status = TaskStatus.FAILED
-            state.error_summary = str(e)
+            state.error_summary = "Internal task error."
             state.updated_at = time.time()
             state.metrics.total_execution_time_ms = (time.perf_counter() - start_time) * 1000.0
-            logger.error(f"Task {t_id} fatal error: {e}", exc_info=True)
+            logger.error("Task execution failed with an internal error.")
             await self._emit_event(TaskEvent(
                 event_type="task_failed",
                 task_id=t_id,
-                message=f"Fatal exception during execution: {str(e)}",
-                data={"error": str(e)}
+                message="Task execution failed.",
+                data={"error": "Internal task error."}
             ))
 
         checkpointer.save_checkpoint(state)
         return state
 
 orchestrator = AgentOrchestrator()
+

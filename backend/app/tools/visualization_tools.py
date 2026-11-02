@@ -1,6 +1,7 @@
 import os
 import uuid
 import base64
+from io import BytesIO
 import pandas as pd
 import numpy as np
 import matplotlib
@@ -12,7 +13,8 @@ from pydantic import BaseModel, Field
 from app.tools.schemas import ToolCategory, ExecutionLocation, PermissionLevel
 from app.tools.registry import tool_registry
 from app.core.config import settings
-from app.core.security import validate_safe_path
+from app.core.security import validate_safe_path, read_managed_dataset
+from app.privacy.encryption import encryption_service
 
 class GenerateChartInput(BaseModel):
     file_path: str = Field(description="Path to CSV or Excel dataset.")
@@ -36,7 +38,7 @@ class GenerateChartInput(BaseModel):
 )
 def generate_chart(params: GenerateChartInput) -> dict[str, Any]:
     safe_path = validate_safe_path(params.file_path)
-    df = pd.read_csv(safe_path) if safe_path.suffix.lower() == ".csv" else pd.read_excel(safe_path)
+    df = read_managed_dataset(safe_path)
     
     # Modern aesthetics
     plt.style.use("seaborn-v0_8-whitegrid" if "seaborn-v0_8-whitegrid" in plt.style.available else "default")
@@ -139,15 +141,17 @@ def generate_chart(params: GenerateChartInput) -> dict[str, Any]:
 
     # Save to disk
     chart_id = f"chart_{uuid.uuid4().hex[:10]}"
-    filename = f"{chart_id}.png"
+    filename = f"{chart_id}.png.enc"
     out_path = settings.CHARTS_DIR / filename
-    plt.savefig(out_path, format="png", bbox_inches="tight")
+    image_buffer = BytesIO()
+    plt.savefig(image_buffer, format="png", bbox_inches="tight")
     plt.close(fig)
+    raw_image = image_buffer.getvalue()
+    out_path.write_bytes(encryption_service().encrypt_bytes(raw_image))
 
     # Convert thumbnail to base64
-    with open(out_path, "rb") as img_file:
-        img_b64 = base64.b64encode(img_file.read()).decode("utf-8")
-        data_uri = f"data:image/png;base64,{img_b64}"
+    img_b64 = base64.b64encode(raw_image).decode("utf-8")
+    data_uri = f"data:image/png;base64,{img_b64}"
 
     return {
         "chart_id": chart_id,
@@ -158,3 +162,4 @@ def generate_chart(params: GenerateChartInput) -> dict[str, Any]:
         "data_uri": data_uri,
         "artifacts": [str(out_path)]
     }
+

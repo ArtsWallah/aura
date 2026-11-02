@@ -23,3 +23,4 @@ def classify_intent(request: ClassifyIntentRequest):
 @router.post("/embed", response_model=EmbeddingResult)
 def generate_embedding(request: EmbedRequest):
     return embedding_model.encode(request.text)
+

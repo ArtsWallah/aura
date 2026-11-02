@@ -41,3 +41,4 @@ class ModelRegistry:
             meta.total_inferences += 1
 
 model_registry = ModelRegistry()
+

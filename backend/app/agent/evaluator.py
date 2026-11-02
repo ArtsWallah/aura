@@ -26,14 +26,14 @@ class StepEvaluator:
         # 1. Did the tool fail hard?
         if not tool_result.success:
             err = tool_result.error or "Unknown tool execution failure."
-            logger.warning(f"Step '{step.step_id}' failed: {err}")
+            logger.warning("Tool step failed; details are withheld from logs.")
             
             # Check if retry limit exceeded
             if step.retry_count >= step.max_retries:
                 return EvaluationResult(
                     is_valid=False,
                     requires_retry=False,
-                    reason=f"Exceeded maximum retry limit ({step.max_retries}). Error: {err}"
+                    reason=f"Exceeded maximum retry limit ({step.max_retries})."
                 )
 
             # Heuristic self-corrections
@@ -66,7 +66,7 @@ class StepEvaluator:
                 is_valid=False,
                 requires_retry=True,
                 suggested_parameter_correction=correction,
-                reason=f"Tool error: {err}. Attempting recovery (retry #{step.retry_count + 1})."
+                reason=f"Tool error; attempting recovery (retry #{step.retry_count + 1})."
             )
 
         # 2. Check for empty or malformed data payload
@@ -121,3 +121,4 @@ class StepEvaluator:
         return True, "All planned steps completed and verified."
 
 evaluator = StepEvaluator()
+

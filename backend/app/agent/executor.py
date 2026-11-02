@@ -36,7 +36,7 @@ class PlanExecutor:
         result: ToolResult | None = None
         
         while retry:
-            logger.info(f"Running step {step.step_id} tool '{step.tool_name}' (attempt {step.retry_count + 1})...")
+            logger.info("Running planned tool step.")
             result = await tool_registry.execute_tool(
                 name=step.tool_name,
                 arguments=resolved_params,
@@ -76,7 +76,7 @@ class PlanExecutor:
                 if eval_res.requires_retry and step.retry_count < step.max_retries:
                     step.retry_count += 1
                     task_state.metrics.retries_count += 1
-                    logger.warning(f"Retrying step {step.step_id}: {eval_res.reason}")
+                    logger.warning("Retrying failed tool step.")
                     
                     if eval_res.suggested_parameter_correction:
                         resolved_params = eval_res.suggested_parameter_correction
@@ -143,3 +143,4 @@ class PlanExecutor:
         return params
 
 executor = PlanExecutor()
+

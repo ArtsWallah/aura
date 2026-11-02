@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 from app.tools.schemas import ToolCategory, ExecutionLocation, PermissionLevel
 from app.tools.registry import tool_registry
-from app.core.security import validate_safe_path
+from app.core.security import validate_safe_path, read_managed_dataset
 
 # 1. Descriptive Statistics Tool
 class DescriptiveStatsInput(BaseModel):
@@ -23,7 +23,7 @@ class DescriptiveStatsInput(BaseModel):
 )
 def descriptive_statistics(params: DescriptiveStatsInput) -> dict[str, Any]:
     safe_path = validate_safe_path(params.file_path)
-    df = pd.read_csv(safe_path) if safe_path.suffix.lower() == ".csv" else pd.read_excel(safe_path)
+    df = read_managed_dataset(safe_path)
     
     num_df = df.select_dtypes(include=[np.number])
     if params.columns:
@@ -84,7 +84,7 @@ class GroupComparisonInput(BaseModel):
 )
 def group_comparison(params: GroupComparisonInput) -> dict[str, Any]:
     safe_path = validate_safe_path(params.file_path)
-    df = pd.read_csv(safe_path) if safe_path.suffix.lower() == ".csv" else pd.read_excel(safe_path)
+    df = read_managed_dataset(safe_path)
     
     if params.group_by not in df.columns:
         raise ValueError(f"Group column '{params.group_by}' does not exist.")
@@ -141,7 +141,7 @@ class CorrelationAnalysisInput(BaseModel):
 )
 def correlation_analysis(params: CorrelationAnalysisInput) -> dict[str, Any]:
     safe_path = validate_safe_path(params.file_path)
-    df = pd.read_csv(safe_path) if safe_path.suffix.lower() == ".csv" else pd.read_excel(safe_path)
+    df = read_managed_dataset(safe_path)
     
     num_df = df.select_dtypes(include=[np.number]).dropna(how="all")
     if num_df.shape[1] < 2:
@@ -202,7 +202,7 @@ class OutlierDetectionInput(BaseModel):
 )
 def detect_outliers(params: OutlierDetectionInput) -> dict[str, Any]:
     safe_path = validate_safe_path(params.file_path)
-    df = pd.read_csv(safe_path) if safe_path.suffix.lower() == ".csv" else pd.read_excel(safe_path)
+    df = read_managed_dataset(safe_path)
     
     if params.column not in df.columns:
         raise ValueError(f"Column '{params.column}' does not exist.")
@@ -244,3 +244,4 @@ def detect_outliers(params: OutlierDetectionInput) -> dict[str, Any]:
         "upper_bound": round(float(upper_bound), 4),
         "sample_outliers": sample_outliers
     }
+

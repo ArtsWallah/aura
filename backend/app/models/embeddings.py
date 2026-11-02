@@ -71,3 +71,4 @@ class LightweightEmbeddingModel:
         return float(dot / (norm_a * norm_b))
 
 embedding_model = LightweightEmbeddingModel()
+

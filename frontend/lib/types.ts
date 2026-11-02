@@ -112,3 +112,4 @@ export interface SystemSettings {
     requires_api_key: boolean;
   }>;
 }
+

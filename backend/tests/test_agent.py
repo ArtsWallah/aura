@@ -5,17 +5,18 @@ from app.core.config import settings
 from app.agent.orchestrator import orchestrator
 from app.agent.state import TaskStatus, StepStatus
 from app.agent.checkpoint import checkpointer
+from app.privacy.encryption import encryption_service
 
 @pytest.fixture
 def sales_data_file():
-    path = settings.DATA_DIR / "agent_test_sales.csv"
+    path = settings.UPLOADS_DIR / "agent_test_sales.csv.enc"
     df = pd.DataFrame({
         "category": ["Electronics", "Electronics", "Furniture", "Supplies", "Electronics", "Furniture"],
         "region": ["East", "West", "East", "West", "North", "South"],
         "revenue": [15000, 22000, 4000, 350, 18000, 3100],
         "cost": [9000, 14000, 2500, 300, 11000, 2100]
     })
-    df.to_csv(path, index=False)
+    path.write_bytes(encryption_service().encrypt_bytes(df.to_csv(index=False).encode("utf-8")))
     yield str(path)
     if path.exists():
         path.unlink()
@@ -47,3 +48,4 @@ async def test_end_to_end_agent_orchestration(sales_data_file):
     assert loaded is not None
     assert loaded.status == TaskStatus.COMPLETED
     assert loaded.task_id == state.task_id
+

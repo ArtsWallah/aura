@@ -17,6 +17,8 @@ class LLMRouter:
         requested_provider: str | None = None,
         privacy_mode: Literal["local_only", "hybrid", "cloud_enabled"] = "hybrid"
     ) -> BaseLLMProvider:
+        if privacy_mode not in {"local_only", "hybrid", "cloud_enabled"}:
+            raise ValueError("Unknown privacy mode; refusing cloud routing.")
         # STRICT PRIVACY ENFORCEMENT:
         # If privacy_mode is "local_only", cloud LLMs MUST NOT receive data.
         if privacy_mode == "local_only":

@@ -18,3 +18,4 @@ def health_check():
         "default_privacy_mode": settings.DEFAULT_PRIVACY_MODE,
         "environment": settings.ENVIRONMENT
     }
+

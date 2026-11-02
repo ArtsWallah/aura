@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from app.core.config import settings
 from app.core.security import mask_secret
 from app.llm.router import llm_router
+from app.llm.gemini import GeminiProvider
 
 router = APIRouter(prefix="/settings", tags=["Settings"])
 
@@ -11,7 +12,7 @@ class UpdateSettingsRequest(BaseModel):
     privacy_mode: Literal["local_only", "hybrid", "cloud_enabled"] | None = None
     gemini_api_key: str | None = None
     gemini_model: str | None = None
-    default_llm_provider: str | None = None
+    default_llm_provider: Literal["gemini", "test_reasoner"] | None = None
 
 @router.get("")
 def get_settings():
@@ -34,8 +35,10 @@ def update_settings(req: UpdateSettingsRequest):
         settings.DEFAULT_PRIVACY_MODE = req.privacy_mode
     if req.gemini_api_key is not None:
         settings.GEMINI_API_KEY = req.gemini_api_key.strip() or None
+        llm_router._providers["gemini"] = GeminiProvider()
     if req.gemini_model:
         settings.GEMINI_MODEL = req.gemini_model
+        llm_router._providers["gemini"] = GeminiProvider()
     if req.default_llm_provider:
         settings.DEFAULT_LLM_PROVIDER = req.default_llm_provider
 
@@ -43,3 +46,4 @@ def update_settings(req: UpdateSettingsRequest):
         "message": "Settings updated successfully.",
         "settings": get_settings()
     }
+

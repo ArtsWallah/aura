@@ -4,16 +4,17 @@ from fastapi.testclient import TestClient
 from app.main import app
 from app.core.config import settings
 
-client = TestClient(app)
+client = TestClient(app, client=("127.0.0.1", 54321))
 
 @pytest.fixture
 def api_test_csv():
-    p = settings.DATA_DIR / "api_test_dataset.csv"
+    p = settings.UPLOADS_DIR / "api_test_dataset.csv.enc"
     df = pd.DataFrame({
         "category": ["A", "B", "C", "A", "B"],
         "revenue": [100.0, 200.0, 300.0, 150.0, 250.0]
     })
-    df.to_csv(p, index=False)
+    from app.privacy.encryption import encryption_service
+    p.write_bytes(encryption_service().encrypt_bytes(df.to_csv(index=False).encode("utf-8")))
     yield str(p)
     if p.exists():
         p.unlink()
@@ -55,13 +56,13 @@ def test_list_models_and_classify():
     assert len(embed_data["vector"]) > 50
 
 def test_settings_endpoint():
-    res = client.get("/api/settings")
+    res = client.get("/api/settings", headers={"Origin": "http://localhost:3000"})
     assert res.status_code == 200
     data = res.json()
     assert "default_privacy_mode" in data
     # Ensure API key is masked
     if data["gemini_configured"]:
-        assert "••••" in data["gemini_api_key_masked"]
+        assert data["gemini_api_key_masked"] == "Configured"
 
 def test_create_task_api(api_test_csv):
     res = client.post(
@@ -76,3 +77,4 @@ def test_create_task_api(api_test_csv):
     task_data = res.json()
     assert task_data["status"] == "completed"
     assert task_data["final_deliverable"] is not None
+

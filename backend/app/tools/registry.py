@@ -107,17 +107,17 @@ class ToolRegistry:
         # Validate input schema
         try:
             validated_input = input_model(**arguments)
-        except ValidationError as e:
+        except ValidationError:
             return ToolResult(
                 tool_name=name,
                 success=False,
-                error=f"Input validation error for tool '{name}': {e.errors()}"
+                error=f"Input validation failed for tool '{name}'."
             )
-        except Exception as e:
+        except Exception:
             return ToolResult(
                 tool_name=name,
                 success=False,
-                error=f"Malformed arguments for tool '{name}': {str(e)}"
+                error=f"Malformed arguments for tool '{name}'."
             )
 
         # Execute with latency tracking
@@ -150,13 +150,14 @@ class ToolRegistry:
             
         except Exception as e:
             elapsed_ms = (time.perf_counter() - start_time) * 1000.0
-            logger.error(f"Error executing tool '{name}': {str(e)}", exc_info=True)
+            logger.error(f"Error executing tool '{name}'.")
             return ToolResult(
                 tool_name=name,
                 success=False,
-                error=f"Execution error in '{name}': {str(e)}",
+                error=f"Execution error in '{name}'.",
                 execution_time_ms=elapsed_ms
             )
 
 # Global singleton
 tool_registry = ToolRegistry()
+

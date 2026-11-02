@@ -79,3 +79,4 @@ async def test_full_acceptance_workflow():
     # 5. Metrics & Checkpointing
     assert state.metrics.total_execution_time_ms > 0
     assert state.metrics.tool_calls_count >= len(state.plan.steps)
+

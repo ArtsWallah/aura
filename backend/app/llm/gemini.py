@@ -4,6 +4,7 @@ from typing import Any
 from app.llm.base import BaseLLMProvider, LLMMessage, LLMResponse, LLMToolCall
 from app.core.config import settings
 from app.core.logging import logger
+from app.privacy.outbound import PrivacyAwareAsyncClient
 
 class GeminiProvider(BaseLLMProvider):
     def __init__(self, api_key: str | None = None, model: str | None = None):
@@ -78,12 +79,12 @@ class GeminiProvider(BaseLLMProvider):
                 })
             payload["tools"] = [{"functionDeclarations": function_declarations}]
 
-        async with httpx.AsyncClient(timeout=settings.LLM_TIMEOUT_SECONDS) as client:
+        async with PrivacyAwareAsyncClient(timeout=settings.LLM_TIMEOUT_SECONDS) as client:
             try:
                 response = await client.post(url, json=payload, headers={"Content-Type": "application/json"})
                 if response.status_code != 200:
-                    logger.error(f"Gemini API returned error code {response.status_code}: {response.text}")
-                    raise RuntimeError(f"Gemini API error ({response.status_code}): {response.text}")
+                    logger.error(f"Gemini API returned error code {response.status_code}.")
+                    raise RuntimeError(f"Gemini API request failed with status {response.status_code}.")
 
                 data = response.json()
                 candidate = data.get("candidates", [{}])[0]
@@ -118,5 +119,6 @@ class GeminiProvider(BaseLLMProvider):
             except httpx.TimeoutException:
                 raise TimeoutError(f"Gemini API request timed out after {settings.LLM_TIMEOUT_SECONDS}s.")
             except Exception as e:
-                logger.error(f"Gemini execution exception: {str(e)}")
+                logger.error("Gemini execution failed.")
                 raise
+

@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 from app.tools.schemas import ToolCategory, ExecutionLocation, PermissionLevel, ToolResult
 from app.tools.registry import tool_registry
-from app.core.security import validate_safe_path
+from app.core.security import validate_safe_path, read_managed_dataset, managed_file_suffix
 
 class InspectDatasetInput(BaseModel):
     file_path: str = Field(description="Relative or absolute path to CSV or Excel file.")
@@ -43,13 +43,8 @@ def inspect_dataset(params: InspectDatasetInput) -> dict[str, Any]:
     if not safe_path.exists():
         raise FileNotFoundError(f"File not found: {safe_path.name}")
         
-    ext = safe_path.suffix.lower()
-    if ext in [".csv", ".txt"]:
-        df = pd.read_csv(safe_path)
-    elif ext in [".xlsx", ".xls"]:
-        df = pd.read_excel(safe_path)
-    else:
-        raise ValueError(f"Unsupported tabular format: '{ext}'. Supported: .csv, .xlsx, .xls")
+    ext = managed_file_suffix(safe_path)
+    df = read_managed_dataset(safe_path)
 
     total_rows, total_cols = df.shape
     columns = df.columns.tolist()
@@ -85,3 +80,4 @@ def inspect_dataset(params: InspectDatasetInput) -> dict[str, Any]:
         "sample_data": sample_data,
         "memory_usage_kb": mem_kb
     }
+

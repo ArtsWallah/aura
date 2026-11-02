@@ -103,3 +103,4 @@ export async function updateSettings(data: {
   });
   return res.json();
 }
+

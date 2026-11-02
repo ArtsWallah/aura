@@ -91,6 +91,24 @@ AURA decomposes complex, high-level natural language requests into structured ex
 
 ---
 
+## Phase 1 Security Configuration
+
+The backend supports a local single-user deployment. It binds to loopback only; set `HOST` to `127.0.0.1` or `::1`. The frontend origins are controlled by `CORS_ORIGINS` (JSON list syntax), and sensitive settings and direct tool endpoints require an allowed `Origin`.
+
+Set a persistent, private Fernet key in `ENCRYPTION_KEY` before using uploads, reports, charts, or task persistence. Fernet here provides AES-128-CBC encryption with HMAC-SHA256 authentication. Generate a URL-safe key with:
+
+```bash
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
+
+Keep the key outside source control and preserve it: encrypted files and checkpoints cannot be read after the key is lost or changed. Upload staging files contain ciphertext only and are removed after atomic placement; plaintext upload bytes and report/chart data are processed in memory. Existing legacy plaintext artifacts are preserved until an operator explicitly calls `POST /api/artifacts/migrate-legacy` from a configured frontend origin. Migration encrypts files in place and leaves a file untouched if conversion fails.
+
+`local_only` blocks outbound requests through AURA's shared HTTPX client boundary. Gemini and Wikipedia research use that client. This is an application-level control: unrelated code or a future integration that creates a raw HTTPX/requests client or uses a network SDK can bypass it; use OS or network egress controls when a process-wide guarantee is required. `hybrid` redacts recognizable PII from inspected outbound text and omits raw row fields; opaque binary and multipart uploads are denied. Cloud egress is available only for tasks explicitly run in `hybrid` or `cloud_enabled` mode.
+
+The current deployment has one local OS user and no multi-user identity or ownership model. Do not bind it to a network interface or expose it through a reverse proxy as a multi-user service.
+
+File validation resolves paths before checking the upload root, which is intended to reject symlinks that point outside it. The symlink escape test is skipped on Windows when the process cannot create symlinks; that behavior still needs verification on a host with symlink privileges.
+
 ## ⚡ Quickstart
 
 ### Backend Setup
@@ -116,3 +134,4 @@ Dashboard available at: `http://localhost:3000`
 ```bash
 .\venv\Scripts\pytest -v backend/tests/
 ```
+

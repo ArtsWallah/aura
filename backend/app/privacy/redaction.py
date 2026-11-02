@@ -23,3 +23,4 @@ class DataRedactor:
         return redacted_text, total_redacted
 
 data_redactor = DataRedactor()
+

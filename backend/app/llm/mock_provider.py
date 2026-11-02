@@ -61,7 +61,7 @@ class TestReasoningProvider(BaseLLMProvider):
         # Look for file path mentioned in user prompt or previous messages
         file_path = None
         for msg in messages:
-            match = re.search(r"['\"]?([\w\-\\/:.]+\.(?:csv|xlsx|xls|txt|md))['\"]?", msg.content)
+            match = re.search(r"['\"]?([\w\-\\/:.]+\.(?:csv|xlsx|xls|txt|md)(?:\.enc)?)['\"]?", msg.content)
             if match:
                 file_path = match.group(1)
                 break
@@ -185,3 +185,4 @@ class TestReasoningProvider(BaseLLMProvider):
             "steps": steps,
             "estimated_steps_count": len(steps)
         }
+

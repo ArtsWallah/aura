@@ -7,7 +7,7 @@ venv/
 env/
 *.sqlite3
 *.db
-
+*.zip
 # Node / Next.js
 node_modules/
 .next/
@@ -32,3 +32,4 @@ data/reports/*
 !data/reports/.gitkeep
 data/charts/*
 !data/charts/.gitkeep
+

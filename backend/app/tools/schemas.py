@@ -48,3 +48,4 @@ class ToolResult(BaseModel):
     execution_time_ms: float = 0.0
     artifacts: list[str] = Field(default_factory=list) # paths to charts/reports generated
     metadata: dict[str, Any] = Field(default_factory=dict)
+

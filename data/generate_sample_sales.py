@@ -59,3 +59,4 @@ def generate_sample_sales():
 
 if __name__ == "__main__":
     generate_sample_sales()
+

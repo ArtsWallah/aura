@@ -1,6 +1,7 @@
-import os
 from pathlib import Path
+import ipaddress
 from typing import Literal
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -29,7 +30,9 @@ class Settings(BaseSettings):
     
     # Privacy Modes: local_only, hybrid, cloud_enabled
     DEFAULT_PRIVACY_MODE: Literal["local_only", "hybrid", "cloud_enabled"] = "hybrid"
-    ENCRYPTION_KEY: str = "aura-dev-secret-key-32-chars-ok!" # In prod, provide 32-byte urlsafe base64
+    # Must be a URL-safe base64 Fernet key (generate with Fernet.generate_key()).
+    ENCRYPTION_KEY: str | None = None
+    MAX_UPLOAD_BYTES: int = 25 * 1024 * 1024
     DATA_RETENTION_HOURS: int = 72
     
     # Directories
@@ -42,6 +45,17 @@ class Settings(BaseSettings):
     
     # Database
     DATABASE_URL: str = f"sqlite:///{DATA_DIR / 'aura.db'}"
+
+    @field_validator("HOST")
+    @classmethod
+    def require_loopback_host(cls, value: str) -> str:
+        try:
+            address = ipaddress.ip_address(value)
+        except ValueError as exc:
+            raise ValueError("HOST must be a loopback IP address.") from exc
+        if not address.is_loopback:
+            raise ValueError("HOST must be a loopback address for the supported single-user deployment.")
+        return value
     
     # Agent Execution
     MAX_PLAN_STEPS: int = 15
@@ -60,3 +74,4 @@ class Settings(BaseSettings):
 
 settings = Settings()
 settings.init_directories()
+

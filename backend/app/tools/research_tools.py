@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 from app.tools.schemas import ToolCategory, ExecutionLocation, PermissionLevel
 from app.tools.registry import tool_registry
 from app.core.logging import logger
+from app.privacy.outbound import PrivacyAwareAsyncClient, current_privacy_mode, redact_external_text
 
 class WebResearchInput(BaseModel):
     query: str = Field(description="Search terms or question to research.")
@@ -29,13 +30,14 @@ class SourceCitation(BaseModel):
 )
 async def web_research(params: WebResearchInput) -> dict[str, Any]:
     sources: list[dict[str, Any]] = []
+    query = redact_external_text(params.query) if current_privacy_mode() == "hybrid" else params.query
     
     # Try querying Wikipedia REST API as a reliable knowledge source
     try:
-        encoded_query = urllib.parse.quote(params.query)
+        encoded_query = urllib.parse.quote(query)
         wiki_url = f"https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch={encoded_query}&format=json&utf8=1&srlimit={params.max_results}"
         
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with PrivacyAwareAsyncClient(timeout=10.0) as client:
             resp = await client.get(wiki_url, headers={"User-Agent": "AURA-Agent/1.0 (ResearchTool)"})
             if resp.status_code == 200:
                 data = resp.json()
@@ -51,25 +53,19 @@ async def web_research(params: WebResearchInput) -> dict[str, Any]:
                         "domain": "wikipedia.org",
                         "is_factual_source": True
                     })
-    except Exception as e:
-        logger.warning(f"External search provider failed or timed out: {e}")
+    except PermissionError:
+        raise
+    except Exception:
+        logger.warning("External search provider failed or timed out.")
 
     # If no results or external failure, provide structured fallback knowledge response
-    if not sources:
-        sources.append({
-            "title": f"Factual synthesis regarding: '{params.query}'",
-            "url": "https://aura.local/internal-knowledge",
-            "snippet": f"Verified contextual definition and domain heuristics retrieved for topic '{params.query}'.",
-            "domain": "internal-knowledge",
-            "is_factual_source": True
-        })
-
     return {
-        "query": params.query,
+        "query": query,
         "results_count": len(sources),
         "sources": sources,
         "metadata": {
-            "search_provider": "Wikipedia API / Curated Knowledge",
+            "search_provider": "Wikipedia API",
             "distinguish_interpretation": "All claims must cite one of the listed sources."
         }
     }
+

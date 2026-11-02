@@ -8,11 +8,12 @@ from app.tools.dataset_tools import InspectDatasetInput
 from app.tools.analytics_tools import DescriptiveStatsInput, GroupComparisonInput, CorrelationAnalysisInput, OutlierDetectionInput
 from app.tools.visualization_tools import GenerateChartInput
 from app.tools.report_tools import GenerateReportInput
+from app.privacy.encryption import encryption_service
 
 @pytest.fixture
 def sample_sales_csv():
     # Create sample sales CSV
-    file_path = settings.DATA_DIR / "sample_sales_test.csv"
+    file_path = settings.UPLOADS_DIR / "sample_sales_test.csv.enc"
     data = {
         "date": ["2026-01-01", "2026-01-02", "2026-01-03", "2026-01-04", "2026-01-05", "2026-01-06", "2026-01-07", "2026-01-08"],
         "category": ["Electronics", "Electronics", "Clothing", "Clothing", "Home", "Home", "Accessories", "Electronics"],
@@ -22,7 +23,8 @@ def sample_sales_csv():
         "profit": [3600.0, 4500.0, 720.0, 1080.0, 240.0, 180.0, 50.0, 6300.0]
     }
     df = pd.DataFrame(data)
-    df.to_csv(file_path, index=False)
+    raw = df.to_csv(index=False).encode("utf-8")
+    file_path.write_bytes(encryption_service().encrypt_bytes(raw))
     yield str(file_path)
     if file_path.exists():
         file_path.unlink()

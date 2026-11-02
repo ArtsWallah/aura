@@ -47,7 +47,7 @@ class TaskPlanner:
         tools_summary = "\n".join([f"- {t['name']}: {t['description']}" for t in tools_decl])
         
         user_prompt = f"""User Objective: {objective}
-Attached File: {file_path or 'None'}
+Attached File: {'[LOCAL FILE ATTACHED]' if file_path else 'None'}
 
 Available Registered Tools:
 {tools_summary}
@@ -59,7 +59,7 @@ Create a structured execution plan to achieve the objective."""
             LLMMessage(role="user", content=user_prompt)
         ]
 
-        logger.info(f"Generating structured execution plan for objective: '{objective[:60]}...'")
+        logger.info("Generating structured execution plan.")
         response = await self.llm.chat(messages, response_format_json=True)
         
         try:
@@ -88,7 +88,7 @@ Create a structured execution plan to achieve the objective."""
                 steps=steps
             )
         except Exception as e:
-            logger.error(f"Failed to parse LLM plan output: {e}. Raw content: {response.content}")
+            logger.error("Failed to parse LLM plan output; falling back to the deterministic plan.")
             # Fallback deterministic plan construction
             return self._create_fallback_plan(objective, file_path)
 
@@ -131,3 +131,4 @@ Create a structured execution plan to achieve the objective."""
                 )
             ]
         )
+

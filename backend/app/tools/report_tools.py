@@ -1,11 +1,13 @@
 import uuid
 from pathlib import Path
+from html import escape
 from typing import Any
 from pydantic import BaseModel, Field
 
 from app.tools.schemas import ToolCategory, ExecutionLocation, PermissionLevel
 from app.tools.registry import tool_registry
 from app.core.config import settings
+from app.privacy.encryption import encryption_service
 
 class GenerateReportInput(BaseModel):
     title: str = Field(description="Title of the report.")
@@ -48,7 +50,7 @@ def generate_report(params: GenerateReportInput) -> dict[str, Any]:
         md_lines.append("## Visual Insights")
         for cp in params.chart_paths:
             chart_filename = Path(cp).name
-            md_lines.append(f"![Visual Chart](/data/charts/{chart_filename})")
+            md_lines.append(f"![Visual Chart](/api/artifacts/{chart_filename})")
             md_lines.append("")
 
     if params.recommendations:
@@ -66,23 +68,23 @@ def generate_report(params: GenerateReportInput) -> dict[str, Any]:
     # 2. Build polished HTML version
     html_charts = ""
     for cp in params.chart_paths:
-        chart_filename = Path(cp).name
+        chart_filename = escape(Path(cp).name, quote=True)
         html_charts += f"""
         <div style="margin: 20px 0; text-align: center;">
-            <img src="/data/charts/{chart_filename}" style="max-width: 100%; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);" alt="Chart" />
+            <img src="/api/artifacts/{chart_filename}" style="max-width: 100%; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);" alt="Chart" />
         </div>
         """
 
-    html_findings = "".join([f"<li style='margin-bottom: 8px;'>{f}</li>" for f in params.findings])
-    html_recommendations = "".join([f"<li style='margin-bottom: 8px;'><strong>{r}</strong></li>" for r in params.recommendations])
-    html_limitations = "".join([f"<li><em>{lim}</em></li>" for lim in params.assumptions_and_limitations])
+    html_findings = "".join([f"<li style='margin-bottom: 8px;'>{escape(f)}</li>" for f in params.findings])
+    html_recommendations = "".join([f"<li style='margin-bottom: 8px;'><strong>{escape(r)}</strong></li>" for r in params.recommendations])
+    html_limitations = "".join([f"<li><em>{escape(lim)}</em></li>" for lim in params.assumptions_and_limitations])
 
     html_content = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{params.title}</title>
+    <title>{escape(params.title)}</title>
     <style>
         body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #1e293b; max-width: 860px; margin: 40px auto; padding: 0 20px; }}
         h1 {{ color: #0f172a; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; }}
@@ -93,11 +95,11 @@ def generate_report(params: GenerateReportInput) -> dict[str, Any]:
 </head>
 <body>
     <span class="badge">AURA Autonomous Analytics</span>
-    <h1>{params.title}</h1>
+    <h1>{escape(params.title)}</h1>
     
     <div class="card">
         <h3>Executive Summary</h3>
-        <p>{params.executive_summary}</p>
+        <p>{escape(params.executive_summary)}</p>
     </div>
 
     <h2>Key Findings</h2>
@@ -113,14 +115,11 @@ def generate_report(params: GenerateReportInput) -> dict[str, Any]:
 </html>"""
 
     # Persist files
-    md_path = settings.REPORTS_DIR / f"{report_id}.md"
-    html_path = settings.REPORTS_DIR / f"{report_id}.html"
-    
-    with open(md_path, "w", encoding="utf-8") as f:
-        f.write(markdown_content)
-        
-    with open(html_path, "w", encoding="utf-8") as f:
-        f.write(html_content)
+    md_path = settings.REPORTS_DIR / f"{report_id}.md.enc"
+    html_path = settings.REPORTS_DIR / f"{report_id}.html.enc"
+    cipher = encryption_service()
+    md_path.write_bytes(cipher.encrypt_bytes(markdown_content.encode("utf-8")))
+    html_path.write_bytes(cipher.encrypt_bytes(html_content.encode("utf-8")))
 
     return {
         "report_id": report_id,
@@ -128,7 +127,8 @@ def generate_report(params: GenerateReportInput) -> dict[str, Any]:
         "markdown_content": markdown_content,
         "markdown_path": str(md_path),
         "html_path": str(html_path),
-        "relative_markdown_url": f"/data/reports/{report_id}.md",
-        "relative_html_url": f"/data/reports/{report_id}.html",
+        "relative_markdown_url": f"/api/artifacts/{report_id}.md.enc",
+        "relative_html_url": f"/api/artifacts/{report_id}.html.enc",
         "artifacts": [str(md_path), str(html_path)]
     }
+

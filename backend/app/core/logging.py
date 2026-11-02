@@ -33,3 +33,4 @@ def setup_logger(name: str = "aura") -> logging.Logger:
     return logger
 
 logger = setup_logger()
+

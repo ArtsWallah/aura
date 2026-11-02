@@ -70,3 +70,4 @@ class TaskEvent(BaseModel):
     step_id: str | None = None
     message: str
     data: dict[str, Any] = Field(default_factory=dict)
+

@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 from app.tools.schemas import ToolCategory, ExecutionLocation, PermissionLevel
 from app.tools.registry import tool_registry
-from app.core.security import validate_safe_path
+from app.core.security import validate_safe_path, read_managed_bytes
 
 class ReadDocumentInput(BaseModel):
     file_path: str = Field(description="Path to document file (txt, md, json, py, log).")
@@ -26,8 +26,7 @@ def read_document(params: ReadDocumentInput) -> dict[str, Any]:
     if not safe_path.exists():
         raise FileNotFoundError(f"File not found: {safe_path.name}")
         
-    with open(safe_path, "r", encoding="utf-8", errors="replace") as f:
-        content = f.read()
+    content = read_managed_bytes(safe_path).decode("utf-8", errors="replace")
 
     total_chars = len(content)
     total_words = len(content.split())
@@ -99,3 +98,4 @@ def search_document_chunks(params: SearchDocumentChunksInput) -> dict[str, Any]:
         "query": params.query,
         "matches": scored_chunks[:params.top_k]
     }
+

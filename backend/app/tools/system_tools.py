@@ -36,3 +36,4 @@ def system_health(params: SystemHealthInput) -> dict[str, Any]:
         "storage": storage_info,
         "directories_initialized": True
     }
+
