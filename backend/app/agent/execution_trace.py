@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Any
 
 from app.agent.intelligence_contracts import (
@@ -18,22 +19,68 @@ from app.agent.intelligence_contracts import (
     ValidationOutcome,
 )
 from app.agent.state import ExecutionStep, StepStatus, TaskState, TaskStatus
+from app.core.config import settings
 from app.tools.registry import ToolRegistry, tool_registry
 
 
 MAX_TRACE_BYTES = 32_768
 
 
-def _artifact_summaries(tool_name: str, artifacts: Any) -> list[TraceArtifact]:
+def _artifact_summaries(
+    tool_name: str,
+    artifacts: Any,
+    task_id: str,
+    artifact_manifest: list[dict[str, str]] | None,
+) -> list[TraceArtifact]:
     if not isinstance(artifacts, list):
         return []
-    paths = [path.lower() for path in artifacts if isinstance(path, str)]
+    allowed = (
+        {"chart_png"} if tool_name == "generate_chart" else
+        {"report_html", "report_markdown"} if tool_name == "generate_report" else set()
+    )
+    if not allowed:
+        return []
+    roots = {
+        "chart_png": settings.CHARTS_DIR.resolve(),
+        "report_html": settings.REPORTS_DIR.resolve(),
+        "report_markdown": settings.REPORTS_DIR.resolve(),
+    }
+    trusted_files: set[tuple[str, str]] = set()
+    for entry in artifact_manifest or []:
+        if (
+            not isinstance(entry, dict)
+            or entry.get("task_id") != task_id
+            or entry.get("artifact_type") not in allowed
+            or not isinstance(entry.get("relative_path"), str)
+        ):
+            continue
+        artifact_type = entry["artifact_type"]
+        relative_path = entry["relative_path"]
+        try:
+            candidate = (roots[artifact_type] / relative_path).resolve(strict=True)
+            if candidate.parent == roots[artifact_type] and candidate.name == relative_path and candidate.is_file():
+                trusted_files.add((artifact_type, str(candidate).casefold()))
+        except (OSError, RuntimeError, ValueError):
+            continue
+
+    counts = {artifact_type: 0 for artifact_type in allowed}
+    for artifact in artifacts:
+        if not isinstance(artifact, str):
+            continue
+        for artifact_type in allowed:
+            try:
+                candidate = Path(artifact).resolve(strict=True)
+                if (artifact_type, str(candidate).casefold()) in trusted_files:
+                    counts[artifact_type] += 1
+                    break
+            except (OSError, RuntimeError, ValueError):
+                continue
     if tool_name == "generate_chart":
-        count = sum(path.endswith(".png.enc") for path in paths)
+        count = counts["chart_png"]
         return [TraceArtifact(artifact_type=TraceArtifactType.CHART_PNG, available=count > 0, count=min(count, 10_000))]
     if tool_name == "generate_report":
-        markdown = sum(path.endswith(".md.enc") for path in paths)
-        html = sum(path.endswith(".html.enc") for path in paths)
+        markdown = counts["report_markdown"]
+        html = counts["report_html"]
         return [
             TraceArtifact(artifact_type=TraceArtifactType.REPORT_MARKDOWN, available=markdown > 0, count=min(markdown, 10_000)),
             TraceArtifact(artifact_type=TraceArtifactType.REPORT_HTML, available=html > 0, count=min(html, 10_000)),
@@ -66,6 +113,7 @@ def _trace_step(
     *,
     status: StepStatus | None = None,
     retry_count: int | None = None,
+    artifact_manifest: list[dict[str, str]] | None = None,
 ) -> TraceStep | None:
     definition = registry.get_tool_definition(step.tool_name)
     if definition is None:
@@ -84,7 +132,10 @@ def _trace_step(
         retry_count=min(step.retry_count if retry_count is None else retry_count, 10_000),
         retry_limit=min(step.max_retries, 10_000),
         failure_category=_failure_category(step, task, trace_status),
-        artifacts=_artifact_summaries(definition.name, artifacts) if trace_status == StepStatus.COMPLETED else [],
+        artifacts=(
+            _artifact_summaries(definition.name, artifacts, task.task_id, artifact_manifest)
+            if trace_status == StepStatus.COMPLETED else []
+        ),
         duration_ms=max(0.0, min(step.duration_ms, 86_400_000)),
     )
 
@@ -93,12 +144,17 @@ def build_handoff_trace(
     handoff: Any,
     task: TaskState,
     registry: ToolRegistry = tool_registry,
+    *,
+    artifact_manifest: list[dict[str, str]] | None = None,
 ) -> ExecutionTrace | None:
     """Project handoff provenance and current step states without free-form data."""
     if task.plan is None:
         return None
     try:
-        steps = [_trace_step(step, task, registry) for step in task.plan.steps]
+        steps = [
+            _trace_step(step, task, registry, artifact_manifest=artifact_manifest)
+            for step in task.plan.steps
+        ]
         if any(step is None for step in steps):
             return None
         trace = ExecutionTrace(
@@ -127,6 +183,8 @@ def update_trace_step(
     event_type: str,
     retry_count: int | None = None,
     registry: ToolRegistry = tool_registry,
+    *,
+    artifact_manifest: list[dict[str, str]] | None = None,
 ) -> ExecutionTrace | None:
     event_status = {
         "step_started": StepStatus.IN_PROGRESS,
@@ -136,7 +194,10 @@ def update_trace_step(
     }.get(event_type)
     if event_status is None:
         return trace
-    replacement = _trace_step(step, task, registry, status=event_status, retry_count=retry_count)
+    replacement = _trace_step(
+        step, task, registry, status=event_status, retry_count=retry_count,
+        artifact_manifest=artifact_manifest,
+    )
     if replacement is None:
         return None
     if event_type == "step_retry":

@@ -103,7 +103,9 @@ class TaskExecutionService:
         logger.info("AURA task workers stopped.")
 
     async def enqueue(self, task: TaskState) -> None:
-        """Preserve the legacy internal queue path for existing callers."""
+        """Keep legacy queueing available only to the non-production test harness."""
+        if settings.ENVIRONMENT != "test":
+            raise ExecutionHandoffError(HandoffFailureCode.INVALID_HANDOFF)
         await self._enqueue_payload(ProcessLocalTaskPayload(
             task_state=task.model_copy(deep=True),
             handoff=None,
@@ -235,6 +237,8 @@ class TaskExecutionService:
                             initial_state=task,
                         )
                     else:
+                        if settings.ENVIRONMENT != "test":
+                            raise ExecutionHandoffError(HandoffFailureCode.INVALID_HANDOFF)
                         if payload.handoff is not None:
                             raise ExecutionHandoffError(HandoffFailureCode.INVALID_HANDOFF)
                         await self.orchestrator.run_task(

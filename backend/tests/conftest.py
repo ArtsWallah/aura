@@ -7,3 +7,4 @@ os.environ.setdefault("ENCRYPTION_KEY", Fernet.generate_key().decode("ascii"))
 # This host session exports DEBUG=release; force a valid test setting before
 # application settings are imported.
 os.environ["DEBUG"] = "false"
+os.environ["ENVIRONMENT"] = "test"

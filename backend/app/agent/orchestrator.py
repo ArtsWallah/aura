@@ -28,6 +28,7 @@ from app.agent.intelligence_evaluator import (
 )
 from app.agent.execution_trace import build_handoff_trace, update_trace_step
 from app.llm.router import llm_router
+from app.core.config import settings
 from app.core.logging import logger
 from app.privacy.outbound import privacy_scope
 from app.tools.registry import tool_registry
@@ -118,6 +119,7 @@ class AgentOrchestrator:
                     state,
                     event_type,
                     retry_count=event.data.get("retry_count") if isinstance(event.data.get("retry_count"), int) else None,
+                    artifact_manifest=checkpointer.artifact_manifest_for_task(state),
                 )
                 if updated_trace is not None:
                     state.set_execution_trace(updated_trace)
@@ -149,6 +151,8 @@ class AgentOrchestrator:
         task_id: str | None = None,
         initial_state: TaskState | None = None,
     ) -> TaskState:
+        if settings.ENVIRONMENT != "test":
+            raise ExecutionHandoffError(HandoffFailureCode.INVALID_HANDOFF)
         with privacy_scope(privacy_mode):
             return await self._run_task(objective, file_path, privacy_mode, task_id, initial_state)
 
@@ -202,7 +206,11 @@ class AgentOrchestrator:
 
     def _finalize_handoff_trace(self, handoff: ExecutionHandoff, state: TaskState) -> None:
         state.set_execution_evaluation(self._evaluate_handoff_outcome(handoff, state))
-        trace = build_handoff_trace(handoff, state)
+        trace = build_handoff_trace(
+            handoff,
+            state,
+            artifact_manifest=checkpointer.artifact_manifest_for_task(state),
+        )
         if trace is not None:
             state.set_execution_trace(trace)
 
@@ -301,6 +309,15 @@ class AgentOrchestrator:
         supplied_plan: ExecutionPlan | None = None,
         handoff_context: ExecutionHandoff | None = None,
     ) -> TaskState:
+        if settings.ENVIRONMENT != "test":
+            if not isinstance(handoff_context, ExecutionHandoff) or supplied_plan is None:
+                raise ExecutionHandoffError(HandoffFailureCode.INVALID_HANDOFF)
+            validated_plan = handoff_context.validate_integrity(
+                privacy_mode=privacy_mode,
+                registry=tool_registry,
+            )
+            if supplied_plan != validated_plan:
+                raise ExecutionHandoffError(HandoffFailureCode.INVALID_HANDOFF)
         t_id = task_id or f"task_{uuid.uuid4().hex[:10]}"
         queued_state = checkpointer.load_checkpoint(t_id) if initial_state is not None else None
         if initial_state is not None and queued_state is None:
@@ -343,7 +360,11 @@ class AgentOrchestrator:
                 plan = supplied_plan
             state.plan = plan
             if handoff_context is not None:
-                initial_trace = build_handoff_trace(handoff_context, state)
+                initial_trace = build_handoff_trace(
+                    handoff_context,
+                    state,
+                    artifact_manifest=checkpointer.artifact_manifest_for_task(state),
+                )
                 if initial_trace is not None:
                     state.set_execution_trace(initial_trace)
             if cancel_signal.is_set():

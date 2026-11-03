@@ -182,6 +182,10 @@ class SQLiteCheckpointer:
             })
         return manifest
 
+    def artifact_manifest_for_task(self, task_state: TaskState) -> list[dict[str, str]]:
+        """Return validated, existing artifact references bound to this task ID."""
+        return self._build_artifact_manifest(task_state)
+
     def _restore_artifact_manifest(self, state: TaskState, encrypted: str | None) -> None:
         """Restore paths only after authenticating and validating every manifest entry."""
         if not encrypted:

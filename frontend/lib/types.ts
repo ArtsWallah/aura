@@ -126,7 +126,8 @@ export interface TaskArtifactContent {
   content: string;
 }
 
-export type TaskListItem = TaskState;
+// Task lists are intentionally summary-only; fetchTask returns the trace detail.
+export type TaskListItem = Omit<TaskState, "execution_trace">;
 
 export interface TaskCancellationResponse {
   status: TaskStatus;

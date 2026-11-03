@@ -57,6 +57,16 @@ class TaskStatusResponse(BaseModel):
     execution_trace: ExecutionTrace | None = None
 
 
+class TaskListItemResponse(BaseModel):
+    """Summary-only task list contract; fetch task detail for its execution trace."""
+
+    task_id: str
+    status: TaskStatus
+    privacy_mode: Literal["local_only", "hybrid", "cloud_enabled"]
+    created_at: float
+    updated_at: float
+
+
 class TaskClarificationResponse(BaseModel):
     outcome: Literal["clarification_required"] = "clarification_required"
     question: str = Field(min_length=1, max_length=500)
@@ -284,9 +294,9 @@ async def create_task(request: CreateTaskRequest):
         return JSONResponse(status_code=response_status, content=response.model_dump(mode="json"))
     return _status_response(state)
 
-@router.get("", response_model=list[TaskStatusResponse])
+@router.get("", response_model=list[TaskListItemResponse])
 def list_tasks(limit: int = 25):
-    return [TaskStatusResponse(**row) for row in checkpointer.list_checkpoints(limit=limit)]
+    return [TaskListItemResponse(**row) for row in checkpointer.list_checkpoints(limit=limit)]
 
 @router.get("/{task_id}", response_model=TaskStatusResponse)
 def get_task(task_id: str):

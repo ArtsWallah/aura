@@ -191,7 +191,8 @@ def test_create_task_api(api_test_csv):
 
         listed = task_client.get("/api/tasks")
         assert listed.status_code == 200
-        assert all(set(item) == {"task_id", "status", "privacy_mode", "created_at", "updated_at", "execution_trace"} for item in listed.json())
+        assert all(set(item) == {"task_id", "status", "privacy_mode", "created_at", "updated_at"} for item in listed.json())
+        assert final["execution_trace"] is not None
         assert objective_marker not in listed.text and file_marker not in listed.text
 
         artifacts = task_client.get(f"/api/tasks/{task_id}/artifacts")
