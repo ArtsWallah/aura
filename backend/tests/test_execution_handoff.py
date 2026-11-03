@@ -1,4 +1,5 @@
 import pytest
+import threading
 
 from app.agent import orchestrator as orchestrator_module
 from app.agent.checkpoint import SQLiteCheckpointer
@@ -16,6 +17,10 @@ from app.agent.intelligence_pipeline import IntelligencePipeline, PipelineDispos
 from app.agent.orchestrator import AgentOrchestrator
 from app.agent.planner import TaskPlanner
 from app.agent.state import StepStatus, TaskStatus
+from app.agent.state import ExecutionPlan, ExecutionStep, TaskEvent, TaskState
+from app.agent.executor import PlanExecutor
+from app.api.routes.tasks import _execution_trace_for_state, _status_response
+from app.core.config import settings
 from app.tools.registry import ToolRegistry, tool_registry
 from app.tools.schemas import ToolResult
 
@@ -225,3 +230,189 @@ async def test_handoff_path_executes_supplied_plan_without_legacy_planner(monkey
     assert state.plan.plan_id == expected_plan.plan_id
     assert state.objective == ""
     assert len(observed) == len(expected_plan.steps)
+
+
+@pytest.mark.asyncio
+async def test_production_executor_and_registry_reject_calls_without_handoff(monkeypatch):
+    monkeypatch.setattr(settings, "ENVIRONMENT", "production")
+    step = ExecutionStep(
+        step_id="step_health",
+        title="System health",
+        description="Check system health",
+        capability="system",
+        tool_name="system_health",
+    )
+    state = TaskState(
+        task_id="unauthorized-executor-call",
+        objective="",
+        privacy_mode="local_only",
+        status=TaskStatus.RUNNING,
+        plan=ExecutionPlan(plan_id="plan_health", goal="system_health", steps=[step]),
+    )
+    invoked = []
+
+    def record_tool(_args):
+        invoked.append(True)
+        return {"status": "unexpected"}
+
+    monkeypatch.setitem(tool_registry._executors, "system_health", record_tool)
+    with pytest.raises(ExecutionHandoffError):
+        await PlanExecutor().execute_step(step, state)
+    with pytest.raises(ExecutionHandoffError):
+        await tool_registry.execute_tool(
+            "system_health", {}, user_approval_granted=True
+        )
+    assert invoked == []
+
+
+@pytest.mark.asyncio
+async def test_direct_tool_route_uses_only_approved_read_only_tools_in_production(monkeypatch):
+    monkeypatch.setattr(settings, "ENVIRONMENT", "production")
+    result = await tool_registry.execute_direct_read_only_tool("system_health", {})
+    assert result.success is True
+    with pytest.raises(PermissionError):
+        await tool_registry.execute_direct_read_only_tool(
+            "generate_report",
+            {"title": "x", "executive_summary": "x", "findings": []},
+        )
+
+
+@pytest.mark.asyncio
+async def test_valid_handoff_executes_through_production_registry_boundary(monkeypatch, tmp_path):
+    monkeypatch.setattr(settings, "ENVIRONMENT", "production")
+    monkeypatch.setattr(
+        orchestrator_module,
+        "checkpointer",
+        SQLiteCheckpointer(tmp_path / "production-handoff.db"),
+    )
+    handoff = _handoff(await _ready_result())
+    state = await AgentOrchestrator().run_handoff(handoff)
+    assert state.status is TaskStatus.COMPLETED
+    assert state.execution_evaluation is not None
+    assert state.execution_trace is not None
+    assert state.execution_trace.evaluation_status is state.execution_evaluation.evaluation_status
+
+
+@pytest.mark.asyncio
+async def test_terminal_status_trace_checkpoint_and_sse_are_consistent(monkeypatch, tmp_path):
+    import app.api.routes.tasks as task_routes
+
+    monkeypatch.setattr(settings, "ENVIRONMENT", "production")
+    store = SQLiteCheckpointer(tmp_path / "terminal-trace.db")
+    monkeypatch.setattr(orchestrator_module, "checkpointer", store)
+    monkeypatch.setattr(task_routes, "checkpointer", store)
+    runner = AgentOrchestrator()
+    handoff = _handoff(await _ready_result())
+    task_id = "controlled-terminal-race"
+    finalizing = threading.Event()
+    release_finalizer = threading.Event()
+    observed: dict[str, object] = {}
+    original_finalize = runner._finalize_handoff_trace
+
+    def pause_finalizer(handoff_arg, state_arg, *, terminal_status=None):
+        finalizing.set()
+        if not release_finalizer.wait(timeout=5):
+            raise TimeoutError("Test finalizer synchronization timed out.")
+        return original_finalize(
+            handoff_arg, state_arg, terminal_status=terminal_status
+        )
+
+    monkeypatch.setattr(runner, "_finalize_handoff_trace", pause_finalizer)
+
+    def observe_during_finalization():
+        if not finalizing.wait(timeout=5):
+            observed["error"] = "finalizer was not reached"
+            release_finalizer.set()
+            return
+        current = runner.get_task_state(task_id)
+        observed["status"] = current.status if current else None
+        observed["trace_status"] = (
+            current.execution_trace.evaluation_status
+            if current and current.execution_trace
+            else None
+        )
+        observed["terminal_events"] = [
+            event.event_type for _, event in store.read_events(task_id)
+            if event.event_type in {"task_completed", "task_failed", "task_cancelled"}
+        ]
+        release_finalizer.set()
+
+    observer = threading.Thread(target=observe_during_finalization, daemon=True)
+    observer.start()
+    state = await runner.run_handoff(handoff, task_id=task_id)
+    observer.join(timeout=5)
+
+    assert "error" not in observed
+    assert observed["status"] not in {
+        TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED
+    }
+    assert observed["terminal_events"] == []
+    assert state.status is TaskStatus.COMPLETED
+    assert state.execution_trace is not None
+    assert state.execution_trace.evaluation_status is EvaluationStatus.SUCCEEDED
+
+    terminal_event = next(
+        event for _, event in store.read_events(task_id)
+        if event.event_type == "task_completed"
+    )
+    assert terminal_event.data["trace_snapshot"]["evaluation_status"] == "succeeded"
+    checkpoint_state = store.load_checkpoint(task_id)
+    assert checkpoint_state is not None
+    assert checkpoint_state.status is TaskStatus.COMPLETED
+    replayed_trace = _execution_trace_for_state(checkpoint_state)
+    assert replayed_trace is not None
+    assert replayed_trace.evaluation_status is EvaluationStatus.SUCCEEDED
+    assert _status_response(state).execution_trace.evaluation_status is EvaluationStatus.SUCCEEDED
+
+
+def test_interrupted_recovery_persists_inconclusive_terminal_trace(monkeypatch, tmp_path):
+    import app.api.routes.tasks as task_routes
+
+    store = SQLiteCheckpointer(tmp_path / "recovered-terminal-trace.db")
+    monkeypatch.setattr(task_routes, "checkpointer", store)
+    state = TaskState(
+        task_id="recovered-terminal-trace",
+        objective="",
+        privacy_mode="local_only",
+        status=TaskStatus.RUNNING,
+        plan=ExecutionPlan(
+            plan_id="plan_interrupted",
+            goal="system_health",
+            steps=[ExecutionStep(
+                step_id="step_health",
+                title="System health",
+                description="System health",
+                capability="system",
+                tool_name="system_health",
+                status=StepStatus.IN_PROGRESS,
+            )],
+        ),
+    )
+    store.save_checkpoint(state)
+    handoff = type("TraceSource", (), {
+        "intent_category": IntentCategory.SYSTEM_HEALTH,
+        "intent_confidence": 0.9,
+        "provider_identity": ProviderIdentity.LOCAL_DETERMINISTIC_PLANNER,
+    })()
+    initial_trace = orchestrator_module.build_handoff_trace(handoff, state)
+    store.append_event(TaskEvent(
+        event_type="plan_created",
+        task_id=state.task_id,
+        message="Plan created.",
+        data={"trace_snapshot": initial_trace.model_dump(mode="json")},
+    ))
+
+    assert store.recover_interrupted_tasks() == 1
+    recovered = store.load_checkpoint(state.task_id)
+    assert recovered is not None
+    assert recovered.status is TaskStatus.FAILED
+    terminal_event = next(
+        event for _, event in store.read_events(state.task_id)
+        if event.event_type == "task_failed"
+    )
+    assert terminal_event.data["trace_snapshot"]["evaluation_status"] == "inconclusive"
+    assert terminal_event.data["trace_snapshot"]["step_statuses"][0]["status"] == "interrupted"
+    replayed = _execution_trace_for_state(recovered)
+    assert replayed is not None
+    assert replayed.evaluation_status is EvaluationStatus.INCONCLUSIVE
+    assert replayed.step_statuses[0].status is StepStatus.INTERRUPTED

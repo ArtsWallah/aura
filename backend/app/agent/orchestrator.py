@@ -7,7 +7,12 @@ from app.agent.planner import TaskPlanner
 from app.agent.executor import executor
 from app.agent.evaluator import evaluator
 from app.agent.checkpoint import checkpointer
-from app.agent.execution_handoff import ExecutionHandoff, ExecutionHandoffError, HandoffFailureCode
+from app.agent.execution_handoff import (
+    ExecutionHandoff,
+    ExecutionHandoffError,
+    HandoffFailureCode,
+    handoff_execution_scope,
+)
 from app.agent.intelligence_contracts import (
     EvaluationResult,
     EvaluationStatus,
@@ -75,7 +80,7 @@ class AgentOrchestrator:
         if task_id in self._event_queues and q in self._event_queues[task_id]:
             self._event_queues[task_id].remove(q)
 
-    async def _emit_event(self, event: TaskEvent):
+    async def _emit_event(self, event: TaskEvent, *, checkpoint_state: TaskState | None = None):
         allowed = {
             "task_started", "plan_created", "step_started", "step_completed",
             "step_failed", "step_retry", "task_completed", "task_failed", "task_cancelled",
@@ -138,7 +143,14 @@ class AgentOrchestrator:
             message=messages[event_type],
             data=safe_data,
         )
-        sequence = await asyncio.to_thread(checkpointer.append_event, safe_event)
+        if checkpoint_state is not None:
+            sequence, safe_event = await asyncio.to_thread(
+                checkpointer.save_checkpoint_and_append_event,
+                checkpoint_state,
+                safe_event,
+            )
+        else:
+            sequence = await asyncio.to_thread(checkpointer.append_event, safe_event)
         queues = self._event_queues.get(event.task_id, [])
         for q in queues:
             await q.put((sequence, safe_event))
@@ -190,27 +202,49 @@ class AgentOrchestrator:
                 raise
             except Exception:
                 raise ExecutionHandoffError(HandoffFailureCode.REGISTRY_UNAVAILABLE) from None
+        execution_task_id = task_id or (
+            initial_state.task_id if initial_state is not None else f"task_{uuid.uuid4().hex[:10]}"
+        )
         with privacy_scope(mode):
-            state = await self._run_task(
-                objective="",
-                file_path=None,
+            with handoff_execution_scope(
+                handoff,
+                task_id=execution_task_id,
                 privacy_mode=mode,
-                task_id=task_id,
-                initial_state=initial_state,
-                supplied_plan=plan,
-                handoff_context=handoff,
-            )
+                registry=tool_registry,
+            ):
+                state = await self._run_task(
+                    objective="",
+                    file_path=None,
+                    privacy_mode=mode,
+                    task_id=execution_task_id,
+                    initial_state=initial_state,
+                    supplied_plan=plan,
+                    handoff_context=handoff,
+                )
         if state.execution_evaluation is None:
             self._finalize_handoff_trace(handoff, state)
         return state
 
-    def _finalize_handoff_trace(self, handoff: ExecutionHandoff, state: TaskState) -> None:
-        state.set_execution_evaluation(self._evaluate_handoff_outcome(handoff, state))
+    def _finalize_handoff_trace(
+        self,
+        handoff: ExecutionHandoff,
+        state: TaskState,
+        *,
+        terminal_status: TaskStatus | None = None,
+    ) -> None:
+        evaluation_state = (
+            state.model_copy(update={"status": terminal_status}, deep=True)
+            if terminal_status is not None
+            else state
+        )
+        evaluation = self._evaluate_handoff_outcome(handoff, evaluation_state)
+        evaluation_state.set_execution_evaluation(evaluation)
         trace = build_handoff_trace(
             handoff,
-            state,
-            artifact_manifest=checkpointer.artifact_manifest_for_task(state),
+            evaluation_state,
+            artifact_manifest=checkpointer.artifact_manifest_for_task(evaluation_state),
         )
+        state.set_execution_evaluation(evaluation)
         if trace is not None:
             state.set_execution_trace(trace)
 
@@ -368,11 +402,19 @@ class AgentOrchestrator:
                 if initial_trace is not None:
                     state.set_execution_trace(initial_trace)
             if cancel_signal.is_set():
+                for pending_step in plan.steps:
+                    if pending_step.status == StepStatus.PENDING:
+                        pending_step.status = StepStatus.SKIPPED
+                        pending_step.error = "Skipped after cancellation was requested."
                 if handoff_context is not None:
-                    self._finalize_handoff_trace(handoff_context, state)
+                    self._finalize_handoff_trace(
+                        handoff_context, state, terminal_status=TaskStatus.CANCELLED
+                    )
                 state.transition_to(TaskStatus.CANCELLED)
-                checkpointer.save_checkpoint(state)
-                await self._emit_event(TaskEvent(event_type="task_cancelled", task_id=t_id, message="cancelled"))
+                await self._emit_event(
+                    TaskEvent(event_type="task_cancelled", task_id=t_id, message="cancelled"),
+                    checkpoint_state=state,
+                )
                 return state
             state.transition_to(TaskStatus.RUNNING)
             if planner is not None:
@@ -407,8 +449,6 @@ class AgentOrchestrator:
                         if pending_step.status == StepStatus.PENDING:
                             pending_step.status = StepStatus.SKIPPED
                             pending_step.error = "Skipped after cancellation was requested."
-                    if state.status == TaskStatus.CANCEL_REQUESTED:
-                        state.transition_to(TaskStatus.CANCELLED)
                     checkpointer.save_checkpoint(state)
                     break
                 # Find all pending steps whose dependencies are satisfied
@@ -421,7 +461,6 @@ class AgentOrchestrator:
                     # Check if any steps failed or are stuck
                     failed = [s for s in plan.steps if s.status == StepStatus.FAILED]
                     if failed:
-                        state.transition_to(TaskStatus.FAILED)
                         state.error_summary = f"Execution halted due to failed steps: {[s.step_id for s in failed]}"
                         break
                     else:
@@ -440,11 +479,10 @@ class AgentOrchestrator:
                     if step.status == StepStatus.COMPLETED:
                         completed_step_ids.add(step.step_id)
                     elif step.status == StepStatus.FAILED and not cancel_signal.is_set():
-                        state.transition_to(TaskStatus.FAILED)
                         break
 
                 checkpointer.save_checkpoint(state)
-                if state.status == TaskStatus.FAILED:
+                if any(step.status == StepStatus.FAILED for step in plan.steps):
                     blocked = {s.step_id for s in plan.steps if s.status == StepStatus.FAILED}
                     changed = True
                     while changed:
@@ -462,10 +500,17 @@ class AgentOrchestrator:
             forward_task.cancel()
             await asyncio.gather(forward_task, return_exceptions=True)
 
-            if state.status == TaskStatus.CANCELLED:
+            if state.status in {TaskStatus.CANCELLED, TaskStatus.CANCEL_REQUESTED}:
                 if handoff_context is not None:
-                    self._finalize_handoff_trace(handoff_context, state)
-                await self._emit_event(TaskEvent(event_type="task_cancelled", task_id=t_id, message="cancelled"))
+                    self._finalize_handoff_trace(
+                        handoff_context, state, terminal_status=TaskStatus.CANCELLED
+                    )
+                if state.status != TaskStatus.CANCELLED:
+                    state.transition_to(TaskStatus.CANCELLED)
+                await self._emit_event(
+                    TaskEvent(event_type="task_cancelled", task_id=t_id, message="cancelled"),
+                    checkpoint_state=state,
+                )
                 self._cancel_signals.pop(t_id, None)
                 return state
 
@@ -475,8 +520,6 @@ class AgentOrchestrator:
             state.metrics.total_execution_time_ms = (time.perf_counter() - start_time) * 1000.0
 
             if is_successful:
-                state.transition_to(TaskStatus.COMPLETED)
-                
                 # Extract final deliverable
                 report_step = next((s for s in reversed(plan.steps) if s.tool_name == "generate_report" and s.status == StepStatus.COMPLETED), None)
                 if report_step and report_step.output:
@@ -487,53 +530,71 @@ class AgentOrchestrator:
                     state.final_deliverable = last_step.output if last_step else {"message": "Execution finished."}
 
                 if handoff_context is not None:
-                    self._finalize_handoff_trace(handoff_context, state)
+                    self._finalize_handoff_trace(
+                        handoff_context, state, terminal_status=TaskStatus.COMPLETED
+                    )
+                state.transition_to(TaskStatus.COMPLETED)
 
                 await self._emit_event(TaskEvent(
                     event_type="task_completed",
                     task_id=t_id,
                     message="Task completed successfully.",
                     data={"deliverable": state.final_deliverable, "metrics": state.metrics.model_dump()}
-                ))
+                ), checkpoint_state=state)
             else:
-                if state.status != TaskStatus.FAILED:
-                    state.transition_to(TaskStatus.FAILED)
                 state.error_summary = eval_reason
                 if handoff_context is not None:
-                    self._finalize_handoff_trace(handoff_context, state)
+                    self._finalize_handoff_trace(
+                        handoff_context, state, terminal_status=TaskStatus.FAILED
+                    )
+                if state.status != TaskStatus.FAILED:
+                    state.transition_to(TaskStatus.FAILED)
                 await self._emit_event(TaskEvent(
                     event_type="task_failed",
                     task_id=t_id,
                     message=f"Task could not be verified: {eval_reason}",
                     data={"error": eval_reason}
-                ))
+                ), checkpoint_state=state)
 
         except Exception as e:
+            if state.status in {TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED}:
+                logger.error("Task terminal event could not be persisted safely.")
+                self._cancel_signals.pop(t_id, None)
+                return state
             was_cancel_requested = state.status == TaskStatus.CANCEL_REQUESTED
-            if was_cancel_requested:
-                state.transition_to(TaskStatus.CANCELLED)
-            elif state.status not in {TaskStatus.FAILED, TaskStatus.CANCELLED}:
-                state.transition_to(TaskStatus.FAILED)
+            terminal_status = TaskStatus.CANCELLED if was_cancel_requested else TaskStatus.FAILED
             state.error_summary = "Internal task error."
             state.updated_at = time.time()
             state.metrics.total_execution_time_ms = (time.perf_counter() - start_time) * 1000.0
             logger.error("Task execution failed with an internal error.")
             if handoff_context is not None:
-                self._finalize_handoff_trace(handoff_context, state)
+                self._finalize_handoff_trace(
+                    handoff_context, state, terminal_status=terminal_status
+                )
+            state.transition_to(terminal_status)
             await self._emit_event(TaskEvent(
                 event_type="task_cancelled" if was_cancel_requested else "task_failed",
                 task_id=t_id,
                 message="Task cancelled at a safe execution boundary." if was_cancel_requested else "Task execution failed.",
                 data={"status": "cancelled" if was_cancel_requested else "failed"}
-            ))
+            ), checkpoint_state=state)
 
         if cancel_signal.is_set() and state.status == TaskStatus.CANCEL_REQUESTED:
             for pending_step in state.plan.steps if state.plan else []:
                 if pending_step.status == StepStatus.PENDING:
                     pending_step.status = StepStatus.SKIPPED
                     pending_step.error = "Skipped after cancellation was requested."
+            if handoff_context is not None:
+                self._finalize_handoff_trace(
+                    handoff_context, state, terminal_status=TaskStatus.CANCELLED
+                )
             state.transition_to(TaskStatus.CANCELLED)
-        checkpointer.save_checkpoint(state)
+            await self._emit_event(
+                TaskEvent(event_type="task_cancelled", task_id=t_id, message="cancelled"),
+                checkpoint_state=state,
+            )
+        elif state.status not in {TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED}:
+            checkpointer.save_checkpoint(state)
         self._cancel_signals.pop(t_id, None)
         return state
 

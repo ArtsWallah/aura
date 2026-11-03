@@ -8,7 +8,8 @@ from typing import Any
 from cryptography.fernet import InvalidToken
 from app.core.config import settings
 from app.agent.state import TaskState, TaskStatus, StepStatus, TaskEvent
-from app.agent.execution_trace import sanitize_execution_trace, sanitize_trace_step
+from app.agent.execution_trace import apply_trace_step, sanitize_execution_trace, sanitize_trace_step
+from app.agent.intelligence_contracts import EvaluationStatus, StepFailureCategory
 from app.core.logging import logger
 from app.privacy.encryption import encryption_service
 
@@ -72,35 +73,52 @@ class SQLiteCheckpointer:
 
     def save_checkpoint(self, task_state: TaskState):
         try:
-            manifest_json = json.dumps(
-                self._build_artifact_manifest(task_state), separators=(",", ":")
-            )
-            manifest_ciphertext = encryption_service().encrypt_bytes(
-                manifest_json.encode("utf-8")
-            ).decode("ascii")
-            persisted = task_state.model_copy(deep=True)
-            # Operational checkpoints retain lifecycle metadata only. Raw request
-            # text, file paths, tool arguments, outputs, rows, and artifacts remain
-            # process-local and are never written to SQLite (even encrypted).
-            persisted.objective = ""
-            persisted.file_path = None
-            persisted.step_results = {}
-            persisted.final_deliverable = None
-            persisted.artifacts = []
-            persisted.error_summary = None
-            if persisted.plan:
-                persisted.plan.goal = ""
-                for step in persisted.plan.steps:
-                    step.title = ""
-                    step.description = ""
-                    step.parameters = {}
-                    step.output = None
-                    step.error = None
-            state_dict = persisted.model_dump()
-            state_json = encryption_service().encrypt_bytes(json.dumps(state_dict).encode("utf-8")).decode("ascii")
-            
+            values = self._checkpoint_values(task_state)
             with closing(sqlite3.connect(self.db_path)) as conn:
-                conn.execute("""
+                self._write_checkpoint(conn, values)
+                conn.commit()
+        except Exception:
+            logger.error("Failed to persist encrypted task checkpoint.")
+            raise RuntimeError("Encrypted task persistence failed; configure and verify ENCRYPTION_KEY.")
+
+    def _checkpoint_values(self, task_state: TaskState) -> tuple[Any, ...]:
+        manifest_json = json.dumps(self._build_artifact_manifest(task_state), separators=(",", ":"))
+        manifest_ciphertext = encryption_service().encrypt_bytes(manifest_json.encode("utf-8")).decode("ascii")
+        persisted = task_state.model_copy(deep=True)
+        # Persist only lifecycle metadata; raw inputs, arguments, outputs and rows
+        # remain process-local and are never written to SQLite.
+        persisted.objective = ""
+        persisted.file_path = None
+        persisted.step_results = {}
+        persisted.final_deliverable = None
+        persisted.artifacts = []
+        persisted.error_summary = None
+        if persisted.plan:
+            persisted.plan.goal = ""
+            for step in persisted.plan.steps:
+                step.title = ""
+                step.description = ""
+                step.parameters = {}
+                step.output = None
+                step.error = None
+        state_json = encryption_service().encrypt_bytes(
+            json.dumps(persisted.model_dump()).encode("utf-8")
+        ).decode("ascii")
+        return (
+            task_state.task_id,
+            task_state.privacy_mode,
+            task_state.status.value,
+            state_json,
+            task_state.created_at,
+            task_state.updated_at,
+            int(task_state.recovery_required),
+            manifest_ciphertext,
+        )
+
+    @staticmethod
+    def _write_checkpoint(conn: sqlite3.Connection, values: tuple[Any, ...]) -> None:
+        task_id, privacy_mode, status, state_json, created_at, updated_at, recovery_required, manifest_ciphertext = values
+        conn.execute("""
                 INSERT INTO task_checkpoints (
                         task_id, objective, privacy_mode, status, state_json, created_at, updated_at,
                         recovery_required, artifact_manifest
@@ -115,20 +133,16 @@ class SQLiteCheckpointer:
                     recovery_required = excluded.recovery_required,
                     artifact_manifest = excluded.artifact_manifest
                 """, (
-                    task_state.task_id,
-                    "",  # Sensitive request text is intentionally not persisted.
-                    task_state.privacy_mode,
-                    task_state.status.value,
-                    state_json,
-                    task_state.created_at,
-                    task_state.updated_at,
-                    int(task_state.recovery_required),
-                    manifest_ciphertext,
-                ))
-                conn.commit()
-        except Exception:
-            logger.error("Failed to persist encrypted task checkpoint.")
-            raise RuntimeError("Encrypted task persistence failed; configure and verify ENCRYPTION_KEY.")
+            task_id,
+            "",  # Sensitive request text is intentionally not persisted.
+            privacy_mode,
+            status,
+            state_json,
+            created_at,
+            updated_at,
+            recovery_required,
+            manifest_ciphertext,
+        ))
 
     @staticmethod
     def _artifact_type_and_id(filename: str) -> tuple[str, str] | None:
@@ -302,7 +316,13 @@ class SQLiteCheckpointer:
             )
             conn.commit()
 
-    def append_event(self, event: TaskEvent, retention: int = 1000) -> int:
+    def append_event(
+        self,
+        event: TaskEvent,
+        retention: int = 1000,
+        *,
+        _connection: sqlite3.Connection | None = None,
+    ) -> int:
         """Atomically assign an ID and persist a strict privacy-safe event projection."""
         known_types = {
             "task.created", "task_started", "plan_created", "step_started", "step_completed",
@@ -357,30 +377,70 @@ class SQLiteCheckpointer:
             message=safe_messages[event_type],
             data=safe_data,
         )
-        payload = json.dumps(safe_event.model_dump())
+        if _connection is not None:
+            return self._append_projected_event(_connection, safe_event, retention)
         with closing(sqlite3.connect(self.db_path, timeout=30)) as conn:
             conn.execute("BEGIN IMMEDIATE")
-            row = conn.execute(
-                "SELECT event_seq FROM task_checkpoints WHERE task_id = ?", (event.task_id,)
-            ).fetchone()
-            if row is None:
-                conn.rollback()
-                raise KeyError("Task event has no checkpoint.")
-            sequence = int(row[0]) + 1
-            conn.execute(
-                "UPDATE task_checkpoints SET event_seq = ? WHERE task_id = ?",
-                (sequence, event.task_id),
-            )
-            conn.execute(
-                "INSERT INTO task_events(task_id, sequence, event_type, created_at, payload_json) VALUES (?, ?, ?, ?, ?)",
-                (event.task_id, sequence, safe_event.event_type, event.timestamp, payload),
-            )
-            conn.execute(
-                "DELETE FROM task_events WHERE task_id = ? AND sequence <= ?",
-                (event.task_id, max(0, sequence - retention)),
-            )
+            sequence = self._append_projected_event(conn, safe_event, retention)
             conn.commit()
             return sequence
+
+    @staticmethod
+    def _append_projected_event(
+        conn: sqlite3.Connection,
+        safe_event: TaskEvent,
+        retention: int,
+    ) -> int:
+        payload = json.dumps(safe_event.model_dump())
+        row = conn.execute(
+            "SELECT event_seq FROM task_checkpoints WHERE task_id = ?", (safe_event.task_id,)
+        ).fetchone()
+        if row is None:
+            raise KeyError("Task event has no checkpoint.")
+        sequence = int(row[0]) + 1
+        conn.execute(
+            "UPDATE task_checkpoints SET event_seq = ? WHERE task_id = ?",
+            (sequence, safe_event.task_id),
+        )
+        conn.execute(
+            "INSERT INTO task_events(task_id, sequence, event_type, created_at, payload_json) VALUES (?, ?, ?, ?, ?)",
+            (safe_event.task_id, sequence, safe_event.event_type, safe_event.timestamp, payload),
+        )
+        conn.execute(
+            "DELETE FROM task_events WHERE task_id = ? AND sequence <= ?",
+            (safe_event.task_id, max(0, sequence - retention)),
+        )
+        return sequence
+
+    def save_checkpoint_and_append_event(
+        self,
+        task_state: TaskState,
+        event: TaskEvent,
+        retention: int = 1000,
+    ) -> tuple[int, TaskEvent]:
+        """Commit a terminal checkpoint and its sanitized event in one transaction."""
+        expected_event = {
+            TaskStatus.COMPLETED: "task_completed",
+            TaskStatus.FAILED: "task_failed",
+            TaskStatus.CANCELLED: "task_cancelled",
+        }.get(task_state.status)
+        if (
+            event.task_id != task_state.task_id
+            or event.event_type != expected_event
+        ):
+            raise ValueError("Terminal checkpoint and event do not match.")
+        values = self._checkpoint_values(task_state)
+        with closing(sqlite3.connect(self.db_path, timeout=30)) as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            self._write_checkpoint(conn, values)
+            sequence = self.append_event(event, retention, _connection=conn)
+            row = conn.execute(
+                "SELECT payload_json FROM task_events WHERE task_id = ? AND sequence = ?",
+                (event.task_id, sequence),
+            ).fetchone()
+            safe_event = TaskEvent(**json.loads(row[0]))
+            conn.commit()
+        return sequence, safe_event
 
     def read_events(self, task_id: str, after_sequence: int = 0, limit: int = 1000) -> list[tuple[int, TaskEvent]]:
         with closing(sqlite3.connect(self.db_path, timeout=30)) as conn:
@@ -456,15 +516,52 @@ class SQLiteCheckpointer:
             if state.status != TaskStatus.FAILED:
                 state.transition_to(TaskStatus.FAILED)
             state.error_summary = "Execution could not be safely resumed; review before manually resubmitting."
+            trace = self._recovered_trace_snapshot(state)
             self.save_checkpoint(state)
             self.append_event(TaskEvent(
                 event_type="task_failed",
                 task_id=task_id,
                 message="Task outcome requires review after restart.",
-                data={"status": "failed", "recovery_required": True},
+                data={
+                    "status": "failed",
+                    "recovery_required": True,
+                    **({"trace_snapshot": trace.model_dump(mode="json")} if trace is not None else {}),
+                },
             ))
             recovered += 1
         return recovered
+
+    def _recovered_trace_snapshot(self, state: TaskState):
+        """Mark the last safe trace snapshot inconclusive for SSE and detail replay."""
+        trace = None
+        for _, event in self.read_events(state.task_id, 0, 1000):
+            snapshot = event.data.get("trace_snapshot")
+            if isinstance(snapshot, dict):
+                trace = sanitize_execution_trace(snapshot)
+            elif trace is not None and isinstance(event.data.get("trace_step"), dict):
+                trace = apply_trace_step(trace, event.data)
+        if trace is None:
+            return None
+        if state.plan is not None:
+            persisted_steps = {step.step_id: step for step in state.plan.steps}
+            steps = []
+            for item in trace.step_statuses:
+                persisted = persisted_steps.get(item.step_id)
+                if persisted is None:
+                    continue
+                steps.append(item.model_copy(update={
+                    "status": persisted.status,
+                    "retry_count": persisted.retry_count,
+                    "failure_category": (
+                        StepFailureCategory.INTERRUPTED
+                        if persisted.status == StepStatus.INTERRUPTED
+                        else item.failure_category
+                    ),
+                }))
+            trace = trace.model_copy(update={"step_statuses": steps})
+        return sanitize_execution_trace(trace.model_copy(update={
+            "evaluation_status": EvaluationStatus.INCONCLUSIVE,
+        }))
 
     def load_checkpoint(self, task_id: str) -> TaskState | None:
         try:

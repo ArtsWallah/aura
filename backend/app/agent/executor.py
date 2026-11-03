@@ -4,6 +4,7 @@ import time
 from pathlib import Path
 from typing import Any
 from app.agent.state import ExecutionStep, StepStatus, TaskState, TaskEvent, TaskStatus
+from app.agent.execution_handoff import authorized_step_scope
 from app.agent.evaluator import evaluator
 from app.tools.registry import tool_registry
 from app.tools.schemas import ToolResult
@@ -30,6 +31,15 @@ class PlanExecutor:
         step: ExecutionStep,
         task_state: TaskState,
         event_queue: asyncio.Queue | None = None
+    ) -> ToolResult:
+        with authorized_step_scope(step, task_state):
+            return await self._execute_authorized_step(step, task_state, event_queue)
+
+    async def _execute_authorized_step(
+        self,
+        step: ExecutionStep,
+        task_state: TaskState,
+        event_queue: asyncio.Queue | None = None,
     ) -> ToolResult:
         if task_state.status == TaskStatus.CANCEL_REQUESTED:
             step.status = StepStatus.SKIPPED

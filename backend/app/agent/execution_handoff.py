@@ -5,8 +5,10 @@ from __future__ import annotations
 import hashlib
 import json
 import uuid
+from contextlib import contextmanager
+from contextvars import ContextVar
 from enum import Enum
-from typing import Literal
+from typing import Iterator, Literal, TYPE_CHECKING
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -23,6 +25,18 @@ from app.agent.intelligence_pipeline import (
 from app.agent.plan_validation import PlanValidationError, validate_execution_plan
 from app.agent.state import ExecutionPlan
 from app.tools.registry import ToolRegistry, tool_registry
+
+if TYPE_CHECKING:
+    from app.agent.state import ExecutionStep, TaskState
+
+
+_EXECUTION_SCOPE_TOKEN = object()
+_active_handoff_scope: ContextVar[tuple[object, "ExecutionHandoff", str] | None] = ContextVar(
+    "aura_handoff_execution_scope", default=None
+)
+_active_step_scope: ContextVar[tuple[object, str, str, str] | None] = ContextVar(
+    "aura_handoff_step_scope", default=None
+)
 
 
 class HandoffFailureCode(str, Enum):
@@ -215,3 +229,66 @@ class ExecutionHandoff(BaseModel):
             raise ExecutionHandoffError(HandoffFailureCode.PLAN_REVALIDATION_FAILED) from None
         except Exception:
             raise ExecutionHandoffError(HandoffFailureCode.REGISTRY_UNAVAILABLE) from None
+
+
+@contextmanager
+def handoff_execution_scope(
+    handoff: ExecutionHandoff,
+    *,
+    task_id: str,
+    privacy_mode: str,
+    registry: ToolRegistry = tool_registry,
+) -> Iterator[None]:
+    """Authorize one task's executor calls from a freshly validated handoff."""
+    if not isinstance(handoff, ExecutionHandoff) or not task_id:
+        raise ExecutionHandoffError(HandoffFailureCode.INVALID_HANDOFF)
+    handoff.validate_integrity(privacy_mode=privacy_mode, registry=registry)
+    token = _active_handoff_scope.set((_EXECUTION_SCOPE_TOKEN, handoff, task_id))
+    try:
+        yield
+    finally:
+        _active_handoff_scope.reset(token)
+
+
+@contextmanager
+def authorized_step_scope(step: "ExecutionStep", task_state: "TaskState") -> Iterator[None]:
+    """Bind a registry invocation to a step in the active validated handoff."""
+    from app.core.config import settings
+
+    scope = _active_handoff_scope.get()
+    if scope is None and settings.ENVIRONMENT == "test":
+        # Legacy direct executor calls remain available only to the test harness.
+        yield
+        return
+    if scope is None or scope[0] is not _EXECUTION_SCOPE_TOKEN:
+        raise ExecutionHandoffError(HandoffFailureCode.INVALID_HANDOFF)
+    _, handoff, task_id = scope
+    if task_state.task_id != task_id or task_state.plan is None:
+        raise ExecutionHandoffError(HandoffFailureCode.INVALID_HANDOFF)
+    planned = next((item for item in handoff.plan.steps if item.step_id == step.step_id), None)
+    current = next((item for item in task_state.plan.steps if item.step_id == step.step_id), None)
+    if (
+        planned is None
+        or current is not step
+        or planned.tool_name != step.tool_name
+        or planned.parameters != step.parameters
+        or planned.dependencies != step.dependencies
+        or planned.max_retries != step.max_retries
+    ):
+        raise ExecutionHandoffError(HandoffFailureCode.INVALID_HANDOFF)
+    token = _active_step_scope.set((_EXECUTION_SCOPE_TOKEN, task_id, step.step_id, step.tool_name))
+    try:
+        yield
+    finally:
+        _active_step_scope.reset(token)
+
+
+def require_authorized_tool_call(tool_name: str) -> None:
+    """Reject production registry calls outside the authorized executor step."""
+    from app.core.config import settings
+
+    if settings.ENVIRONMENT == "test":
+        return
+    scope = _active_step_scope.get()
+    if scope is None or scope[0] is not _EXECUTION_SCOPE_TOKEN or scope[3] != tool_name:
+        raise ExecutionHandoffError(HandoffFailureCode.INVALID_HANDOFF)

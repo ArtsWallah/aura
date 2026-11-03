@@ -17,6 +17,13 @@ from app.core.logging import logger
 from app.core.config import settings
 from app.privacy.outbound import current_privacy_mode
 
+
+DIRECT_READ_ONLY_TOOL_ALLOWLIST = frozenset({
+    "inspect_dataset", "descriptive_statistics", "group_comparison",
+    "correlation_analysis", "detect_outliers", "read_document",
+    "search_document_chunks", "system_health",
+})
+
 class ToolRegistry:
     def __init__(self):
         # Process-local identity lets planning, handoff, and execution prove
@@ -112,6 +119,41 @@ class ToolRegistry:
         """
         Validates arguments against the Pydantic schema and executes the tool with latency tracking.
         """
+        from app.agent.execution_handoff import require_authorized_tool_call
+
+        require_authorized_tool_call(name)
+        return await self._execute_tool(
+            name=name,
+            arguments=arguments,
+            user_approval_granted=user_approval_granted,
+            cancellation_check=cancellation_check,
+        )
+
+    async def execute_direct_read_only_tool(
+        self,
+        name: str,
+        arguments: dict[str, Any],
+    ) -> ToolResult:
+        """Run only the explicit standalone read-only tools exposed by the API."""
+        tool_def = self._tools.get(name)
+        if (
+            name not in DIRECT_READ_ONLY_TOOL_ALLOWLIST
+            or tool_def is None
+            or tool_def.permission_level != PermissionLevel.READ_ONLY
+            or tool_def.execution_location != ExecutionLocation.LOCAL
+            or tool_def.requires_approval
+        ):
+            raise PermissionError("This tool is not available for direct execution.")
+        return await self._execute_tool(name=name, arguments=arguments, user_approval_granted=False)
+
+    async def _execute_tool(
+        self,
+        name: str,
+        arguments: dict[str, Any],
+        user_approval_granted: bool = False,
+        cancellation_check: Callable[[], bool] | None = None,
+    ) -> ToolResult:
+        """Validated execution implementation behind the handoff/read-only gates."""
         if name not in self._tools:
             return ToolResult(
                 tool_name=name,

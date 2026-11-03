@@ -1,16 +1,12 @@
 from fastapi import APIRouter, HTTPException
 from typing import Any
 from pydantic import BaseModel
-from app.tools.registry import tool_registry
+from app.tools.registry import DIRECT_READ_ONLY_TOOL_ALLOWLIST, tool_registry
 from app.tools.schemas import ToolDefinition, ToolCategory
 from app.tools.schemas import PermissionLevel, ExecutionLocation
 
 router = APIRouter(prefix="/tools", tags=["Tools"])
-DIRECT_TOOL_ALLOWLIST = {
-    "inspect_dataset", "descriptive_statistics", "group_comparison",
-    "correlation_analysis", "detect_outliers", "read_document",
-    "search_document_chunks", "system_health",
-}
+DIRECT_TOOL_ALLOWLIST = DIRECT_READ_ONLY_TOOL_ALLOWLIST
 
 class ExecuteToolRequest(BaseModel):
     tool_name: str
@@ -38,10 +34,9 @@ async def execute_tool_direct(request: ExecuteToolRequest):
         or definition.execution_location != ExecutionLocation.LOCAL
     ):
         raise HTTPException(status_code=403, detail="This tool is not available for direct execution.")
-    result = await tool_registry.execute_tool(
+    result = await tool_registry.execute_direct_read_only_tool(
         name=request.tool_name,
         arguments=request.arguments,
-        user_approval_granted=False
     )
     return result
 
