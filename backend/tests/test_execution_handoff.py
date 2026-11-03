@@ -1,5 +1,6 @@
 import pytest
 import threading
+import asyncio
 
 from app.agent import orchestrator as orchestrator_module
 from app.agent.checkpoint import SQLiteCheckpointer
@@ -7,11 +8,16 @@ from app.agent.execution_handoff import (
     ExecutionHandoff,
     ExecutionHandoffError,
     HandoffFailureCode,
+    handoff_execution_scope,
+    authorized_step_scope,
+    authorized_tool_invocation,
 )
 from app.agent.intelligence_contracts import (
     EvaluationStatus,
     IntentCategory,
+    IssueCode,
     ProviderIdentity,
+    TraceConstructionStatus,
 )
 from app.agent.intelligence_pipeline import IntelligencePipeline, PipelineDisposition
 from app.agent.orchestrator import AgentOrchestrator
@@ -266,6 +272,68 @@ async def test_production_executor_and_registry_reject_calls_without_handoff(mon
 
 
 @pytest.mark.asyncio
+async def test_low_level_registry_boundary_binds_step_task_tool_arguments_and_async_task(monkeypatch):
+    monkeypatch.setattr(settings, "ENVIRONMENT", "production")
+    handoff = _handoff(await _ready_result())
+    task = TaskState(
+        task_id="authorized-low-level",
+        objective="",
+        privacy_mode="local_only",
+        status=TaskStatus.RUNNING,
+        plan=handoff.plan.model_copy(deep=True),
+    )
+    step = task.plan.steps[0]
+
+    with pytest.raises(ExecutionHandoffError):
+        await tool_registry._execute_tool("system_health", {})
+
+    with handoff_execution_scope(handoff, task_id=task.task_id, privacy_mode="local_only"):
+        with pytest.raises(ExecutionHandoffError):
+            with authorized_step_scope(step, task.model_copy(update={"task_id": "wrong-task"})):
+                pass
+
+        with authorized_step_scope(step, task):
+            with pytest.raises(ExecutionHandoffError):
+                with authorized_tool_invocation("wrong_tool", {}):
+                    pass
+            with authorized_tool_invocation(step.tool_name, {}):
+                with pytest.raises(ExecutionHandoffError):
+                    await tool_registry._execute_tool(step.tool_name, {"altered": True})
+
+                async def cross_task_call():
+                    with pytest.raises(ExecutionHandoffError):
+                        await tool_registry._execute_tool(step.tool_name, {})
+
+                await asyncio.create_task(cross_task_call())
+                result = await tool_registry.execute_tool(
+                    step.tool_name, {}, user_approval_granted=True
+                )
+                assert result.success is True
+
+    with pytest.raises(ExecutionHandoffError):
+        await tool_registry._execute_tool("system_health", {})
+
+
+@pytest.mark.asyncio
+async def test_tool_authorization_scope_is_cleared_after_exception_and_cancellation(monkeypatch):
+    monkeypatch.setattr(settings, "ENVIRONMENT", "production")
+    handoff = _handoff(await _ready_result())
+    task = TaskState(
+        task_id="authorization-cleanup", objective="", privacy_mode="local_only",
+        status=TaskStatus.RUNNING, plan=handoff.plan.model_copy(deep=True),
+    )
+    step = task.plan.steps[0]
+    for raised in (RuntimeError("synthetic tool failure"), asyncio.CancelledError()):
+        with handoff_execution_scope(handoff, task_id=task.task_id, privacy_mode="local_only"):
+            with authorized_step_scope(step, task):
+                with pytest.raises(type(raised)):
+                    with authorized_tool_invocation(step.tool_name, {}):
+                        raise raised
+        with pytest.raises(ExecutionHandoffError):
+            await tool_registry._execute_tool(step.tool_name, {})
+
+
+@pytest.mark.asyncio
 async def test_direct_tool_route_uses_only_approved_read_only_tools_in_production(monkeypatch):
     monkeypatch.setattr(settings, "ENVIRONMENT", "production")
     result = await tool_registry.execute_direct_read_only_tool("system_health", {})
@@ -365,6 +433,63 @@ async def test_terminal_status_trace_checkpoint_and_sse_are_consistent(monkeypat
     assert _status_response(state).execution_trace.evaluation_status is EvaluationStatus.SUCCEEDED
 
 
+@pytest.mark.asyncio
+async def test_trace_builder_failure_fails_task_and_keeps_detail_checkpoint_and_sse_consistent(monkeypatch, tmp_path):
+    import app.api.routes.tasks as task_routes
+
+    monkeypatch.setattr(settings, "ENVIRONMENT", "production")
+    store = SQLiteCheckpointer(tmp_path / "trace-build-failure.db")
+    monkeypatch.setattr(orchestrator_module, "checkpointer", store)
+    monkeypatch.setattr(task_routes, "checkpointer", store)
+    original_builder = orchestrator_module.build_handoff_trace
+    calls = 0
+
+    def fail_terminal_build(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        if calls == 1:  # Initial planning trace is available; terminal rebuild fails.
+            return original_builder(*args, **kwargs)
+        return None
+
+    monkeypatch.setattr(orchestrator_module, "build_handoff_trace", fail_terminal_build)
+    handoff = _handoff(await _ready_result())
+    state = await AgentOrchestrator().run_handoff(handoff, task_id="trace-build-failure")
+
+    assert state.status is TaskStatus.FAILED
+    assert state.execution_evaluation.evaluation_status is EvaluationStatus.INCONCLUSIVE
+    assert IssueCode.MISSING_EVIDENCE in state.execution_evaluation.issues
+    assert state.execution_trace.trace_construction_status is TraceConstructionStatus.FAILED
+    assert state.execution_trace.evaluation_status is EvaluationStatus.INCONCLUSIVE
+
+    terminal_event = next(
+        event for _, event in store.read_events(state.task_id)
+        if event.event_type == "task_failed"
+    )
+    assert terminal_event.data["trace_snapshot"] == state.execution_trace.model_dump(mode="json")
+    persisted = store.load_checkpoint(state.task_id)
+    assert persisted is not None and persisted.status is TaskStatus.FAILED
+    detail_trace = _status_response(state).execution_trace
+    replay_trace = _execution_trace_for_state(persisted)
+    assert detail_trace == replay_trace
+    assert replay_trace.trace_construction_status is TraceConstructionStatus.FAILED
+    assert replay_trace.evaluation_status is EvaluationStatus.INCONCLUSIVE
+
+
+@pytest.mark.parametrize("terminal_status", [TaskStatus.FAILED, TaskStatus.CANCELLED])
+def test_trace_builder_failure_is_explicit_for_failure_and_cancellation(monkeypatch, terminal_status):
+    monkeypatch.setattr(settings, "ENVIRONMENT", "production")
+    runner = AgentOrchestrator()
+    handoff = _handoff(asyncio.run(_ready_result()))
+    state = TaskState(
+        task_id=f"trace-failure-{terminal_status.value}", objective="", privacy_mode="local_only",
+        status=TaskStatus.RUNNING, plan=handoff.plan.model_copy(deep=True),
+    )
+    monkeypatch.setattr(orchestrator_module, "build_handoff_trace", lambda *args, **kwargs: None)
+    assert runner._finalize_handoff_trace(handoff, state, terminal_status=terminal_status) is False
+    assert state.execution_trace.trace_construction_status is TraceConstructionStatus.FAILED
+    assert state.execution_evaluation.evaluation_status is EvaluationStatus.INCONCLUSIVE
+
+
 def test_interrupted_recovery_persists_inconclusive_terminal_trace(monkeypatch, tmp_path):
     import app.api.routes.tasks as task_routes
 
@@ -416,3 +541,38 @@ def test_interrupted_recovery_persists_inconclusive_terminal_trace(monkeypatch, 
     assert replayed is not None
     assert replayed.evaluation_status is EvaluationStatus.INCONCLUSIVE
     assert replayed.step_statuses[0].status is StepStatus.INTERRUPTED
+
+
+def test_recovery_checkpoint_and_event_are_atomic_and_retryable(monkeypatch, tmp_path):
+    store = SQLiteCheckpointer(tmp_path / "recovery-atomic.db")
+    state = TaskState(
+        task_id="recovery-atomic", objective="", privacy_mode="local_only",
+        status=TaskStatus.RUNNING,
+        plan=ExecutionPlan(plan_id="plan_atomic", goal="health", steps=[ExecutionStep(
+            step_id="step_health", title="health", description="health", capability="system",
+            tool_name="system_health", status=StepStatus.IN_PROGRESS,
+        )]),
+    )
+    store.save_checkpoint(state)
+    original_append = store.append_event
+
+    def interrupt_persistence(event, retention=1000, _connection=None):
+        if _connection is not None:
+            raise OSError("synthetic transaction interruption")
+        return original_append(event, retention)
+
+    monkeypatch.setattr(store, "append_event", interrupt_persistence)
+    with pytest.raises(OSError):
+        store.recover_interrupted_tasks()
+    after_interruption = store.load_checkpoint(state.task_id)
+    assert after_interruption is not None
+    assert after_interruption.status is TaskStatus.RUNNING
+    assert not any(event.event_type == "task_failed" for _, event in store.read_events(state.task_id))
+
+    monkeypatch.setattr(store, "append_event", original_append)
+    assert store.recover_interrupted_tasks() == 1
+    recovered = store.load_checkpoint(state.task_id)
+    assert recovered is not None and recovered.status is TaskStatus.FAILED
+    event = next(event for _, event in store.read_events(state.task_id) if event.event_type == "task_failed")
+    assert event.data["trace_snapshot"]["trace_construction_status"] == "failed"
+    assert event.data["trace_snapshot"]["evaluation_status"] == "inconclusive"

@@ -9,6 +9,7 @@ from app.agent.orchestrator import AgentOrchestrator
 from app.agent.service import TaskExecutionService
 from app.agent.state import ExecutionPlan, ExecutionStep, StepStatus, TaskState
 from app.core.config import settings
+import app.core.config as config_module
 import app.api.routes.tasks as task_routes
 
 
@@ -82,6 +83,31 @@ def test_task_list_contract_is_summary_only(monkeypatch):
     assert len(listed) == 1
     assert listed[0].model_dump() == row
     assert "execution_trace" not in listed[0].model_dump()
+
+
+def test_test_compatibility_requires_latched_pytest_process_and_safe_environment(monkeypatch):
+    monkeypatch.setattr(config_module, "_PYTEST_PROCESS_AT_IMPORT", True)
+    monkeypatch.setattr(settings, "ENVIRONMENT", "test")
+    assert config_module.test_harness_enabled() is True
+    config_module.validate_service_environment()
+
+    monkeypatch.setattr(settings, "ENVIRONMENT", "production")
+    assert config_module.test_harness_enabled() is False
+    config_module.validate_service_environment()
+    monkeypatch.setattr(settings, "ENVIRONMENT", "development")
+    config_module.validate_service_environment()
+
+    # An ordinary settings request cannot set ENVIRONMENT.
+    from app.api.routes.settings import UpdateSettingsRequest, update_settings
+    request = UpdateSettingsRequest.model_validate({"environment": "test"})
+    update_settings(request)
+    assert settings.ENVIRONMENT == "development"
+
+    monkeypatch.setattr(config_module, "_PYTEST_PROCESS_AT_IMPORT", False)
+    monkeypatch.setattr(settings, "ENVIRONMENT", "test")
+    assert config_module.test_harness_enabled() is False
+    with pytest.raises(RuntimeError):
+        config_module.validate_service_environment()
 
 
 def test_trace_reports_only_existing_task_manifest_artifacts(monkeypatch, tmp_path):

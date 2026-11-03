@@ -217,6 +217,11 @@ class TraceArtifactType(str, Enum):
     REPORT_MARKDOWN = "report_markdown"
 
 
+class TraceConstructionStatus(str, Enum):
+    COMPLETE = "complete"
+    FAILED = "failed"
+
+
 class TraceArtifact(StrictContract):
     artifact_type: TraceArtifactType
     available: bool
@@ -245,11 +250,12 @@ class ExecutionTiming(StrictContract):
 class ExecutionTrace(StrictContract):
     intent_category: IntentCategory
     intent_confidence: float | None = Field(default=None, ge=0.0, le=1.0)
-    provider_identity: ProviderIdentity
+    provider_identity: ProviderIdentity | None
     selected_tools: list[_ToolId] = Field(default_factory=list, max_length=128)
     step_statuses: list[TraceStep] = Field(default_factory=list, max_length=128)
-    validation_outcome: ValidationOutcome
+    validation_outcome: ValidationOutcome | None
     evaluation_status: EvaluationStatus | None = None
+    trace_construction_status: TraceConstructionStatus = TraceConstructionStatus.COMPLETE
     timing: ExecutionTiming = Field(default_factory=ExecutionTiming)
 
     @model_validator(mode="after")

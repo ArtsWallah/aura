@@ -1,5 +1,6 @@
 from pathlib import Path
 import ipaddress
+import sys
 from typing import Literal
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -78,4 +79,18 @@ class Settings(BaseSettings):
 
 settings = Settings()
 settings.init_directories()
+
+# Compatibility-only execution paths are enabled only when this process was
+# imported by pytest with test configuration already present. Changing settings
+# later (including through an API) cannot turn them on in a service process.
+_PYTEST_PROCESS_AT_IMPORT = "pytest" in sys.modules
+
+
+def test_harness_enabled() -> bool:
+    return _PYTEST_PROCESS_AT_IMPORT and settings.ENVIRONMENT == "test"
+
+
+def validate_service_environment() -> None:
+    if settings.ENVIRONMENT == "test" and not _PYTEST_PROCESS_AT_IMPORT:
+        raise RuntimeError("Test environment configuration is not permitted in a service process.")
 

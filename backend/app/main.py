@@ -5,7 +5,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.core.config import settings
+from app.core.config import settings, validate_service_environment
 from app.core.logging import logger
 from app.agent.service import task_execution_service
 from app.api.routes import health, tools, models, tasks, files, artifacts, settings as settings_routes
@@ -16,6 +16,7 @@ import app.models
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    validate_service_environment()
     logger.info("Initializing AURA Platform backend services...")
     settings.init_directories()
     await task_execution_service.start()

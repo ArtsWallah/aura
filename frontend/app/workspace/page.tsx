@@ -17,6 +17,7 @@ import {
 import { createTask, uploadDatasetFile, fetchTask, fetchTaskArtifacts, fetchTaskMarkdown, cancelTask, API_BASE } from "@/lib/api";
 import { TaskState, TaskArtifactManifest, TaskClarificationResponse, PrivacyMode, ExecutionTrace, TraceStep } from "@/lib/types";
 import ExecutionTracePanel from "@/components/ExecutionTracePanel";
+import { traceFromTaskRefresh } from "@/lib/trace-refresh.mjs";
 
 function WorkspaceContent() {
   const searchParams = useSearchParams();
@@ -129,13 +130,13 @@ function WorkspaceContent() {
           ]);
           fetchTask(initialTask.task_id).then((task) => {
             setCurrentTask(task);
-            if (task.execution_trace) setExecutionTrace(task.execution_trace);
+            setExecutionTrace(traceFromTaskRefresh(task));
           });
 
           if (eventName === "task.history_gap") {
             fetchTask(initialTask.task_id).then((task) => {
               setCurrentTask(task);
-              if (task.execution_trace) setExecutionTrace(task.execution_trace);
+              setExecutionTrace(traceFromTaskRefresh(task));
               if (["completed", "failed", "cancelled"].includes(task.status)) {
                 eventSource.close();
                 setIsRunning(false);
@@ -156,7 +157,7 @@ function WorkspaceContent() {
             eventSource.close();
             fetchTask(initialTask.task_id).then((task) => {
               setCurrentTask(task);
-              if (task.execution_trace) setExecutionTrace(task.execution_trace);
+              setExecutionTrace(traceFromTaskRefresh(task));
               if (eventName === "task_completed") {
                 fetchTaskArtifacts(initialTask.task_id).then((artifacts) => {
                   setTaskArtifacts(artifacts);
@@ -190,7 +191,7 @@ function WorkspaceContent() {
       setCurrentTask((task) => task ? { ...task, status: result.status } : task);
       const refreshed = await fetchTask(currentTask.task_id);
       setCurrentTask(refreshed);
-      if (refreshed.execution_trace) setExecutionTrace(refreshed.execution_trace);
+      setExecutionTrace(traceFromTaskRefresh(refreshed));
     } catch (err: unknown) {
       setUploadStatus(`Cancellation failed: ${err instanceof Error ? err.message : "Unknown error."}`);
     } finally {

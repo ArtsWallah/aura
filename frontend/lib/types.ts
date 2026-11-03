@@ -20,6 +20,7 @@ export type ProviderIdentity = "gemini" | "local_deterministic_planner" | "test_
 export type TraceEvaluationStatus =
   | "plan_valid" | "incomplete_coverage" | "invalid_plan" | "execution_failed"
   | "partial_success" | "succeeded" | "inconclusive";
+export type TraceConstructionStatus = "complete" | "failed";
 export type TraceFailureCategory =
   | "none" | "tool_failure" | "dependency_blocked" | "cancelled" | "interrupted" | "unknown";
 
@@ -45,11 +46,12 @@ export interface TraceStep {
 export interface ExecutionTrace {
   intent_category: IntentCategory;
   intent_confidence: number | null;
-  provider_identity: ProviderIdentity;
+  provider_identity: ProviderIdentity | null;
   selected_tools: string[];
   step_statuses: TraceStep[];
-  validation_outcome: "accepted" | "rejected";
+  validation_outcome: "accepted" | "rejected" | null;
   evaluation_status: TraceEvaluationStatus | null;
+  trace_construction_status: TraceConstructionStatus;
   timing: { planning_ms: number; validation_ms: number; execution_ms: number };
 }
 

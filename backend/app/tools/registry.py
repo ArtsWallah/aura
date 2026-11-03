@@ -119,9 +119,21 @@ class ToolRegistry:
         """
         Validates arguments against the Pydantic schema and executes the tool with latency tracking.
         """
-        from app.agent.execution_handoff import require_authorized_tool_call
+        from app.agent.execution_handoff import (
+            require_authorized_tool_arguments,
+            test_legacy_tool_invocation,
+        )
+        from app.core.config import test_harness_enabled
 
-        require_authorized_tool_call(name)
+        if test_harness_enabled():
+            with test_legacy_tool_invocation(name, arguments):
+                return await self._execute_tool(
+                    name=name,
+                    arguments=arguments,
+                    user_approval_granted=user_approval_granted,
+                    cancellation_check=cancellation_check,
+                )
+        require_authorized_tool_arguments(name, arguments)
         return await self._execute_tool(
             name=name,
             arguments=arguments,
@@ -144,7 +156,10 @@ class ToolRegistry:
             or tool_def.requires_approval
         ):
             raise PermissionError("This tool is not available for direct execution.")
-        return await self._execute_tool(name=name, arguments=arguments, user_approval_granted=False)
+        from app.agent.execution_handoff import direct_read_only_tool_invocation
+
+        with direct_read_only_tool_invocation(name, arguments):
+            return await self._execute_tool(name=name, arguments=arguments, user_approval_granted=False)
 
     async def _execute_tool(
         self,
@@ -154,6 +169,9 @@ class ToolRegistry:
         cancellation_check: Callable[[], bool] | None = None,
     ) -> ToolResult:
         """Validated execution implementation behind the handoff/read-only gates."""
+        from app.agent.execution_handoff import require_authorized_tool_arguments
+
+        require_authorized_tool_arguments(name, arguments, consume=True)
         if name not in self._tools:
             return ToolResult(
                 tool_name=name,

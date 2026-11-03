@@ -1,7 +1,7 @@
 import asyncio
 import time
 import uuid
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Callable
 from app.agent.state import ExecutionPlan, TaskState, TaskStatus, StepStatus, TaskEvent, TaskMetrics
 from app.agent.planner import TaskPlanner
 from app.agent.executor import executor
@@ -31,9 +31,9 @@ from app.agent.intelligence_evaluator import (
     evidence_result_kind,
     intelligence_evaluator,
 )
-from app.agent.execution_trace import build_handoff_trace, update_trace_step
+from app.agent.execution_trace import build_handoff_trace, trace_construction_failure, update_trace_step
 from app.llm.router import llm_router
-from app.core.config import settings
+from app.core.config import settings, test_harness_enabled
 from app.core.logging import logger
 from app.privacy.outbound import privacy_scope
 from app.tools.registry import tool_registry
@@ -80,7 +80,13 @@ class AgentOrchestrator:
         if task_id in self._event_queues and q in self._event_queues[task_id]:
             self._event_queues[task_id].remove(q)
 
-    async def _emit_event(self, event: TaskEvent, *, checkpoint_state: TaskState | None = None):
+    async def _emit_event(
+        self,
+        event: TaskEvent,
+        *,
+        checkpoint_state: TaskState | None = None,
+        after_persist: Callable[[], None] | None = None,
+    ):
         allowed = {
             "task_started", "plan_created", "step_started", "step_completed",
             "step_failed", "step_retry", "task_completed", "task_failed", "task_cancelled",
@@ -133,8 +139,25 @@ class AgentOrchestrator:
                         for item in updated_trace.step_statuses
                         if item.step_id == step.step_id
                     )
-            if event_type == "plan_created" or event_type in {"task_completed", "task_failed", "task_cancelled"}:
+            if event_type == "plan_created":
                 safe_data["trace_snapshot"] = state.execution_trace.model_dump(mode="json")
+        if event_type in {"task_completed", "task_failed", "task_cancelled"}:
+            if (
+                state
+                and isinstance(state.execution_trace, ExecutionTrace)
+                and state.execution_trace.evaluation_status is not None
+            ):
+                safe_data["trace_snapshot"] = state.execution_trace.model_dump(mode="json")
+            else:
+                fallback_timing = (
+                    state.execution_trace.timing
+                    if state and isinstance(state.execution_trace, ExecutionTrace)
+                    else None
+                )
+                fallback_trace = trace_construction_failure(timing=fallback_timing)
+                if state:
+                    state.set_execution_trace(fallback_trace)
+                safe_data["trace_snapshot"] = fallback_trace.model_dump(mode="json")
         safe_event = TaskEvent(
             event_type=event_type,
             task_id=event.task_id,
@@ -151,9 +174,29 @@ class AgentOrchestrator:
             )
         else:
             sequence = await asyncio.to_thread(checkpointer.append_event, safe_event)
+        if after_persist is not None:
+            after_persist()
         queues = self._event_queues.get(event.task_id, [])
         for q in queues:
             await q.put((sequence, safe_event))
+
+    async def _persist_terminal_state(self, state: TaskState, target: TaskStatus, event: TaskEvent) -> None:
+        """Persist terminal checkpoint/event before exposing terminal in-memory status."""
+        terminal_state = state.model_copy(deep=True)
+        if terminal_state.status != target:
+            terminal_state.transition_to(target)
+        else:
+            terminal_state.updated_at = time.time()
+
+        def publish_terminal_state() -> None:
+            state.status = terminal_state.status
+            state.updated_at = terminal_state.updated_at
+
+        await self._emit_event(
+            event,
+            checkpoint_state=terminal_state,
+            after_persist=publish_terminal_state,
+        )
 
     async def run_task(
         self,
@@ -163,7 +206,7 @@ class AgentOrchestrator:
         task_id: str | None = None,
         initial_state: TaskState | None = None,
     ) -> TaskState:
-        if settings.ENVIRONMENT != "test":
+        if not test_harness_enabled():
             raise ExecutionHandoffError(HandoffFailureCode.INVALID_HANDOFF)
         with privacy_scope(privacy_mode):
             return await self._run_task(objective, file_path, privacy_mode, task_id, initial_state)
@@ -231,7 +274,7 @@ class AgentOrchestrator:
         state: TaskState,
         *,
         terminal_status: TaskStatus | None = None,
-    ) -> None:
+    ) -> bool:
         evaluation_state = (
             state.model_copy(update={"status": terminal_status}, deep=True)
             if terminal_status is not None
@@ -239,14 +282,28 @@ class AgentOrchestrator:
         )
         evaluation = self._evaluate_handoff_outcome(handoff, evaluation_state)
         evaluation_state.set_execution_evaluation(evaluation)
-        trace = build_handoff_trace(
-            handoff,
-            evaluation_state,
-            artifact_manifest=checkpointer.artifact_manifest_for_task(evaluation_state),
-        )
+        try:
+            trace = build_handoff_trace(
+                handoff,
+                evaluation_state,
+                artifact_manifest=checkpointer.artifact_manifest_for_task(evaluation_state),
+            )
+        except Exception:
+            trace = None
+        if trace is None or trace.evaluation_status is None:
+            evaluation = EvaluationResult(
+                execution_valid=False,
+                objective_coverage=evaluation.objective_coverage if evaluation else None,
+                evaluation_status=EvaluationStatus.INCONCLUSIVE,
+                issues=[IssueCode.MISSING_EVIDENCE],
+            )
+            trace = trace_construction_failure(
+                handoff,
+                timing=(state.execution_trace.timing if state.execution_trace else None),
+            )
         state.set_execution_evaluation(evaluation)
-        if trace is not None:
-            state.set_execution_trace(trace)
+        state.set_execution_trace(trace)
+        return trace.trace_construction_status.value == "complete"
 
     def _evaluate_handoff_outcome(
         self,
@@ -343,7 +400,7 @@ class AgentOrchestrator:
         supplied_plan: ExecutionPlan | None = None,
         handoff_context: ExecutionHandoff | None = None,
     ) -> TaskState:
-        if settings.ENVIRONMENT != "test":
+        if not test_harness_enabled():
             if not isinstance(handoff_context, ExecutionHandoff) or supplied_plan is None:
                 raise ExecutionHandoffError(HandoffFailureCode.INVALID_HANDOFF)
             validated_plan = handoff_context.validate_integrity(
@@ -505,11 +562,10 @@ class AgentOrchestrator:
                     self._finalize_handoff_trace(
                         handoff_context, state, terminal_status=TaskStatus.CANCELLED
                     )
-                if state.status != TaskStatus.CANCELLED:
-                    state.transition_to(TaskStatus.CANCELLED)
-                await self._emit_event(
+                await self._persist_terminal_state(
+                    state,
+                    TaskStatus.CANCELLED,
                     TaskEvent(event_type="task_cancelled", task_id=t_id, message="cancelled"),
-                    checkpoint_state=state,
                 )
                 self._cancel_signals.pop(t_id, None)
                 return state
@@ -529,32 +585,49 @@ class AgentOrchestrator:
                     last_step = next((s for s in reversed(plan.steps) if s.status == StepStatus.COMPLETED), None)
                     state.final_deliverable = last_step.output if last_step else {"message": "Execution finished."}
 
+                trace_ready = True
                 if handoff_context is not None:
-                    self._finalize_handoff_trace(
+                    trace_ready = self._finalize_handoff_trace(
                         handoff_context, state, terminal_status=TaskStatus.COMPLETED
                     )
-                state.transition_to(TaskStatus.COMPLETED)
-
-                await self._emit_event(TaskEvent(
-                    event_type="task_completed",
-                    task_id=t_id,
-                    message="Task completed successfully.",
-                    data={"deliverable": state.final_deliverable, "metrics": state.metrics.model_dump()}
-                ), checkpoint_state=state)
+                if trace_ready:
+                    await self._persist_terminal_state(
+                        state,
+                        TaskStatus.COMPLETED,
+                        TaskEvent(
+                            event_type="task_completed",
+                            task_id=t_id,
+                            message="Task completed successfully.",
+                            data={"deliverable": state.final_deliverable, "metrics": state.metrics.model_dump()},
+                        ),
+                    )
+                else:
+                    state.error_summary = "Execution trace could not be safely finalized."
+                    await self._persist_terminal_state(
+                        state,
+                        TaskStatus.FAILED,
+                        TaskEvent(
+                            event_type="task_failed", task_id=t_id,
+                            message="Task failed because its safe execution trace could not be finalized.",
+                            data={"status": "failed"},
+                        ),
+                    )
             else:
                 state.error_summary = eval_reason
                 if handoff_context is not None:
                     self._finalize_handoff_trace(
                         handoff_context, state, terminal_status=TaskStatus.FAILED
                     )
-                if state.status != TaskStatus.FAILED:
-                    state.transition_to(TaskStatus.FAILED)
-                await self._emit_event(TaskEvent(
-                    event_type="task_failed",
-                    task_id=t_id,
-                    message=f"Task could not be verified: {eval_reason}",
-                    data={"error": eval_reason}
-                ), checkpoint_state=state)
+                await self._persist_terminal_state(
+                    state,
+                    TaskStatus.FAILED,
+                    TaskEvent(
+                        event_type="task_failed",
+                        task_id=t_id,
+                        message="Task could not be verified.",
+                        data={"error": "evaluation_failed"},
+                    ),
+                )
 
         except Exception as e:
             if state.status in {TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED}:
@@ -571,13 +644,16 @@ class AgentOrchestrator:
                 self._finalize_handoff_trace(
                     handoff_context, state, terminal_status=terminal_status
                 )
-            state.transition_to(terminal_status)
-            await self._emit_event(TaskEvent(
-                event_type="task_cancelled" if was_cancel_requested else "task_failed",
-                task_id=t_id,
-                message="Task cancelled at a safe execution boundary." if was_cancel_requested else "Task execution failed.",
-                data={"status": "cancelled" if was_cancel_requested else "failed"}
-            ), checkpoint_state=state)
+            await self._persist_terminal_state(
+                state,
+                terminal_status,
+                TaskEvent(
+                    event_type="task_cancelled" if was_cancel_requested else "task_failed",
+                    task_id=t_id,
+                    message="Task cancelled at a safe execution boundary." if was_cancel_requested else "Task execution failed.",
+                    data={"status": "cancelled" if was_cancel_requested else "failed"},
+                ),
+            )
 
         if cancel_signal.is_set() and state.status == TaskStatus.CANCEL_REQUESTED:
             for pending_step in state.plan.steps if state.plan else []:
@@ -588,10 +664,10 @@ class AgentOrchestrator:
                 self._finalize_handoff_trace(
                     handoff_context, state, terminal_status=TaskStatus.CANCELLED
                 )
-            state.transition_to(TaskStatus.CANCELLED)
-            await self._emit_event(
+            await self._persist_terminal_state(
+                state,
+                TaskStatus.CANCELLED,
                 TaskEvent(event_type="task_cancelled", task_id=t_id, message="cancelled"),
-                checkpoint_state=state,
             )
         elif state.status not in {TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED}:
             checkpointer.save_checkpoint(state)

@@ -8,7 +8,7 @@ from typing import Any
 from cryptography.fernet import InvalidToken
 from app.core.config import settings
 from app.agent.state import TaskState, TaskStatus, StepStatus, TaskEvent
-from app.agent.execution_trace import apply_trace_step, sanitize_execution_trace, sanitize_trace_step
+from app.agent.execution_trace import apply_trace_step, sanitize_execution_trace, sanitize_trace_step, trace_construction_failure
 from app.agent.intelligence_contracts import EvaluationStatus, StepFailureCategory
 from app.core.logging import logger
 from app.privacy.encryption import encryption_service
@@ -363,7 +363,14 @@ class SQLiteCheckpointer:
         if isinstance(trace_snapshot, dict):
             safe_trace = sanitize_execution_trace(trace_snapshot)
             if safe_trace is not None:
+                if event_type in {"task_completed", "task_failed", "task_cancelled"} and safe_trace.evaluation_status is None:
+                    safe_trace = trace_construction_failure(timing=safe_trace.timing)
                 safe_data["trace_snapshot"] = safe_trace.model_dump(mode="json")
+            else:
+                if event_type in {"task_completed", "task_failed", "task_cancelled"}:
+                    safe_data["trace_snapshot"] = trace_construction_failure().model_dump(mode="json")
+        elif event_type in {"task_completed", "task_failed", "task_cancelled"}:
+            safe_data["trace_snapshot"] = trace_construction_failure().model_dump(mode="json")
         trace_step = event.data.get("trace_step")
         if isinstance(trace_step, dict):
             safe_step = sanitize_trace_step(trace_step)
@@ -491,10 +498,25 @@ class SQLiteCheckpointer:
                     TaskStatus.RETRYING, TaskStatus.CANCEL_REQUESTED,
                 )),
             ).fetchall()
+            inconsistent_terminal_rows = conn.execute("""
+                SELECT c.task_id, c.status
+                FROM task_checkpoints c
+                WHERE c.status IN ('completed', 'failed', 'cancelled')
+                AND NOT EXISTS (
+                    SELECT 1 FROM task_events e
+                    WHERE e.task_id = c.task_id
+                    AND e.event_type = CASE c.status
+                        WHEN 'completed' THEN 'task_completed'
+                        WHEN 'failed' THEN 'task_failed'
+                        WHEN 'cancelled' THEN 'task_cancelled'
+                    END
+                )
+            """).fetchall()
             conn.execute("UPDATE task_checkpoints SET claimed_by = NULL, claimed_at = NULL")
             conn.commit()
 
         recovered = 0
+        handled_task_ids: set[str] = set()
         for task_id, persisted_status in rows:
             if persisted_status == TaskStatus.QUEUED.value and task_id in available_queued_ids:
                 continue
@@ -517,18 +539,52 @@ class SQLiteCheckpointer:
                 state.transition_to(TaskStatus.FAILED)
             state.error_summary = "Execution could not be safely resumed; review before manually resubmitting."
             trace = self._recovered_trace_snapshot(state)
-            self.save_checkpoint(state)
-            self.append_event(TaskEvent(
+            if trace is None:
+                trace = trace_construction_failure()
+            event = TaskEvent(
                 event_type="task_failed",
                 task_id=task_id,
                 message="Task outcome requires review after restart.",
                 data={
                     "status": "failed",
                     "recovery_required": True,
-                    **({"trace_snapshot": trace.model_dump(mode="json")} if trace is not None else {}),
+                    "trace_snapshot": trace.model_dump(mode="json"),
                 },
-            ))
+            )
+            self.save_checkpoint_and_append_event(state, event)
+            handled_task_ids.add(task_id)
             recovered += 1
+
+        for task_id, persisted_status in inconsistent_terminal_rows:
+            if task_id in handled_task_ids:
+                continue
+            state = self.load_checkpoint(task_id)
+            if state is None:
+                continue
+            state.recovery_required = True
+            state.recovery_reason = "Terminal task event was missing; outcome marked for review."
+            terminal_event_type = {
+                TaskStatus.COMPLETED: "task_completed",
+                TaskStatus.FAILED: "task_failed",
+                TaskStatus.CANCELLED: "task_cancelled",
+            }.get(state.status, "task_failed")
+            state.error_summary = "Execution could not be safely verified; review before resubmitting."
+            trace = self._recovered_trace_snapshot(state)
+            if trace is None:
+                trace = trace_construction_failure()
+            event = TaskEvent(
+                event_type=terminal_event_type,
+                task_id=task_id,
+                message="Task outcome requires review after restart.",
+                data={
+                    "status": state.status.value,
+                    "recovery_required": True,
+                    "trace_snapshot": trace.model_dump(mode="json"),
+                },
+            )
+            self.save_checkpoint_and_append_event(state, event)
+            recovered += 1
+
         return recovered
 
     def _recovered_trace_snapshot(self, state: TaskState):

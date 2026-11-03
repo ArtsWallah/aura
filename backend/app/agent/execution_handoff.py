@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import asyncio
 import uuid
 from contextlib import contextmanager
 from contextvars import ContextVar
@@ -11,6 +12,7 @@ from enum import Enum
 from typing import Iterator, Literal, TYPE_CHECKING
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+from app.core.config import test_harness_enabled
 
 from app.agent.intelligence_contracts import (
     EvaluationStatus,
@@ -36,6 +38,9 @@ _active_handoff_scope: ContextVar[tuple[object, "ExecutionHandoff", str] | None]
 )
 _active_step_scope: ContextVar[tuple[object, str, str, str] | None] = ContextVar(
     "aura_handoff_step_scope", default=None
+)
+_active_tool_invocation: ContextVar[tuple[object, str | None, str | None, str, str, str, object, list[bool]] | None] = ContextVar(
+    "aura_tool_invocation_scope", default=None
 )
 
 
@@ -253,12 +258,16 @@ def handoff_execution_scope(
 @contextmanager
 def authorized_step_scope(step: "ExecutionStep", task_state: "TaskState") -> Iterator[None]:
     """Bind a registry invocation to a step in the active validated handoff."""
-    from app.core.config import settings
-
     scope = _active_handoff_scope.get()
-    if scope is None and settings.ENVIRONMENT == "test":
+    if scope is None and test_harness_enabled():
         # Legacy direct executor calls remain available only to the test harness.
-        yield
+        token = _active_step_scope.set((
+            _EXECUTION_SCOPE_TOKEN, task_state.task_id, step.step_id, step.tool_name
+        ))
+        try:
+            yield
+        finally:
+            _active_step_scope.reset(token)
         return
     if scope is None or scope[0] is not _EXECUTION_SCOPE_TOKEN:
         raise ExecutionHandoffError(HandoffFailureCode.INVALID_HANDOFF)
@@ -284,11 +293,100 @@ def authorized_step_scope(step: "ExecutionStep", task_state: "TaskState") -> Ite
 
 
 def require_authorized_tool_call(tool_name: str) -> None:
-    """Reject production registry calls outside the authorized executor step."""
-    from app.core.config import settings
-
-    if settings.ENVIRONMENT == "test":
+    """Reject low-level registry execution without a one-call capability."""
+    invocation = _active_tool_invocation.get()
+    if invocation is not None and invocation[0] is _EXECUTION_SCOPE_TOKEN and invocation[3] == tool_name:
         return
-    scope = _active_step_scope.get()
-    if scope is None or scope[0] is not _EXECUTION_SCOPE_TOKEN or scope[3] != tool_name:
+    raise ExecutionHandoffError(HandoffFailureCode.INVALID_HANDOFF)
+
+
+@contextmanager
+def authorized_tool_invocation(tool_name: str, arguments: dict) -> Iterator[None]:
+    """Grant one exact argument payload to the already-authorized active step."""
+    step_scope = _active_step_scope.get()
+    if (
+        step_scope is None
+        or step_scope[0] is not _EXECUTION_SCOPE_TOKEN
+        or step_scope[3] != tool_name
+    ):
         raise ExecutionHandoffError(HandoffFailureCode.INVALID_HANDOFF)
+    digest = hashlib.sha256(
+        json.dumps(arguments, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")
+    ).hexdigest()
+    consumed = [False]
+    token = _active_tool_invocation.set((
+        _EXECUTION_SCOPE_TOKEN, step_scope[1], step_scope[2], tool_name, digest, "handoff", asyncio.current_task(), consumed
+    ))
+    try:
+        yield
+    finally:
+        _active_tool_invocation.reset(token)
+
+
+@contextmanager
+def direct_read_only_tool_invocation(tool_name: str, arguments: dict) -> Iterator[None]:
+    """Separate one-call capability for the fixed direct local read-only tools."""
+    allowed = {
+        "inspect_dataset", "descriptive_statistics", "group_comparison",
+        "correlation_analysis", "detect_outliers", "read_document",
+        "search_document_chunks", "system_health",
+    }
+    if tool_name not in allowed:
+        raise ExecutionHandoffError(HandoffFailureCode.INVALID_HANDOFF)
+    digest = hashlib.sha256(
+        json.dumps(arguments, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")
+    ).hexdigest()
+    consumed = [False]
+    token = _active_tool_invocation.set((
+        _EXECUTION_SCOPE_TOKEN, None, None, tool_name, digest, "direct_read_only", asyncio.current_task(), consumed
+    ))
+    try:
+        yield
+    finally:
+        _active_tool_invocation.reset(token)
+
+
+@contextmanager
+def test_legacy_tool_invocation(tool_name: str, arguments: dict) -> Iterator[None]:
+    """Keep legacy registry calls available only to the isolated pytest process."""
+    if not test_harness_enabled():
+        raise ExecutionHandoffError(HandoffFailureCode.INVALID_HANDOFF)
+    digest = hashlib.sha256(
+        json.dumps(arguments, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")
+    ).hexdigest()
+    consumed = [False]
+    token = _active_tool_invocation.set((
+        _EXECUTION_SCOPE_TOKEN, None, None, tool_name, digest, "test_legacy", asyncio.current_task(), consumed
+    ))
+    try:
+        yield
+    finally:
+        _active_tool_invocation.reset(token)
+
+
+def require_authorized_tool_arguments(tool_name: str, arguments: dict, *, consume: bool = False) -> None:
+    invocation = _active_tool_invocation.get()
+    digest = hashlib.sha256(
+        json.dumps(arguments, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")
+    ).hexdigest()
+    if (
+        invocation is None
+        or invocation[0] is not _EXECUTION_SCOPE_TOKEN
+        or invocation[3] != tool_name
+        or invocation[4] != digest
+        or invocation[6] is not asyncio.current_task()
+        or invocation[7][0] is True
+    ):
+        raise ExecutionHandoffError(HandoffFailureCode.INVALID_HANDOFF)
+    if invocation[5] == "handoff":
+        step_scope = _active_step_scope.get()
+        if (
+            step_scope is None
+            or step_scope[0] is not _EXECUTION_SCOPE_TOKEN
+            or step_scope[1] != invocation[1]
+            or step_scope[2] != invocation[2]
+            or step_scope[3] != invocation[3]
+        ):
+            raise ExecutionHandoffError(HandoffFailureCode.INVALID_HANDOFF)
+    if consume:
+        invocation[7][0] = True

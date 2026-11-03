@@ -1,6 +1,6 @@
 import { ExecutionTrace, TaskStatus, TraceStep } from "@/lib/types";
 
-const categoryLabel = (value: string) => value.replaceAll("_", " ");
+const categoryLabel = (value: string | null | undefined) => (value ? value.replaceAll("_", " ") : "Unknown");
 
 function outcomeMessage(status: ExecutionTrace["evaluation_status"], taskStatus: TaskStatus) {
   if (status === "succeeded") return "All planned steps completed with the expected evidence.";

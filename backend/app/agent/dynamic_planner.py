@@ -25,7 +25,7 @@ from app.agent.intelligence_contracts import (
 )
 from app.agent.plan_validation import PlanValidationError, validate_execution_plan
 from app.agent.state import ExecutionPlan, ExecutionStep
-from app.core.config import settings
+from app.core.config import settings, test_harness_enabled
 from app.core.security import managed_file_suffix, validate_safe_path
 from app.llm.base import BaseLLMProvider, LLMMessage
 from app.privacy.outbound import privacy_scope
@@ -161,7 +161,7 @@ class DynamicPlanner:
                     return self._clarification("Please submit the request without a file path; the server will attach the authorized upload separately.", "File paths are never included in provider planning requests.")
                 return await self._provider_plan(objective, assessment, metadata, privacy_mode)
             if identity == ProviderIdentity.TEST_MOCK_PROVIDER:
-                if settings.ENVIRONMENT != "test":
+                if not test_harness_enabled():
                     return self._clarification("The test provider is available only in test configuration.", "A mock provider cannot replace a configured production provider.")
                 return await self._provider_plan(objective, assessment, metadata, privacy_mode)
             return self._clarification("The selected planning provider is not supported.", "No safe plan was produced.")

@@ -4,7 +4,7 @@ import time
 from pathlib import Path
 from typing import Any
 from app.agent.state import ExecutionStep, StepStatus, TaskState, TaskEvent, TaskStatus
-from app.agent.execution_handoff import authorized_step_scope
+from app.agent.execution_handoff import authorized_step_scope, authorized_tool_invocation
 from app.agent.evaluator import evaluator
 from app.tools.registry import tool_registry
 from app.tools.schemas import ToolResult
@@ -64,12 +64,13 @@ class PlanExecutor:
         
         while retry:
             logger.info("Running planned tool step.")
-            result = await tool_registry.execute_tool(
-                name=step.tool_name,
-                arguments=resolved_params,
-                user_approval_granted=True, # The submitted task authorizes its validated plan.
-                cancellation_check=lambda: task_state.status == TaskStatus.CANCEL_REQUESTED,
-            )
+            with authorized_tool_invocation(step.tool_name, resolved_params):
+                result = await tool_registry.execute_tool(
+                    name=step.tool_name,
+                    arguments=resolved_params,
+                    user_approval_granted=True, # The submitted task authorizes its validated plan.
+                    cancellation_check=lambda: task_state.status == TaskStatus.CANCEL_REQUESTED,
+                )
 
             if result.error == "Tool execution cancelled before start.":
                 step.status = StepStatus.SKIPPED

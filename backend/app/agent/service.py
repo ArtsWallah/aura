@@ -7,9 +7,10 @@ from typing import Any
 
 from app.agent.checkpoint import checkpointer
 from app.agent.execution_handoff import ExecutionHandoff, ExecutionHandoffError, HandoffFailureCode
+from app.agent.execution_trace import trace_construction_failure
 from app.agent.orchestrator import AgentOrchestrator, orchestrator
 from app.agent.state import TaskEvent, TaskState
-from app.core.config import settings
+from app.core.config import settings, test_harness_enabled
 from app.core.logging import logger
 from app.privacy.encryption import encryption_service
 from app.tools.registry import tool_registry
@@ -104,7 +105,7 @@ class TaskExecutionService:
 
     async def enqueue(self, task: TaskState) -> None:
         """Keep legacy queueing available only to the non-production test harness."""
-        if settings.ENVIRONMENT != "test":
+        if not test_harness_enabled():
             raise ExecutionHandoffError(HandoffFailureCode.INVALID_HANDOFF)
         await self._enqueue_payload(ProcessLocalTaskPayload(
             task_state=task.model_copy(deep=True),
@@ -205,12 +206,13 @@ class TaskExecutionService:
                     task.recovery_reason = "Queued task input was not available in this process."
                     task.transition_to(type(task.status).FAILED)
                     task.error_summary = "Execution could not be safely resumed; submit the task again."
-                    await asyncio.to_thread(checkpointer.save_checkpoint, task)
-                    await asyncio.to_thread(checkpointer.append_event, TaskEvent(
+                    trace = checkpointer._recovered_trace_snapshot(task) or trace_construction_failure()
+                    event = TaskEvent(
                         event_type="task_failed", task_id=task.task_id,
                         message="Task could not be resumed after restart.",
-                        data={"status": "failed", "recovery_required": True},
-                    ))
+                        data={"status": "failed", "recovery_required": True, "trace_snapshot": trace.model_dump(mode="json")},
+                    )
+                    await asyncio.to_thread(checkpointer.save_checkpoint_and_append_event, task, event)
                     await asyncio.to_thread(checkpointer.release_task_claim, task.task_id, worker_id)
                     continue
                 if payload.task_state.task_id != task.task_id:
@@ -218,12 +220,13 @@ class TaskExecutionService:
                     task.recovery_reason = "Queued task input did not match its process-local task identifier."
                     task.transition_to(type(task.status).FAILED)
                     task.error_summary = "Execution could not be safely resumed; submit the task again."
-                    await asyncio.to_thread(checkpointer.save_checkpoint, task)
-                    await asyncio.to_thread(checkpointer.append_event, TaskEvent(
+                    trace = checkpointer._recovered_trace_snapshot(task) or trace_construction_failure()
+                    event = TaskEvent(
                         event_type="task_failed", task_id=task.task_id,
                         message="Task could not be resumed after restart.",
-                        data={"status": "failed", "recovery_required": True},
-                    ))
+                        data={"status": "failed", "recovery_required": True, "trace_snapshot": trace.model_dump(mode="json")},
+                    )
+                    await asyncio.to_thread(checkpointer.save_checkpoint_and_append_event, task, event)
                     await asyncio.to_thread(checkpointer.release_task_claim, task.task_id, worker_id)
                     continue
                 try:
@@ -237,7 +240,7 @@ class TaskExecutionService:
                             initial_state=task,
                         )
                     else:
-                        if settings.ENVIRONMENT != "test":
+                        if not test_harness_enabled():
                             raise ExecutionHandoffError(HandoffFailureCode.INVALID_HANDOFF)
                         if payload.handoff is not None:
                             raise ExecutionHandoffError(HandoffFailureCode.INVALID_HANDOFF)
@@ -255,7 +258,14 @@ class TaskExecutionService:
                         if failed_state.status.value not in {"completed", "failed", "cancelled"}:
                             failed_state.transition_to(type(failed_state.status).FAILED)
                         failed_state.error_summary = "Task worker execution failed."
-                        await asyncio.to_thread(checkpointer.save_checkpoint, failed_state)
+                        trace = checkpointer._recovered_trace_snapshot(failed_state) or trace_construction_failure()
+                        event = TaskEvent(
+                            event_type="task_failed",
+                            task_id=failed_state.task_id,
+                            message="Task worker execution failed.",
+                            data={"status": "failed", "trace_snapshot": trace.model_dump(mode="json")},
+                        )
+                        await asyncio.to_thread(checkpointer.save_checkpoint_and_append_event, failed_state, event)
                     except Exception:
                         logger.error("Task worker could not persist the failure state.")
                 finally:

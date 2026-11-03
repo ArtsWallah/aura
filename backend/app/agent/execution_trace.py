@@ -13,6 +13,7 @@ from app.agent.intelligence_contracts import (
     IntentCategory,
     ProviderIdentity,
     StepFailureCategory,
+    TraceConstructionStatus,
     TraceArtifact,
     TraceArtifactType,
     TraceStep,
@@ -176,6 +177,32 @@ def build_handoff_trace(
         return None
 
 
+def trace_construction_failure(handoff: Any | None = None, timing: ExecutionTiming | None = None) -> ExecutionTrace:
+    """Return a typed failure marker without implying step outcomes or success."""
+    try:
+        intent = IntentCategory(getattr(handoff, "intent_category", IntentCategory.UNKNOWN))
+    except (TypeError, ValueError):
+        intent = IntentCategory.UNKNOWN
+    try:
+        provider = ProviderIdentity(getattr(handoff, "provider_identity", None))
+    except (TypeError, ValueError):
+        provider = None
+    confidence = getattr(handoff, "intent_confidence", None)
+    if not isinstance(confidence, (int, float)) or not 0 <= confidence <= 1:
+        confidence = None
+    return ExecutionTrace(
+        intent_category=intent,
+        intent_confidence=confidence,
+        provider_identity=provider,
+        selected_tools=[],
+        step_statuses=[],
+        validation_outcome=None,
+        evaluation_status=EvaluationStatus.INCONCLUSIVE,
+        trace_construction_status=TraceConstructionStatus.FAILED,
+        timing=timing or ExecutionTiming(),
+    )
+
+
 def update_trace_step(
     trace: ExecutionTrace,
     step: ExecutionStep,
@@ -238,11 +265,12 @@ def sanitize_execution_trace(
         trace = ExecutionTrace(
             intent_category=IntentCategory(source.intent_category),
             intent_confidence=source.intent_confidence,
-            provider_identity=ProviderIdentity(source.provider_identity),
+            provider_identity=(ProviderIdentity(source.provider_identity) if source.provider_identity else None),
             selected_tools=list(dict.fromkeys(step.tool_name for step in steps)),
             step_statuses=steps,
-            validation_outcome=ValidationOutcome(source.validation_outcome),
+            validation_outcome=(ValidationOutcome(source.validation_outcome) if source.validation_outcome else None),
             evaluation_status=EvaluationStatus(source.evaluation_status) if source.evaluation_status else None,
+            trace_construction_status=TraceConstructionStatus(source.trace_construction_status),
             timing=source.timing,
         )
         if len(trace.model_dump_json().encode("utf-8")) > MAX_TRACE_BYTES:

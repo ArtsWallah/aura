@@ -28,7 +28,7 @@ from app.agent.intelligence_evaluator import (
 )
 from app.agent.intent import assess_intent
 from app.agent.plan_validation import PlanValidationError, validate_execution_plan
-from app.core.config import settings
+from app.core.config import settings, test_harness_enabled
 from app.core.security import managed_file_suffix, validate_safe_path
 from app.llm.base import BaseLLMProvider
 from app.llm.gemini import GeminiProvider
@@ -181,7 +181,7 @@ class IntelligencePipeline:
                 return self._rejected(assessment, PipelineFailureCode.PROVIDER_UNAVAILABLE)
             except Exception:
                 return self._rejected(assessment, PipelineFailureCode.PROVIDER_FAILURE)
-            if identity == ProviderIdentity.TEST_MOCK_PROVIDER and settings.ENVIRONMENT != "test":
+            if identity == ProviderIdentity.TEST_MOCK_PROVIDER and not test_harness_enabled():
                 return self._rejected(assessment, PipelineFailureCode.PROVIDER_UNAVAILABLE)
 
         try:

@@ -32,4 +32,7 @@ data/reports/*
 !data/reports/.gitkeep
 data/charts/*
 !data/charts/.gitkeep
+.pytest_cache/
+.pytest-temp*
+backend/.pytest-temp*
 

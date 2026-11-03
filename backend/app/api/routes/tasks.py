@@ -19,7 +19,7 @@ from app.agent.intelligence_contracts import (
     RequiredInputKind,
     StepFailureCategory,
 )
-from app.agent.execution_trace import apply_trace_step, sanitize_execution_trace
+from app.agent.execution_trace import apply_trace_step, sanitize_execution_trace, trace_construction_failure
 from app.agent.intelligence_pipeline import (
     IntelligencePipelineResult,
     PipelineDisposition,
@@ -112,14 +112,17 @@ def _status_response(state: TaskState) -> TaskStatusResponse:
 
 
 def _execution_trace_for_state(state: TaskState) -> ExecutionTrace | None:
+    is_terminal = state.status in {TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED}
     if state.execution_trace is not None:
         current = sanitize_execution_trace(state.execution_trace)
         if current is not None:
+            if is_terminal and current.evaluation_status is None:
+                return trace_construction_failure(timing=current.timing)
             return current
     try:
         _, _, events = checkpointer.read_event_window(state.task_id, 0, 1000)
     except Exception:
-        return None
+        return trace_construction_failure() if is_terminal else None
     trace: ExecutionTrace | None = None
     for _, event in events:
         snapshot = event.data.get("trace_snapshot")
@@ -146,6 +149,8 @@ def _execution_trace_for_state(state: TaskState) -> ExecutionTrace | None:
                 if persisted is not None
             ] if state.plan is not None else trace.step_statuses,
         }))
+    if is_terminal and trace is not None and trace.evaluation_status is None:
+        return trace_construction_failure(timing=trace.timing)
     return trace
 
 _GENERIC_CLARIFICATION_QUESTION = "Could you clarify the task and the result you want?"
