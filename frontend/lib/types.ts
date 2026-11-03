@@ -12,6 +12,46 @@ export type TaskStatus =
   | "cancelled";
 
 export type StepStatus = "pending" | "in_progress" | "completed" | "failed" | "skipped" | "interrupted";
+export type IntentCategory =
+  | "data_analysis" | "statistical_analysis" | "visualization" | "sql_query"
+  | "document_analysis" | "web_research" | "report_generation" | "multi_step_analysis"
+  | "system_health" | "unknown";
+export type ProviderIdentity = "gemini" | "local_deterministic_planner" | "test_mock_provider";
+export type TraceEvaluationStatus =
+  | "plan_valid" | "incomplete_coverage" | "invalid_plan" | "execution_failed"
+  | "partial_success" | "succeeded" | "inconclusive";
+export type TraceFailureCategory =
+  | "none" | "tool_failure" | "dependency_blocked" | "cancelled" | "interrupted" | "unknown";
+
+export interface TraceArtifact {
+  artifact_type: "chart_png" | "report_html" | "report_markdown";
+  available: boolean;
+  count: number;
+}
+
+export interface TraceStep {
+  step_id: string;
+  tool_name: string;
+  status: StepStatus;
+  tool_label: string | null;
+  tool_category: string | null;
+  retry_count: number;
+  retry_limit: number;
+  failure_category: TraceFailureCategory | null;
+  artifacts: TraceArtifact[];
+  duration_ms: number;
+}
+
+export interface ExecutionTrace {
+  intent_category: IntentCategory;
+  intent_confidence: number | null;
+  provider_identity: ProviderIdentity;
+  selected_tools: string[];
+  step_statuses: TraceStep[];
+  validation_outcome: "accepted" | "rejected";
+  evaluation_status: TraceEvaluationStatus | null;
+  timing: { planning_ms: number; validation_ms: number; execution_ms: number };
+}
 
 export interface ExecutionStep {
   step_id: string;
@@ -52,6 +92,7 @@ export interface TaskState {
   status: TaskStatus;
   created_at: number;
   updated_at: number;
+  execution_trace?: ExecutionTrace | null;
 }
 
 export interface TaskClarificationResponse {

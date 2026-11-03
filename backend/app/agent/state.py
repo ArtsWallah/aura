@@ -72,6 +72,7 @@ class TaskMetrics(BaseModel):
 
 class TaskState(BaseModel):
     _execution_evaluation: Any = PrivateAttr(default=None)
+    _execution_trace: Any = PrivateAttr(default=None)
 
     task_id: str
     objective: str
@@ -96,6 +97,14 @@ class TaskState(BaseModel):
 
     def set_execution_evaluation(self, result: Any) -> None:
         self._execution_evaluation = result
+
+    @property
+    def execution_trace(self) -> Any:
+        """Process-local validated trace; excluded from checkpoints by default."""
+        return self._execution_trace
+
+    def set_execution_trace(self, result: Any) -> None:
+        self._execution_trace = result
 
     @model_validator(mode="before")
     @classmethod

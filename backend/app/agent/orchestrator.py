@@ -11,8 +11,10 @@ from app.agent.execution_handoff import ExecutionHandoff, ExecutionHandoffError,
 from app.agent.intelligence_contracts import (
     EvaluationResult,
     EvaluationStatus,
+    ExecutionTrace,
     IntentAssessment,
     IssueCode,
+    StepFailureCategory,
     ValidationOutcome,
 )
 from app.agent.intelligence_evaluator import (
@@ -20,11 +22,11 @@ from app.agent.intelligence_evaluator import (
     IntelligenceEvaluator,
     PlanStepSummary,
     PlanValidationEvidence,
-    StepFailureCategory,
     StepOutcomeEvidence,
     evidence_result_kind,
     intelligence_evaluator,
 )
+from app.agent.execution_trace import build_handoff_trace, update_trace_step
 from app.llm.router import llm_router
 from app.core.logging import logger
 from app.privacy.outbound import privacy_scope
@@ -108,6 +110,24 @@ class AgentOrchestrator:
                 safe_data["retry_count"] = max(0, int(step.retry_count))
             if event_type == "step_failed":
                 safe_data["error_category"] = "tool_failure"
+        if state and isinstance(state.execution_trace, ExecutionTrace):
+            if event_type in {"step_started", "step_retry", "step_completed", "step_failed"} and step is not None:
+                updated_trace = update_trace_step(
+                    state.execution_trace,
+                    step,
+                    state,
+                    event_type,
+                    retry_count=event.data.get("retry_count") if isinstance(event.data.get("retry_count"), int) else None,
+                )
+                if updated_trace is not None:
+                    state.set_execution_trace(updated_trace)
+                    safe_data["trace_step"] = next(
+                        item.model_dump(mode="json")
+                        for item in updated_trace.step_statuses
+                        if item.step_id == step.step_id
+                    )
+            if event_type == "plan_created" or event_type in {"task_completed", "task_failed", "task_cancelled"}:
+                safe_data["trace_snapshot"] = state.execution_trace.model_dump(mode="json")
         safe_event = TaskEvent(
             event_type=event_type,
             task_id=event.task_id,
@@ -174,9 +194,17 @@ class AgentOrchestrator:
                 task_id=task_id,
                 initial_state=initial_state,
                 supplied_plan=plan,
+                handoff_context=handoff,
             )
-        state.set_execution_evaluation(self._evaluate_handoff_outcome(handoff, state))
+        if state.execution_evaluation is None:
+            self._finalize_handoff_trace(handoff, state)
         return state
+
+    def _finalize_handoff_trace(self, handoff: ExecutionHandoff, state: TaskState) -> None:
+        state.set_execution_evaluation(self._evaluate_handoff_outcome(handoff, state))
+        trace = build_handoff_trace(handoff, state)
+        if trace is not None:
+            state.set_execution_trace(trace)
 
     def _evaluate_handoff_outcome(
         self,
@@ -271,6 +299,7 @@ class AgentOrchestrator:
         task_id: str | None = None,
         initial_state: TaskState | None = None,
         supplied_plan: ExecutionPlan | None = None,
+        handoff_context: ExecutionHandoff | None = None,
     ) -> TaskState:
         t_id = task_id or f"task_{uuid.uuid4().hex[:10]}"
         queued_state = checkpointer.load_checkpoint(t_id) if initial_state is not None else None
@@ -313,7 +342,13 @@ class AgentOrchestrator:
             else:
                 plan = supplied_plan
             state.plan = plan
+            if handoff_context is not None:
+                initial_trace = build_handoff_trace(handoff_context, state)
+                if initial_trace is not None:
+                    state.set_execution_trace(initial_trace)
             if cancel_signal.is_set():
+                if handoff_context is not None:
+                    self._finalize_handoff_trace(handoff_context, state)
                 state.transition_to(TaskStatus.CANCELLED)
                 checkpointer.save_checkpoint(state)
                 await self._emit_event(TaskEvent(event_type="task_cancelled", task_id=t_id, message="cancelled"))
@@ -407,6 +442,8 @@ class AgentOrchestrator:
             await asyncio.gather(forward_task, return_exceptions=True)
 
             if state.status == TaskStatus.CANCELLED:
+                if handoff_context is not None:
+                    self._finalize_handoff_trace(handoff_context, state)
                 await self._emit_event(TaskEvent(event_type="task_cancelled", task_id=t_id, message="cancelled"))
                 self._cancel_signals.pop(t_id, None)
                 return state
@@ -428,6 +465,9 @@ class AgentOrchestrator:
                     last_step = next((s for s in reversed(plan.steps) if s.status == StepStatus.COMPLETED), None)
                     state.final_deliverable = last_step.output if last_step else {"message": "Execution finished."}
 
+                if handoff_context is not None:
+                    self._finalize_handoff_trace(handoff_context, state)
+
                 await self._emit_event(TaskEvent(
                     event_type="task_completed",
                     task_id=t_id,
@@ -438,6 +478,8 @@ class AgentOrchestrator:
                 if state.status != TaskStatus.FAILED:
                     state.transition_to(TaskStatus.FAILED)
                 state.error_summary = eval_reason
+                if handoff_context is not None:
+                    self._finalize_handoff_trace(handoff_context, state)
                 await self._emit_event(TaskEvent(
                     event_type="task_failed",
                     task_id=t_id,
@@ -455,6 +497,8 @@ class AgentOrchestrator:
             state.updated_at = time.time()
             state.metrics.total_execution_time_ms = (time.perf_counter() - start_time) * 1000.0
             logger.error("Task execution failed with an internal error.")
+            if handoff_context is not None:
+                self._finalize_handoff_trace(handoff_context, state)
             await self._emit_event(TaskEvent(
                 event_type="task_cancelled" if was_cancel_requested else "task_failed",
                 task_id=t_id,

@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { SearchCode, Clock, ShieldCheck } from "lucide-react";
 import { fetchTasks, fetchTask } from "@/lib/api";
 import { TaskState, TaskListItem } from "@/lib/types";
+import ExecutionTracePanel from "@/components/ExecutionTracePanel";
 
 function InspectorContent() {
   const searchParams = useSearchParams();
@@ -55,6 +56,7 @@ function InspectorContent() {
       {!taskState ? (
         <div className="p-12 text-center text-slate-400 text-sm">No task selected.</div>
       ) : (
+        <div className="space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-4">
             <span className="text-[11px] font-medium text-slate-400 uppercase">Task ID</span>
@@ -76,6 +78,8 @@ function InspectorContent() {
               <Clock className="h-4 w-4" /> {new Date(taskState.updated_at * 1000).toLocaleString()}
             </div>
           </div>
+        </div>
+        <ExecutionTracePanel trace={taskState.execution_trace || null} taskStatus={taskState.status} />
         </div>
       )}
     </div>

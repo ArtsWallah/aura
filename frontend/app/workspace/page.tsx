@@ -15,7 +15,8 @@ import {
   Eye
 } from "lucide-react";
 import { createTask, uploadDatasetFile, fetchTask, fetchTaskArtifacts, fetchTaskMarkdown, cancelTask, API_BASE } from "@/lib/api";
-import { TaskState, TaskArtifactManifest, TaskClarificationResponse, PrivacyMode } from "@/lib/types";
+import { TaskState, TaskArtifactManifest, TaskClarificationResponse, PrivacyMode, ExecutionTrace, TraceStep } from "@/lib/types";
+import ExecutionTracePanel from "@/components/ExecutionTracePanel";
 
 function WorkspaceContent() {
   const searchParams = useSearchParams();
@@ -32,6 +33,7 @@ function WorkspaceContent() {
 
   const [isRunning, setIsRunning] = useState<boolean>(false);
   const [currentTask, setCurrentTask] = useState<TaskState | null>(null);
+  const [executionTrace, setExecutionTrace] = useState<ExecutionTrace | null>(null);
   const [clarification, setClarification] = useState<TaskClarificationResponse | null>(null);
   const [taskArtifacts, setTaskArtifacts] = useState<TaskArtifactManifest | null>(null);
   const [markdownReport, setMarkdownReport] = useState<string | null>(null);
@@ -68,6 +70,7 @@ function WorkspaceContent() {
     setIsRunning(true);
     setEvents([]);
     setCurrentTask(null);
+    setExecutionTrace(null);
     setClarification(null);
     setTaskArtifacts(null);
     setMarkdownReport(null);
@@ -83,6 +86,20 @@ function WorkspaceContent() {
       }
       const initialTask = submission;
       setCurrentTask(initialTask);
+      setExecutionTrace(initialTask.execution_trace || null);
+
+      const applyTraceUpdate = (data: { trace_snapshot?: ExecutionTrace; trace_step?: TraceStep }) => {
+        if (data.trace_snapshot) {
+          setExecutionTrace(data.trace_snapshot);
+        } else if (data.trace_step) {
+          setExecutionTrace((trace) => trace ? {
+            ...trace,
+            step_statuses: trace.step_statuses.map((step) =>
+              step.step_id === data.trace_step?.step_id ? data.trace_step : step
+            ),
+          } : trace);
+        }
+      };
 
       // Subscribe immediately; EventSource reconnects with Last-Event-ID and never
       // resubmits the task when the connection drops.
@@ -95,12 +112,13 @@ function WorkspaceContent() {
       ];
       eventNames.forEach((eventName) => {
         eventSource.addEventListener(eventName, (event: MessageEvent) => {
-          let data: { message?: string } = {};
+          let data: { message?: string; trace_snapshot?: ExecutionTrace; trace_step?: TraceStep } = {};
           try {
             data = JSON.parse(event.data);
           } catch {
             // Ignore malformed event payloads; the server emits JSON projections.
           }
+          applyTraceUpdate(data);
           setEvents((prev) => [
             ...prev,
             {
@@ -109,11 +127,15 @@ function WorkspaceContent() {
               type: eventName,
             },
           ]);
-          fetchTask(initialTask.task_id).then(setCurrentTask);
+          fetchTask(initialTask.task_id).then((task) => {
+            setCurrentTask(task);
+            if (task.execution_trace) setExecutionTrace(task.execution_trace);
+          });
 
           if (eventName === "task.history_gap") {
             fetchTask(initialTask.task_id).then((task) => {
               setCurrentTask(task);
+              if (task.execution_trace) setExecutionTrace(task.execution_trace);
               if (["completed", "failed", "cancelled"].includes(task.status)) {
                 eventSource.close();
                 setIsRunning(false);
@@ -134,6 +156,7 @@ function WorkspaceContent() {
             eventSource.close();
             fetchTask(initialTask.task_id).then((task) => {
               setCurrentTask(task);
+              if (task.execution_trace) setExecutionTrace(task.execution_trace);
               if (eventName === "task_completed") {
                 fetchTaskArtifacts(initialTask.task_id).then((artifacts) => {
                   setTaskArtifacts(artifacts);
@@ -167,6 +190,7 @@ function WorkspaceContent() {
       setCurrentTask((task) => task ? { ...task, status: result.status } : task);
       const refreshed = await fetchTask(currentTask.task_id);
       setCurrentTask(refreshed);
+      if (refreshed.execution_trace) setExecutionTrace(refreshed.execution_trace);
     } catch (err: unknown) {
       setUploadStatus(`Cancellation failed: ${err instanceof Error ? err.message : "Unknown error."}`);
     } finally {
@@ -372,16 +396,19 @@ function WorkspaceContent() {
 
       {/* Tab 1: Privacy-safe task status */}
       {activeTab === "plan" && (
-        <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-6 space-y-3">
-          {!currentTask ? (
-            <p className="text-sm text-slate-400">Submit a task to view its status.</p>
-          ) : (
-            <>
-              <p className="text-sm text-slate-300">Task <span className="font-mono">{currentTask.task_id}</span></p>
-              <p className="text-sm text-slate-300">Status: <span className="font-semibold capitalize">{currentTask.status}</span></p>
-              <p className="text-xs text-slate-500">Execution plans and tool data remain private and are not included in task status responses.</p>
-            </>
-          )}
+        <div className="space-y-4">
+          <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-6 space-y-3">
+            {!currentTask ? (
+              <p className="text-sm text-slate-400">Submit a task to view its status.</p>
+            ) : (
+              <>
+                <p className="text-sm text-slate-300">Task <span className="font-mono">{currentTask.task_id}</span></p>
+                <p className="text-sm text-slate-300">Status: <span className="font-semibold capitalize">{currentTask.status}</span></p>
+                <p className="text-xs text-slate-500">Raw plans, arguments, file paths, and tool outputs are never included in this trace.</p>
+              </>
+            )}
+          </div>
+          <ExecutionTracePanel trace={executionTrace} taskStatus={currentTask?.status || null} />
         </div>
       )}
 

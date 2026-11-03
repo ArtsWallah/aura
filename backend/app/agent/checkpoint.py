@@ -8,6 +8,7 @@ from typing import Any
 from cryptography.fernet import InvalidToken
 from app.core.config import settings
 from app.agent.state import TaskState, TaskStatus, StepStatus, TaskEvent
+from app.agent.execution_trace import sanitize_execution_trace, sanitize_trace_step
 from app.core.logging import logger
 from app.privacy.encryption import encryption_service
 
@@ -334,6 +335,16 @@ class SQLiteCheckpointer:
             safe_data["error_category"] = error_category
         if event.data.get("recovery_required") is True:
             safe_data["recovery_required"] = True
+        trace_snapshot = event.data.get("trace_snapshot")
+        if isinstance(trace_snapshot, dict):
+            safe_trace = sanitize_execution_trace(trace_snapshot)
+            if safe_trace is not None:
+                safe_data["trace_snapshot"] = safe_trace.model_dump(mode="json")
+        trace_step = event.data.get("trace_step")
+        if isinstance(trace_step, dict):
+            safe_step = sanitize_trace_step(trace_step)
+            if safe_step is not None and safe_step.step_id == event.step_id:
+                safe_data["trace_step"] = safe_step.model_dump(mode="json")
         safe_event = TaskEvent(
             event_type=event_type,
             task_id=event.task_id,

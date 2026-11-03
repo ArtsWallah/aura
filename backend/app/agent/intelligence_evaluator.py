@@ -22,6 +22,7 @@ from app.agent.intelligence_contracts import (
     IssueCode,
     RetryRecommendation,
     SafeAlternativeRecommendation,
+    StepFailureCategory,
     StrictContract,
     ValidationOutcome,
 )
@@ -44,15 +45,6 @@ class EvidenceResultKind(str, Enum):
     RESEARCH_RESULTS = "research_results"
     REPORT = "report"
     SYSTEM_STATUS = "system_status"
-
-
-class StepFailureCategory(str, Enum):
-    NONE = "none"
-    TOOL_FAILURE = "tool_failure"
-    DEPENDENCY_BLOCKED = "dependency_blocked"
-    CANCELLED = "cancelled"
-    INTERRUPTED = "interrupted"
-    UNKNOWN = "unknown"
 
 
 _STEP_ID = r"^step_[A-Za-z0-9][A-Za-z0-9_-]{0,63}$"

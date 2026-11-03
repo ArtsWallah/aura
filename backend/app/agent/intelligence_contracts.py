@@ -11,6 +11,7 @@ from typing import Annotated
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.agent.state import ExecutionPlan, StepStatus
+from app.tools.schemas import ToolCategory
 
 
 class StrictContract(BaseModel):
@@ -113,6 +114,15 @@ class IssueCode(str, Enum):
     UNKNOWN = "unknown"
 
 
+class StepFailureCategory(str, Enum):
+    NONE = "none"
+    TOOL_FAILURE = "tool_failure"
+    DEPENDENCY_BLOCKED = "dependency_blocked"
+    CANCELLED = "cancelled"
+    INTERRUPTED = "interrupted"
+    UNKNOWN = "unknown"
+
+
 class AlternativeReason(str, Enum):
     TOOL_UNAVAILABLE = "tool_unavailable"
     OUTPUT_INVALID = "output_invalid"
@@ -201,11 +211,29 @@ class ValidationOutcome(str, Enum):
     REJECTED = "rejected"
 
 
+class TraceArtifactType(str, Enum):
+    CHART_PNG = "chart_png"
+    REPORT_HTML = "report_html"
+    REPORT_MARKDOWN = "report_markdown"
+
+
+class TraceArtifact(StrictContract):
+    artifact_type: TraceArtifactType
+    available: bool
+    count: int = Field(ge=0, le=10_000)
+
+
 class TraceStep(StrictContract):
     step_id: Annotated[str, Field(pattern=r"^step_[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")]
     tool_name: _ToolId
     status: StepStatus
-    duration_ms: float = Field(ge=0.0, le=86_400_000)
+    tool_label: str | None = Field(default=None, min_length=1, max_length=100)
+    tool_category: ToolCategory | None = None
+    retry_count: int = Field(default=0, ge=0, le=10_000)
+    retry_limit: int = Field(default=0, ge=0, le=10_000)
+    failure_category: StepFailureCategory | None = None
+    artifacts: list[TraceArtifact] = Field(default_factory=list, max_length=4)
+    duration_ms: float = Field(default=0.0, ge=0.0, le=86_400_000)
 
 
 class ExecutionTiming(StrictContract):
@@ -216,8 +244,17 @@ class ExecutionTiming(StrictContract):
 
 class ExecutionTrace(StrictContract):
     intent_category: IntentCategory
+    intent_confidence: float | None = Field(default=None, ge=0.0, le=1.0)
     provider_identity: ProviderIdentity
     selected_tools: list[_ToolId] = Field(default_factory=list, max_length=128)
     step_statuses: list[TraceStep] = Field(default_factory=list, max_length=128)
     validation_outcome: ValidationOutcome
+    evaluation_status: EvaluationStatus | None = None
     timing: ExecutionTiming = Field(default_factory=ExecutionTiming)
+
+    @model_validator(mode="after")
+    def selected_tools_match_steps(self) -> "ExecutionTrace":
+        expected = list(dict.fromkeys(step.tool_name for step in self.step_statuses))
+        if self.selected_tools != expected:
+            raise ValueError("Selected tools must match the ordered trace steps.")
+        return self

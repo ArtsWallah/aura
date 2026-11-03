@@ -173,7 +173,7 @@ def test_create_task_api(api_test_csv):
             response = task_client.get(f"/api/tasks/{task_id}")
             assert response.status_code == 200
             final = response.json()
-            assert set(final) == {"task_id", "status", "privacy_mode", "created_at", "updated_at"}
+            assert set(final) == {"task_id", "status", "privacy_mode", "created_at", "updated_at", "execution_trace"}
             assert objective_marker not in response.text and file_marker not in response.text
             if final["status"] in {"completed", "failed"}:
                 break
@@ -181,10 +181,17 @@ def test_create_task_api(api_test_csv):
 
         assert final["task_id"] == task_id
         assert final["status"] == "completed"
+        assert final["execution_trace"] is not None
+        assert final["execution_trace"]["provider_identity"] in {
+            "gemini", "local_deterministic_planner", "test_mock_provider"
+        }
+        assert final["execution_trace"]["step_statuses"]
+        assert objective_marker not in json.dumps(final["execution_trace"])
+        assert file_marker not in json.dumps(final["execution_trace"])
 
         listed = task_client.get("/api/tasks")
         assert listed.status_code == 200
-        assert all(set(item) == {"task_id", "status", "privacy_mode", "created_at", "updated_at"} for item in listed.json())
+        assert all(set(item) == {"task_id", "status", "privacy_mode", "created_at", "updated_at", "execution_trace"} for item in listed.json())
         assert objective_marker not in listed.text and file_marker not in listed.text
 
         artifacts = task_client.get(f"/api/tasks/{task_id}/artifacts")
@@ -198,6 +205,11 @@ def test_create_task_api(api_test_csv):
         assert "event: task_completed" in event_text
         assert "objective\"" not in event_text
         assert "file_path" not in event_text
+        terminal_frame = next(
+            frame for frame in event_text.split("\n\n") if "event: task_completed" in frame
+        )
+        terminal_data = json.loads(next(line[6:] for line in terminal_frame.splitlines() if line.startswith("data: ")))
+        assert terminal_data["data"]["trace_snapshot"] == final["execution_trace"]
         sequence_ids = [int(line[4:]) for line in event_text.splitlines() if line.startswith("id: ")]
         assert sequence_ids == sorted(set(sequence_ids))
 
@@ -207,6 +219,8 @@ def test_create_task_api(api_test_csv):
         )
         assert replay.status_code == 200
         assert "event: task.created" not in replay.text
+        assert '"trace_snapshot"' in replay.text
+        assert file_marker not in replay.text and objective_marker not in replay.text
         assert all(int(line[4:]) > 1 for line in replay.text.splitlines() if line.startswith("id: "))
 
         latest = max(sequence_ids)

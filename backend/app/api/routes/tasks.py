@@ -11,11 +11,15 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.agent.dynamic_planner import PlanningInputMetadata
 from app.agent.execution_handoff import ExecutionHandoff, ExecutionHandoffError
 from app.agent.intelligence_contracts import (
+    EvaluationStatus,
+    ExecutionTrace,
     IntentAssessment,
     PlanningResponseType,
     ProviderIdentity,
     RequiredInputKind,
+    StepFailureCategory,
 )
+from app.agent.execution_trace import apply_trace_step, sanitize_execution_trace
 from app.agent.intelligence_pipeline import (
     IntelligencePipelineResult,
     PipelineDisposition,
@@ -50,6 +54,7 @@ class TaskStatusResponse(BaseModel):
     privacy_mode: Literal["local_only", "hybrid", "cloud_enabled"]
     created_at: float
     updated_at: float
+    execution_trace: ExecutionTrace | None = None
 
 
 class TaskClarificationResponse(BaseModel):
@@ -92,7 +97,46 @@ def _status_response(state: TaskState) -> TaskStatusResponse:
         privacy_mode=state.privacy_mode,
         created_at=state.created_at,
         updated_at=state.updated_at,
+        execution_trace=_execution_trace_for_state(state),
     )
+
+
+def _execution_trace_for_state(state: TaskState) -> ExecutionTrace | None:
+    if state.execution_trace is not None:
+        current = sanitize_execution_trace(state.execution_trace)
+        if current is not None:
+            return current
+    try:
+        _, _, events = checkpointer.read_event_window(state.task_id, 0, 1000)
+    except Exception:
+        return None
+    trace: ExecutionTrace | None = None
+    for _, event in events:
+        snapshot = event.data.get("trace_snapshot")
+        if isinstance(snapshot, dict):
+            trace = sanitize_execution_trace(snapshot)
+            continue
+        if trace is not None and isinstance(event.data.get("trace_step"), dict):
+            trace = apply_trace_step(trace, event.data)
+    if trace is not None and state.recovery_required:
+        trace = sanitize_execution_trace(trace.model_copy(update={
+            "evaluation_status": EvaluationStatus.INCONCLUSIVE,
+            "step_statuses": [
+                item.model_copy(update={
+                    "status": persisted.status,
+                    "retry_count": persisted.retry_count,
+                    "failure_category": (
+                        StepFailureCategory.INTERRUPTED
+                        if persisted.status.value == "interrupted"
+                        else item.failure_category
+                    ),
+                })
+                for item in trace.step_statuses
+                for persisted in (next((step for step in state.plan.steps if step.step_id == item.step_id), None),)
+                if persisted is not None
+            ] if state.plan is not None else trace.step_statuses,
+        }))
+    return trace
 
 _GENERIC_CLARIFICATION_QUESTION = "Could you clarify the task and the result you want?"
 
@@ -171,7 +215,12 @@ def _rejection_response(
     )
 
 
-@router.post("", response_model=TaskSubmissionResponse, status_code=status.HTTP_202_ACCEPTED)
+@router.post(
+    "",
+    response_model=TaskSubmissionResponse,
+    response_model_exclude_none=True,
+    status_code=status.HTTP_202_ACCEPTED,
+)
 async def create_task(request: CreateTaskRequest):
     if request.file_path:
         try:
@@ -398,11 +447,16 @@ async def stream_task_events(task_id: str, last_event_id: str | None = Header(de
             ):
                 current = orchestrator.get_task_state(task_id)
                 current_status = current.status.value if current else "unknown"
+                current_trace = _execution_trace_for_state(current) if current else None
                 gap = TaskEvent(
                     event_type="task.history_gap",
                     task_id=task_id,
                     message="Earlier task events expired; the current task status is shown.",
-                    data={"status": current_status, "history_gap": True},
+                    data={
+                        "status": current_status,
+                        "history_gap": True,
+                        **({"trace_snapshot": current_trace.model_dump(mode="json")} if current_trace else {}),
+                    },
                 )
                 cursor = latest
                 return [f"id: {latest}\nevent: task.history_gap\ndata: "
@@ -434,7 +488,12 @@ async def stream_task_events(task_id: str, last_event_id: str | None = Header(de
                     event_type="task.snapshot",
                     task_id=task_id,
                     message="Current task status.",
-                    data={"status": state.status.value},
+                    data={
+                        "status": state.status.value,
+                        **({
+                            "trace_snapshot": snapshot.model_dump(mode="json")
+                        } if (snapshot := _execution_trace_for_state(state)) else {}),
+                    },
                 )
                 yield f"event: task.snapshot\ndata: {json.dumps(safe_snapshot.model_dump())}\n\n"
 
