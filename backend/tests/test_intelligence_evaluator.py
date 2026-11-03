@@ -157,6 +157,112 @@ def test_empty_or_wrong_typed_result_is_an_execution_failure():
     assert IssueCode.OUTPUT_INVALID in wrong_type.issues
 
 
+def test_execution_partial_failure_and_dependency_blocking_are_partial_success():
+    steps = [
+        PlanStepSummary(step_id="step_health", tool_name="system_health"),
+        PlanStepSummary(step_id="step_health_retry", tool_name="system_health", dependencies=["step_health"]),
+    ]
+    completed = _health_outcome()
+    failed = StepOutcomeEvidence(
+        step_id="step_health_retry", status=StepStatus.FAILED,
+        retry_count=2, retry_limit=2, failure_category="tool_failure",
+    )
+    result = IntelligenceEvaluator().evaluate(_request(
+        target="execution", steps=steps, outcomes=[completed, failed]
+    ))
+    assert result.evaluation_status is EvaluationStatus.PARTIAL_SUCCESS
+    assert result.execution_valid is False
+    assert IssueCode.TOOL_FAILED in result.issues
+    assert result.retry_recommendation is RetryRecommendation.NONE
+
+    skipped = StepOutcomeEvidence(
+        step_id="step_health_retry", status=StepStatus.SKIPPED,
+        failure_category="dependency_blocked",
+    )
+    blocked = IntelligenceEvaluator().evaluate(_request(
+        target="execution", steps=steps, outcomes=[completed, skipped]
+    ))
+    assert blocked.evaluation_status is EvaluationStatus.PARTIAL_SUCCESS
+
+
+def test_execution_failure_retry_success_and_exhaustion_are_distinguished():
+    steps = [
+        PlanStepSummary(step_id="step_health", tool_name="system_health"),
+        PlanStepSummary(step_id="step_health_retry", tool_name="system_health", dependencies=["step_health"]),
+    ]
+    evaluator = IntelligenceEvaluator()
+    all_failed = evaluator.evaluate(_request(
+        target="execution", steps=steps, outcomes=[
+            StepOutcomeEvidence(step_id=step.step_id, status=StepStatus.FAILED)
+            for step in steps
+        ]
+    ))
+    assert all_failed.evaluation_status is EvaluationStatus.EXECUTION_FAILED
+
+    retry_succeeded = evaluator.evaluate(_request(
+        target="execution", outcomes=[_health_outcome(retry_count=1, retry_limit=2)]
+    ))
+    assert retry_succeeded.evaluation_status is EvaluationStatus.SUCCEEDED
+
+    exhausted = evaluator.evaluate(_request(
+        target="execution", outcomes=[_health_outcome(
+            status=StepStatus.FAILED, result_kind=None, result_count=None,
+            retry_count=2, retry_limit=2,
+        )]
+    ))
+    assert exhausted.evaluation_status is EvaluationStatus.EXECUTION_FAILED
+    assert exhausted.retry_recommendation is RetryRecommendation.NONE
+
+
+def test_successful_tools_with_unassessable_objective_coverage_are_inconclusive():
+    intent = _intent().model_copy(update={"required_tool_groups": [["generate_report"]]})
+    result = IntelligenceEvaluator().evaluate(EvaluationInput(
+        intent=intent,
+        steps=[PlanStepSummary(step_id="step_health", tool_name="system_health")],
+        validation=PlanValidationEvidence(outcome=ValidationOutcome.ACCEPTED),
+        evaluation_target="execution",
+        outcomes=[_health_outcome()],
+    ))
+    assert result.evaluation_status is EvaluationStatus.INCONCLUSIVE
+    assert IssueCode.OBJECTIVE_UNCOVERED in result.issues
+
+
+def test_cancelled_or_interrupted_work_never_counts_as_success():
+    cancelled = StepOutcomeEvidence(
+        step_id="step_health", status=StepStatus.SKIPPED,
+        failure_category="cancelled",
+    )
+    interrupted = IntelligenceEvaluator().evaluate(_request(
+        target="execution", outcomes=[cancelled]
+    ))
+    assert interrupted.evaluation_status is EvaluationStatus.INCONCLUSIVE
+    assert interrupted.execution_valid is False
+
+
+def test_report_success_requires_safe_artifact_availability_evidence():
+    step = PlanStepSummary(step_id="step_report", tool_name="generate_report")
+    missing = IntelligenceEvaluator().evaluate(_request(
+        category=IntentCategory.REPORT_GENERATION,
+        steps=[step],
+        target="execution",
+        outcomes=[StepOutcomeEvidence(
+            step_id="step_report", status=StepStatus.COMPLETED,
+            result_kind=EvidenceResultKind.REPORT, result_count=1,
+        )],
+    ))
+    available = IntelligenceEvaluator().evaluate(_request(
+        category=IntentCategory.REPORT_GENERATION,
+        steps=[step],
+        target="execution",
+        outcomes=[StepOutcomeEvidence(
+            step_id="step_report", status=StepStatus.COMPLETED,
+            result_kind=EvidenceResultKind.REPORT, result_count=1, artifact_count=2,
+        )],
+    ))
+    assert missing.evaluation_status is EvaluationStatus.INCONCLUSIVE
+    assert available.evaluation_status is EvaluationStatus.SUCCEEDED
+
+
 def test_missing_evidence_and_unsupported_multi_step_assessment_are_inconclusive():
     evaluator = IntelligenceEvaluator()
     absent = evaluator.evaluate(_request(target="execution"))

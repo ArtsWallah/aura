@@ -8,7 +8,7 @@ import uuid
 from enum import Enum
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.agent.intelligence_contracts import (
     EvaluationStatus,
@@ -48,6 +48,23 @@ def _plan_digest(plan: ExecutionPlan) -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
+def _intent_digest(
+    confidence: float,
+    is_multi_step: bool,
+    required_tool_groups: list[list[str]],
+) -> str:
+    payload = json.dumps(
+        {
+            "confidence": confidence,
+            "is_multi_step": is_multi_step,
+            "required_tool_groups": required_tool_groups,
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
 _HANDOFF_FACTORY_TOKEN = object()
 
 
@@ -62,10 +79,14 @@ class ExecutionHandoff(BaseModel):
     privacy_mode: Literal["local_only", "hybrid", "cloud_enabled"]
     provider_identity: ProviderIdentity
     intent_category: IntentCategory
+    intent_confidence: float = Field(ge=0.0, le=1.0)
+    intent_is_multi_step: bool = False
+    required_tool_groups: list[list[str]] = Field(default_factory=list, max_length=16)
     evaluation_status: EvaluationStatus
     objective_coverage: float
     validation_registry_id: str
     plan_digest: str
+    intent_digest: str
 
     def __init__(self, **data):  # type: ignore[no-untyped-def]
         if data.get("_factory_token") is not _HANDOFF_FACTORY_TOKEN:
@@ -146,10 +167,18 @@ class ExecutionHandoff(BaseModel):
                 privacy_mode=privacy_mode,
                 provider_identity=source.provider_identity,
                 intent_category=source.intent.category,
+                intent_confidence=source.intent.confidence,
+                intent_is_multi_step=source.intent.is_multi_step,
+                required_tool_groups=[list(group) for group in source.intent.required_tool_groups],
                 evaluation_status=evaluation.evaluation_status,
                 objective_coverage=evaluation.objective_coverage,
                 validation_registry_id=registry.registry_id,
                 plan_digest=_plan_digest(plan),
+                intent_digest=_intent_digest(
+                    source.intent.confidence,
+                    source.intent.is_multi_step,
+                    [list(group) for group in source.intent.required_tool_groups],
+                ),
             )
         except ExecutionHandoffError:
             raise
@@ -164,6 +193,11 @@ class ExecutionHandoff(BaseModel):
                 or self.objective_coverage != 1.0
                 or self.intent_category == IntentCategory.UNKNOWN
                 or not isinstance(self.provider_identity, ProviderIdentity)
+                or _intent_digest(
+                    self.intent_confidence,
+                    self.intent_is_multi_step,
+                    self.required_tool_groups,
+                ) != self.intent_digest
             ):
                 raise ExecutionHandoffError(HandoffFailureCode.INVALID_HANDOFF)
             if privacy_mode != self.privacy_mode:

@@ -46,6 +46,15 @@ class EvidenceResultKind(str, Enum):
     SYSTEM_STATUS = "system_status"
 
 
+class StepFailureCategory(str, Enum):
+    NONE = "none"
+    TOOL_FAILURE = "tool_failure"
+    DEPENDENCY_BLOCKED = "dependency_blocked"
+    CANCELLED = "cancelled"
+    INTERRUPTED = "interrupted"
+    UNKNOWN = "unknown"
+
+
 _STEP_ID = r"^step_[A-Za-z0-9][A-Za-z0-9_-]{0,63}$"
 _TOOL_ID = r"^[a-z][a-z0-9_]{0,63}$"
 
@@ -75,6 +84,9 @@ class StepOutcomeEvidence(StrictContract):
     result_kind: EvidenceResultKind | None = None
     result_count: int | None = Field(default=None, ge=0, le=1_000_000_000)
     artifact_count: int | None = Field(default=None, ge=0, le=10_000)
+    retry_count: int = Field(default=0, ge=0, le=10_000)
+    retry_limit: int = Field(default=2, ge=0, le=10_000)
+    failure_category: StepFailureCategory = StepFailureCategory.NONE
 
 
 class EvaluationInput(StrictContract):
@@ -122,6 +134,11 @@ _RESULT_KIND: dict[str, EvidenceResultKind] = {
 }
 
 
+def evidence_result_kind(tool_name: str) -> EvidenceResultKind | None:
+    """Return the evaluator's fixed evidence type for a registered tool ID."""
+    return _RESULT_KIND.get(tool_name)
+
+
 class IntelligenceEvaluator:
     """Evaluate only validated summaries and bounded, typed evidence."""
 
@@ -160,6 +177,9 @@ class IntelligenceEvaluator:
         if (expected_category is None and not data.intent.required_tool_groups) or data.intent.category == IntentCategory.UNKNOWN:
             return self._result(False, 0.0, EvaluationStatus.INCONCLUSIVE, [IssueCode.UNKNOWN])
 
+        if data.evaluation_target == "execution":
+            return self._evaluate_execution(data, definitions)
+
         selected_tools = {step.tool_name for step in data.steps}
         if data.intent.required_tool_groups:
             matched_groups = sum(bool(selected_tools.intersection(group)) for group in data.intent.required_tool_groups)
@@ -179,8 +199,6 @@ class IntelligenceEvaluator:
                 alternative,
             )
 
-        if data.evaluation_target == "execution" and not data.outcomes:
-            return self._result(False, 1.0, EvaluationStatus.INCONCLUSIVE, [IssueCode.MISSING_EVIDENCE])
         if not data.outcomes:
             return self._result(True, 1.0, EvaluationStatus.PLAN_VALID, [])
 
@@ -196,6 +214,65 @@ class IntelligenceEvaluator:
                 retry,
             )
         return self._result(True, 1.0, EvaluationStatus.SUCCEEDED, [])
+
+    def _evaluate_execution(
+        self,
+        data: EvaluationInput,
+        definitions: dict[str, ToolDefinition],
+    ) -> EvaluationResult:
+        if not data.outcomes:
+            return self._result(False, 0.0, EvaluationStatus.INCONCLUSIVE, [IssueCode.MISSING_EVIDENCE])
+
+        useful_tools = self._useful_tool_names(data)
+        if data.intent.required_tool_groups:
+            matched = sum(bool(useful_tools.intersection(group)) for group in data.intent.required_tool_groups)
+            coverage = matched / len(data.intent.required_tool_groups)
+        else:
+            category = _INTENT_CATEGORY[data.intent.category]
+            covered = any(
+                step.tool_name in useful_tools and definitions[step.tool_name].category == category
+                for step in data.steps
+            )
+            coverage = 1.0 if covered else 0.0
+
+        issue, retry = self._evaluate_outcomes(data, definitions)
+        has_incomplete_steps = any(item.status != StepStatus.COMPLETED for item in data.outcomes)
+        if has_incomplete_steps and useful_tools:
+            if coverage <= 0.0:
+                return self._result(False, coverage, EvaluationStatus.INCONCLUSIVE, [IssueCode.OBJECTIVE_UNCOVERED])
+            return self._result(
+                False, coverage, EvaluationStatus.PARTIAL_SUCCESS,
+                [issue or IssueCode.MISSING_EVIDENCE], retry,
+            )
+        if issue == IssueCode.MISSING_EVIDENCE:
+            return self._result(False, coverage, EvaluationStatus.INCONCLUSIVE, [issue])
+        if issue is not None:
+            return self._result(False, coverage, EvaluationStatus.EXECUTION_FAILED, [issue], retry)
+        if coverage < 1.0:
+            return self._result(False, coverage, EvaluationStatus.INCONCLUSIVE, [IssueCode.OBJECTIVE_UNCOVERED])
+        return self._result(True, 1.0, EvaluationStatus.SUCCEEDED, [])
+
+    @staticmethod
+    def _useful_tool_names(data: EvaluationInput) -> set[str]:
+        planned = {step.step_id: step for step in data.steps}
+        outcomes = {outcome.step_id: outcome for outcome in data.outcomes}
+        useful: set[str] = set()
+        for step_id, step in planned.items():
+            evidence = outcomes.get(step_id)
+            expected = _RESULT_KIND.get(step.tool_name)
+            if (
+                evidence is not None
+                and evidence.status == StepStatus.COMPLETED
+                and evidence.result_kind == expected
+                and evidence.result_count is not None
+                and evidence.result_count > 0
+                and (
+                    step.tool_name not in {"generate_chart", "generate_report"}
+                    or evidence.artifact_count is not None and evidence.artifact_count > 0
+                )
+            ):
+                useful.add(step.tool_name)
+        return useful
 
     @staticmethod
     def _result(
@@ -269,31 +346,60 @@ class IntelligenceEvaluator:
         if len(outcomes) != len(data.outcomes) or set(outcomes) != set(planned):
             return IssueCode.MISSING_EVIDENCE, RetryRecommendation.NONE
 
-        failed_steps = [
-            step for step_id, step in planned.items()
-            if outcomes[step_id].status == StepStatus.FAILED
-        ]
-        if failed_steps:
-            # RETRY is only useful as a bounded suggestion when one failed
-            # retry-safe tool can be identified without exposing step data.
-            can_retry = len(failed_steps) == 1 and definitions[failed_steps[0].tool_name].retry_safe
-            return IssueCode.TOOL_FAILED, RetryRecommendation.RETRY if can_retry else RetryRecommendation.NONE
-
+        useful_steps = 0
+        incomplete_statuses: set[StepStatus] = set()
+        invalid_output = False
+        missing_evidence = False
         for step_id, step in planned.items():
             evidence = outcomes[step_id]
             if evidence.status != StepStatus.COMPLETED:
-                return IssueCode.MISSING_EVIDENCE, RetryRecommendation.NONE
+                incomplete_statuses.add(evidence.status)
+                continue
             expected = _RESULT_KIND.get(step.tool_name)
             if expected is None or evidence.result_kind is None or evidence.result_count is None:
-                return IssueCode.MISSING_EVIDENCE, RetryRecommendation.NONE
+                missing_evidence = True
+                continue
             if evidence.result_kind != expected:
-                return IssueCode.OUTPUT_INVALID, RetryRecommendation.NONE
+                invalid_output = True
+                continue
             if evidence.result_count == 0:
-                return IssueCode.OUTPUT_EMPTY, RetryRecommendation.NONE
-            if step.tool_name == "generate_chart" and evidence.artifact_count is None:
+                continue
+            if step.tool_name in {"generate_chart", "generate_report"} and evidence.artifact_count is None:
+                missing_evidence = True
+                continue
+            if step.tool_name in {"generate_chart", "generate_report"} and evidence.artifact_count == 0:
+                continue
+            useful_steps += 1
+
+        if incomplete_statuses:
+            failed = any(item.status == StepStatus.FAILED for item in data.outcomes)
+            stopped = any(
+                item.failure_category in {StepFailureCategory.CANCELLED, StepFailureCategory.INTERRUPTED}
+                for item in data.outcomes
+            )
+            if useful_steps:
+                return IssueCode.TOOL_FAILED if failed else IssueCode.MISSING_EVIDENCE, RetryRecommendation.NONE
+            if stopped:
                 return IssueCode.MISSING_EVIDENCE, RetryRecommendation.NONE
-            if step.tool_name == "generate_chart" and evidence.artifact_count == 0:
-                return IssueCode.OUTPUT_EMPTY, RetryRecommendation.NONE
+            failed_steps = [
+                step for step_id, step in planned.items()
+                if outcomes[step_id].status == StepStatus.FAILED
+            ]
+            can_retry = (
+                len(failed_steps) == 1
+                and definitions[failed_steps[0].tool_name].retry_safe
+                and outcomes[failed_steps[0].step_id].retry_count < outcomes[failed_steps[0].step_id].retry_limit
+            )
+            return IssueCode.TOOL_FAILED, RetryRecommendation.RETRY if can_retry else RetryRecommendation.NONE
+
+        if useful_steps != len(planned):
+            if useful_steps:
+                return IssueCode.MISSING_EVIDENCE, RetryRecommendation.NONE
+            if invalid_output:
+                return IssueCode.OUTPUT_INVALID, RetryRecommendation.NONE
+            if missing_evidence:
+                return IssueCode.MISSING_EVIDENCE, RetryRecommendation.NONE
+            return IssueCode.OUTPUT_EMPTY, RetryRecommendation.NONE
 
         return None, RetryRecommendation.NONE
 

@@ -8,16 +8,34 @@ from app.agent.executor import executor
 from app.agent.evaluator import evaluator
 from app.agent.checkpoint import checkpointer
 from app.agent.execution_handoff import ExecutionHandoff, ExecutionHandoffError, HandoffFailureCode
+from app.agent.intelligence_contracts import (
+    EvaluationResult,
+    EvaluationStatus,
+    IntentAssessment,
+    IssueCode,
+    ValidationOutcome,
+)
+from app.agent.intelligence_evaluator import (
+    EvaluationInput,
+    IntelligenceEvaluator,
+    PlanStepSummary,
+    PlanValidationEvidence,
+    StepFailureCategory,
+    StepOutcomeEvidence,
+    evidence_result_kind,
+    intelligence_evaluator,
+)
 from app.llm.router import llm_router
 from app.core.logging import logger
 from app.privacy.outbound import privacy_scope
 from app.tools.registry import tool_registry
 
 class AgentOrchestrator:
-    def __init__(self):
+    def __init__(self, execution_evaluator: IntelligenceEvaluator | None = None):
         self._active_tasks: dict[str, TaskState] = {}
         self._event_queues: dict[str, list[asyncio.Queue[tuple[int, TaskEvent]]]] = {}
         self._cancel_signals: dict[str, asyncio.Event] = {}
+        self.execution_evaluator = execution_evaluator or intelligence_evaluator
 
     def request_cancel(self, task_id: str) -> str | None:
         """Request cancellation; active sync tools finish before cancellation is final."""
@@ -149,13 +167,100 @@ class AgentOrchestrator:
             except Exception:
                 raise ExecutionHandoffError(HandoffFailureCode.REGISTRY_UNAVAILABLE) from None
         with privacy_scope(mode):
-            return await self._run_task(
+            state = await self._run_task(
                 objective="",
                 file_path=None,
                 privacy_mode=mode,
                 task_id=task_id,
                 initial_state=initial_state,
                 supplied_plan=plan,
+            )
+        state.set_execution_evaluation(self._evaluate_handoff_outcome(handoff, state))
+        return state
+
+    def _evaluate_handoff_outcome(
+        self,
+        handoff: ExecutionHandoff,
+        state: TaskState,
+    ) -> EvaluationResult:
+        """Build bounded evidence from final steps; raw results never enter the evaluator."""
+        try:
+            plan = state.plan
+            if plan is None or not plan.steps or state.recovery_required:
+                raise ValueError("Execution evidence is unavailable.")
+            if state.status == TaskStatus.CANCELLED and all(
+                step.status == StepStatus.COMPLETED for step in plan.steps
+            ):
+                raise ValueError("Cancellation makes objective completion inconclusive.")
+            summaries = [
+                PlanStepSummary(
+                    step_id=step.step_id,
+                    tool_name=step.tool_name,
+                    dependencies=list(step.dependencies),
+                )
+                for step in plan.steps
+            ]
+            outcomes = []
+            for step in plan.steps:
+                result_kind = evidence_result_kind(step.tool_name)
+                result_count = None
+                artifact_count = None
+                if step.status == StepStatus.COMPLETED and result_kind is not None:
+                    # One is an availability marker, not a row count or payload.
+                    result_count = 1 if bool(step.output) else 0
+                    result_record = state.step_results.get(step.step_id)
+                    artifacts = result_record.get("artifacts") if isinstance(result_record, dict) else None
+                    if step.tool_name in {"generate_chart", "generate_report"}:
+                        artifact_count = min(len(artifacts), 10_000) if isinstance(artifacts, list) else 0
+                if step.status == StepStatus.FAILED:
+                    failure_category = StepFailureCategory.TOOL_FAILURE
+                elif step.status == StepStatus.SKIPPED:
+                    if state.status == TaskStatus.CANCELLED:
+                        failure_category = StepFailureCategory.CANCELLED
+                    elif any(
+                        next((dependency.status for dependency in plan.steps if dependency.step_id == dep), None)
+                        != StepStatus.COMPLETED
+                        for dep in step.dependencies
+                    ):
+                        failure_category = StepFailureCategory.DEPENDENCY_BLOCKED
+                    else:
+                        failure_category = StepFailureCategory.UNKNOWN
+                elif step.status == StepStatus.INTERRUPTED or step.status in {StepStatus.PENDING, StepStatus.IN_PROGRESS}:
+                    failure_category = StepFailureCategory.INTERRUPTED
+                else:
+                    failure_category = StepFailureCategory.NONE
+                outcomes.append(StepOutcomeEvidence(
+                    step_id=step.step_id,
+                    status=step.status,
+                    result_kind=result_kind,
+                    result_count=result_count,
+                    artifact_count=artifact_count,
+                    retry_count=min(step.retry_count, 10_000),
+                    retry_limit=min(step.max_retries, 10_000),
+                    failure_category=failure_category,
+                ))
+
+            intent = IntentAssessment(
+                category=handoff.intent_category,
+                confidence=handoff.intent_confidence,
+                required_tool_groups=handoff.required_tool_groups,
+                is_multi_step=handoff.intent_is_multi_step,
+            )
+            evidence = EvaluationInput(
+                intent=intent,
+                steps=summaries,
+                validation=PlanValidationEvidence(outcome=ValidationOutcome.ACCEPTED),
+                evaluation_target="execution",
+                outcomes=outcomes,
+                privacy_mode=handoff.privacy_mode,
+            )
+            return self.execution_evaluator.evaluate(evidence)
+        except Exception:
+            return EvaluationResult(
+                execution_valid=False,
+                objective_coverage=0.0,
+                evaluation_status=EvaluationStatus.INCONCLUSIVE,
+                issues=[IssueCode.MISSING_EVIDENCE],
             )
 
     async def _run_task(

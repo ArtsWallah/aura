@@ -124,6 +124,7 @@ class EvaluationStatus(str, Enum):
     INCOMPLETE_COVERAGE = "incomplete_coverage"
     INVALID_PLAN = "invalid_plan"
     EXECUTION_FAILED = "execution_failed"
+    PARTIAL_SUCCESS = "partial_success"
     SUCCEEDED = "succeeded"
     INCONCLUSIVE = "inconclusive"
 
@@ -158,9 +159,14 @@ class EvaluationResult(StrictContract):
             if self.evaluation_status in {
                 EvaluationStatus.INVALID_PLAN,
                 EvaluationStatus.EXECUTION_FAILED,
+                EvaluationStatus.PARTIAL_SUCCESS,
                 EvaluationStatus.INCONCLUSIVE,
             } and self.execution_valid:
                 raise ValueError("Invalid, failed, or inconclusive evaluations cannot be marked valid.")
+            if self.evaluation_status == EvaluationStatus.PARTIAL_SUCCESS and not self.issues:
+                raise ValueError("Partial execution success must identify an unresolved issue.")
+            if self.evaluation_status == EvaluationStatus.PARTIAL_SUCCESS and self.objective_coverage <= 0.0:
+                raise ValueError("Partial execution success requires evidence of useful objective coverage.")
             if self.evaluation_status == EvaluationStatus.SUCCEEDED and (
                 not self.execution_valid or self.objective_coverage != 1.0 or self.issues
             ):

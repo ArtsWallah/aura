@@ -1,7 +1,7 @@
 import time
 from enum import Enum
 from typing import Any, Literal
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, PrivateAttr, model_validator
 
 class TaskStatus(str, Enum):
     QUEUED = "queued"
@@ -71,6 +71,8 @@ class TaskMetrics(BaseModel):
     success_rate: float = 1.0
 
 class TaskState(BaseModel):
+    _execution_evaluation: Any = PrivateAttr(default=None)
+
     task_id: str
     objective: str
     file_path: str | None = None
@@ -86,6 +88,14 @@ class TaskState(BaseModel):
     recovery_reason: str | None = None
     created_at: float = Field(default_factory=time.time)
     updated_at: float = Field(default_factory=time.time)
+
+    @property
+    def execution_evaluation(self) -> Any:
+        """Process-local safe evaluation; excluded from checkpoints and API DTOs."""
+        return self._execution_evaluation
+
+    def set_execution_evaluation(self, result: Any) -> None:
+        self._execution_evaluation = result
 
     @model_validator(mode="before")
     @classmethod

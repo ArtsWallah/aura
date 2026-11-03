@@ -50,7 +50,9 @@ async def test_ready_result_creates_allowlisted_handoff_and_owns_plan_copy():
     assert handoff.plan.goal == IntentCategory.SYSTEM_HEALTH.value
     assert set(handoff.model_dump()) == {
         "handoff_id", "plan", "privacy_mode", "provider_identity", "intent_category",
-        "evaluation_status", "objective_coverage", "validation_registry_id", "plan_digest",
+        "intent_confidence", "intent_is_multi_step", "required_tool_groups",
+        "evaluation_status", "objective_coverage",
+        "validation_registry_id", "plan_digest", "intent_digest",
     }
     assert "mutated source objective" not in str(handoff.model_dump())
     assert "amber-917" not in str(handoff.model_dump())
@@ -115,6 +117,15 @@ async def test_handoff_rejects_registry_and_privacy_mismatch():
 
     with pytest.raises(ExecutionHandoffError) as failure:
         ExecutionHandoff.model_validate({"plan": result.planning_response.plan.model_dump()})
+    assert failure.value.code is HandoffFailureCode.INVALID_HANDOFF
+
+
+@pytest.mark.asyncio
+async def test_handoff_integrity_covers_safe_intent_coverage_metadata():
+    handoff = _handoff(await _ready_result())
+    handoff.required_tool_groups.append(["generate_report"])
+    with pytest.raises(ExecutionHandoffError) as failure:
+        handoff.validate_integrity(privacy_mode="local_only", registry=tool_registry)
     assert failure.value.code is HandoffFailureCode.INVALID_HANDOFF
 
 
@@ -209,6 +220,7 @@ async def test_handoff_path_executes_supplied_plan_without_legacy_planner(monkey
     state = await AgentOrchestrator().run_handoff(handoff, task_id="handoff-test-task")
 
     assert state.status is TaskStatus.COMPLETED
+    assert state.execution_evaluation.evaluation_status is EvaluationStatus.SUCCEEDED
     assert expected_plan.steps == observed
     assert state.plan.plan_id == expected_plan.plan_id
     assert state.objective == ""
