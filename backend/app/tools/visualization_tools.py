@@ -122,8 +122,14 @@ def generate_chart(params: GenerateChartInput) -> dict[str, Any]:
         if params.y_column:
             categories = df[params.x_column].dropna().unique()[:params.top_n]
             data_to_plot = [df[df[params.x_column] == cat][params.y_column].dropna() for cat in categories]
-            ax.boxplot(data_to_plot, labels=[str(c) for c in categories], patch_artist=True,
-                       boxprops=dict(facecolor=primary_color, color="#1e40af", alpha=0.6))
+            box_labels = [str(c) for c in categories]
+            try:
+                ax.boxplot(data_to_plot, tick_labels=box_labels, patch_artist=True,
+                           boxprops=dict(facecolor=primary_color, color="#1e40af", alpha=0.6))
+            except TypeError:
+                # pyrefly: ignore[unexpected-keyword]
+                ax.boxplot(data_to_plot, labels=box_labels, patch_artist=True,
+                           boxprops=dict(facecolor=primary_color, color="#1e40af", alpha=0.6))
             ax.set_xlabel(params.x_column)
             ax.set_ylabel(params.y_column)
             plt.xticks(rotation=45, ha="right")

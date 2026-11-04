@@ -97,6 +97,20 @@ async def test_visualization_generation(sample_sales_csv):
     assert Path(chart_res.data["file_path"]).exists()
     assert chart_res.data["data_uri"].startswith("data:image/png;base64,")
 
+    # Test boxplot with category and y_column (exercises tick_labels)
+    box_res = await tool_registry.execute_tool(
+        "generate_chart",
+        {
+            "file_path": sample_sales_csv,
+            "chart_type": "box",
+            "title": "Revenue Distribution by Category",
+            "x_column": "category",
+            "y_column": "revenue"
+        }
+    )
+    assert box_res.success is True
+    assert Path(box_res.data["file_path"]).exists()
+
 @pytest.mark.asyncio
 async def test_report_generation(sample_sales_csv):
     report_res = await tool_registry.execute_tool(
