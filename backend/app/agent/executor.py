@@ -1,10 +1,12 @@
 import asyncio
+import copy
 import re
 import time
 from pathlib import Path
 from typing import Any
 from app.agent.state import ExecutionStep, StepStatus, TaskState, TaskEvent, TaskStatus
 from app.agent.execution_handoff import authorized_step_scope, authorized_tool_invocation
+from app.agent.step_references import ReferenceResolutionError, resolve_step_references
 from app.agent.evaluator import evaluator
 from app.tools.registry import tool_registry
 from app.tools.schemas import ToolResult
@@ -57,7 +59,22 @@ class PlanExecutor:
             ))
 
         # Dynamic parameter resolution from prior step results
-        resolved_params = self._resolve_step_parameters(step, task_state)
+        try:
+            resolved_params = self._resolve_step_parameters(step, task_state)
+        except Exception as exc:
+            step.status = StepStatus.FAILED
+            step.error = f"Step parameter resolution failed: {exc}"
+            step.duration_ms = (time.perf_counter() - start_time) * 1000.0
+            task_state.error_summary = step.error
+            if event_queue:
+                await event_queue.put(TaskEvent(
+                    event_type="step_failed",
+                    task_id=task_state.task_id,
+                    step_id=step.step_id,
+                    message=f"Failed: {step.title}. {step.error}",
+                    data={"error": step.error}
+                ))
+            return ToolResult(tool_name=step.tool_name, success=False, error=step.error)
         
         retry = True
         result: ToolResult | None = None
@@ -94,7 +111,8 @@ class PlanExecutor:
                 task_state.step_results[step.step_id] = {
                     "tool": step.tool_name,
                     "data": result.data,
-                    "artifacts": result.artifacts
+                    "artifacts": result.artifacts,
+                    "task_id": task_state.task_id,
                 }
                 
                 if event_queue:
@@ -157,12 +175,20 @@ class PlanExecutor:
     def _resolve_step_parameters(self, step: ExecutionStep, task_state: TaskState) -> dict[str, Any]:
         """
         Dynamically propagate dependency outputs into downstream step inputs.
-        E.g. If generate_report has empty chart_paths, inject artifacts produced by previous generate_chart steps.
+        Resolves declared $ref expressions and unescapes $$ref keys.
+        Re-validates the resolved argument dictionary against the destination tool's schema.
         """
-        params = dict(step.parameters)
+        from pydantic import ValidationError
+
+        resolved = resolve_step_references(
+            step.parameters,
+            task_state.step_results,
+            dependencies=step.dependencies,
+            active_task_id=task_state.task_id,
+        )
+        params = dict(resolved)
         
-        # Inject only charts already produced in this task. Their order matches
-        # the task-scoped chart index used by the artifact routes.
+        # Inject only charts already produced in this task if not specified.
         if step.tool_name == "generate_report":
             chart_root = settings.CHARTS_DIR.resolve()
             chart_artifacts = []
@@ -174,7 +200,8 @@ class PlanExecutor:
                     and candidate.is_file()
                 ):
                     chart_artifacts.append(str(candidate))
-            params["chart_paths"] = chart_artifacts
+            if "chart_paths" not in params or not params["chart_paths"]:
+                params["chart_paths"] = chart_artifacts
             params["task_id"] = task_state.task_id
 
             # If findings are generic, enhance with quantitative figures from analytics steps
@@ -190,6 +217,15 @@ class PlanExecutor:
                     params.setdefault("findings", []).append(
                         f"Total aggregate {data.get('metric_column', 'metric')} evaluated: {data['total_metric_value']:,.2f}."
                     )
+
+        # Re-validate destination tool arguments against its registered input model
+        try:
+            tool_registry.validate_arguments(step.tool_name, params)
+        except ValidationError as exc:
+            raise ReferenceResolutionError(
+                "DESTINATION_VALIDATION_FAILED",
+                f"Resolved arguments failed input validation for tool '{step.tool_name}'.",
+            ) from exc
                     
         return params
 
