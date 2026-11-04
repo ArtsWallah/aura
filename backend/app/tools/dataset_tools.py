@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 from typing import Any
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, JsonValue
 
 from app.tools.schemas import ToolCategory, ExecutionLocation, PermissionLevel, ToolResult, StrictContract
 from app.tools.registry import tool_registry
@@ -25,7 +25,7 @@ class InspectDatasetOutput(StrictContract):
     numeric_columns: list[str]
     categorical_columns: list[str]
     date_columns: list[str]
-    sample_data: list[dict[str, Any]]
+    sample_data: list[dict[str, JsonValue]]
     memory_usage_kb: float
 
 @tool_registry.register(

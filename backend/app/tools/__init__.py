@@ -1,5 +1,13 @@
 from app.tools.registry import tool_registry
-from app.tools.schemas import ToolDefinition, ToolResult, ToolCategory, ExecutionLocation, PermissionLevel, StrictContract
+from app.tools.schemas import (
+    ToolDefinition,
+    ToolResult,
+    ToolCategory,
+    ExecutionLocation,
+    PermissionLevel,
+    StrictContract,
+    StrictJsonValue,
+)
 
 # Ensure all tools are registered and import output contracts
 from app.tools.dataset_tools import InspectDatasetOutput
@@ -34,6 +42,7 @@ __all__ = [
     "ExecutionLocation",
     "PermissionLevel",
     "StrictContract",
+    "StrictJsonValue",
     "InspectDatasetOutput",
     "DescriptiveStatisticsOutput",
     "ColumnDescriptiveStatistics",

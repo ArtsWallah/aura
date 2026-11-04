@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 from scipy import stats
 from typing import Any, Literal
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, JsonValue
 
 from app.tools.schemas import ToolCategory, ExecutionLocation, PermissionLevel, StrictContract
 from app.tools.registry import tool_registry
@@ -98,8 +98,8 @@ class GroupComparisonOutput(StrictContract):
     metric_column: str
     total_metric_value: float
     group_count: int
-    results: list[dict[str, Any]]
-    underperforming_groups: list[str | int | float | bool | None] = Field(default_factory=list)
+    results: list[dict[str, JsonValue]]
+    underperforming_groups: list[JsonValue] = Field(default_factory=list)
 
 @tool_registry.register(
     name="group_comparison",
@@ -244,7 +244,7 @@ class DetectOutliersOutput(StrictContract):
     outlier_percentage: float
     lower_bound: float
     upper_bound: float
-    sample_outliers: list[dict[str, Any]] = Field(default_factory=list)
+    sample_outliers: list[dict[str, JsonValue]] = Field(default_factory=list)
 
 @tool_registry.register(
     name="detect_outliers",

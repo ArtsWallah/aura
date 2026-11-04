@@ -1,10 +1,13 @@
 from enum import Enum
 from typing import Any, Type
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, JsonValue
 
 
 class StrictContract(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+
+StrictJsonValue = JsonValue
 
 
 class ExecutionLocation(str, Enum):

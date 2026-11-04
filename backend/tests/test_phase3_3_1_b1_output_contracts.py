@@ -390,3 +390,164 @@ async def test_all_11_tool_output_contracts_match_actual_executions(tmp_path):
         if enc_path.exists():
             enc_path.unlink()
 
+
+# 10. Phase 3.3.1-B1.1 Strict Nested Output Contract Tests
+def test_nested_group_comparison_results_validate():
+    """Verify that GroupComparisonOutput.results cleanly validates dynamic group records."""
+    valid_data = {
+        "group_by": "region",
+        "metric_column": "revenue",
+        "total_metric_value": 54000.0,
+        "group_count": 2,
+        "results": [
+            {"region": "North", "sum": 30000.0, "mean": 15000.0, "count": 2, "percentage_of_total": 55.56},
+            {"region": "South", "sum": 24000.0, "mean": 12000.0, "count": 2, "percentage_of_total": 44.44},
+        ],
+        "underperforming_groups": [],
+    }
+    validated = GroupComparisonOutput.model_validate(valid_data)
+    assert len(validated.results) == 2
+    assert validated.results[0]["region"] == "North"
+    assert validated.results[1]["percentage_of_total"] == 44.44
+
+
+def test_nested_outlier_samples_validate():
+    """Verify that DetectOutliersOutput.sample_outliers validates dynamic row dictionaries."""
+    outlier_data = {
+        "column": "revenue",
+        "method": "iqr",
+        "total_rows": 100,
+        "outlier_count": 2,
+        "outlier_percentage": 2.0,
+        "lower_bound": 0.0,
+        "upper_bound": 50000.0,
+        "sample_outliers": [
+            {"id": 1, "revenue": 75000.0, "category": "Enterprise", "is_flagged": True, "notes": None},
+            {"id": 2, "revenue": 92000.0, "category": "Enterprise", "is_flagged": True, "notes": "audit"},
+        ],
+    }
+    validated = DetectOutliersOutput.model_validate(outlier_data)
+    assert len(validated.sample_outliers) == 2
+    assert validated.sample_outliers[0]["revenue"] == 75000.0
+    assert validated.sample_outliers[0]["notes"] is None
+
+
+def test_unknown_nested_fields_rejected_on_fixed_schemas():
+    """Fixed nested models must reject arbitrary unknown fields."""
+    # ColumnDescriptiveStatistics
+    with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+        ColumnDescriptiveStatistics.model_validate({
+            "count": 10,
+            "mean": 5.0,
+            "std": 1.0,
+            "min": 2.0,
+            "q25": 4.0,
+            "median": 5.0,
+            "q75": 6.0,
+            "max": 8.0,
+            "iqr": 2.0,
+            "skewness": 0.0,
+            "kurtosis": 0.0,
+            "extra_metric": 123.45,
+        })
+
+    # CorrelationPair
+    with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+        CorrelationPair.model_validate({
+            "column_1": "a",
+            "column_2": "b",
+            "correlation": 0.5,
+            "relationship": "moderate_positive",
+            "p_value": 0.01,
+        })
+
+    # DocumentChunk
+    with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+        DocumentChunk.model_validate({
+            "chunk_index": 0,
+            "start_char": 0,
+            "end_char": 100,
+            "text": "sample text",
+            "injected_metadata": "unauthorized",
+        })
+
+    # WebResearchSource
+    with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+        WebResearchSource.model_validate({
+            "title": "Title",
+            "url": "https://example.org",
+            "snippet": "Snippet",
+            "domain": "example.org",
+            "is_factual_source": True,
+            "raw_html": "<div>extra</div>",
+        })
+
+    # SystemStorageInfo
+    with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+        SystemStorageInfo.model_validate({
+            "total_gb": 100.0,
+            "used_gb": 50.0,
+            "free_gb": 50.0,
+            "filesystem_type": "ext4",
+        })
+
+
+def test_invalid_python_objects_rejected_in_dynamic_outputs():
+    """Dynamic output containers must reject non-JSON Python objects (callables, classes, sockets)."""
+    class CustomObject:
+        pass
+
+    # GroupComparisonOutput.results
+    with pytest.raises(ValidationError, match="invalid-json-value"):
+        GroupComparisonOutput.model_validate({
+            "group_by": "cat",
+            "metric_column": "rev",
+            "total_metric_value": 100.0,
+            "group_count": 1,
+            "results": [{"cat": CustomObject()}],
+            "underperforming_groups": [],
+        })
+
+    # GroupComparisonOutput.underperforming_groups
+    with pytest.raises(ValidationError, match="invalid-json-value"):
+        GroupComparisonOutput.model_validate({
+            "group_by": "cat",
+            "metric_column": "rev",
+            "total_metric_value": 100.0,
+            "group_count": 1,
+            "results": [],
+            "underperforming_groups": [lambda x: x],
+        })
+
+    # DetectOutliersOutput.sample_outliers
+    with pytest.raises(ValidationError, match="invalid-json-value"):
+        DetectOutliersOutput.model_validate({
+            "column": "rev",
+            "method": "iqr",
+            "total_rows": 10,
+            "outlier_count": 1,
+            "outlier_percentage": 10.0,
+            "lower_bound": 0.0,
+            "upper_bound": 100.0,
+            "sample_outliers": [{"rev": object()}],
+        })
+
+    # InspectDatasetOutput.sample_data
+    with pytest.raises(ValidationError, match="invalid-json-value"):
+        InspectDatasetOutput.model_validate({
+            "file_name": "data.csv",
+            "format": "CSV",
+            "total_rows": 1,
+            "total_columns": 1,
+            "columns": ["col"],
+            "column_types": {"col": "object"},
+            "missing_values": {"col": 0},
+            "missing_percentages": {"col": 0.0},
+            "duplicate_rows_count": 0,
+            "numeric_columns": [],
+            "categorical_columns": ["col"],
+            "date_columns": [],
+            "sample_data": [{"col": CustomObject()}],
+            "memory_usage_kb": 1.0,
+        })
+
