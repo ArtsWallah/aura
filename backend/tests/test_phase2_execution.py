@@ -32,6 +32,22 @@ class RetryProbeInput(BaseModel):
     pass
 
 
+class Phase2GateOutput(BaseModel):
+    completed: bool
+
+
+class Phase2ProbeOutput(BaseModel):
+    label: str | None = None
+
+
+class Phase2SyncSleepOutput(BaseModel):
+    slept: float
+
+
+class Phase2RetryOutput(BaseModel):
+    status: str | None = None
+
+
 _probe_state: dict = {}
 _sync_started = threading.Event()
 _retry_attempts = {"unsafe": 0, "safe": 0}
@@ -75,6 +91,7 @@ tool_registry.register(
     category=ToolCategory.SYSTEM,
     description="Test-only async tool for cancellation while another step waits for capacity.",
     input_model=RetryProbeInput,
+    output_model=Phase2GateOutput,
     execution_location=ExecutionLocation.LOCAL,
     permission_level=PermissionLevel.READ_ONLY,
 )(_phase2_gate_tool)
@@ -84,6 +101,7 @@ tool_registry.register(
     category=ToolCategory.SYSTEM,
     description="Test-only async tool for DAG execution tests.",
     input_model=ProbeInput,
+    output_model=Phase2ProbeOutput,
     execution_location=ExecutionLocation.LOCAL,
     permission_level=PermissionLevel.READ_ONLY,
 )(_dependency_probe)
@@ -93,6 +111,7 @@ tool_registry.register(
     category=ToolCategory.SYSTEM,
     description="Test-only synchronous tool for timeout and event-loop tests.",
     input_model=SyncSleepInput,
+    output_model=Phase2SyncSleepOutput,
     execution_location=ExecutionLocation.LOCAL,
     permission_level=PermissionLevel.READ_ONLY,
     timeout_seconds=1,
@@ -103,6 +122,7 @@ tool_registry.register(
     category=ToolCategory.SYSTEM,
     description="Test-only operation with ambiguous side effects.",
     input_model=RetryProbeInput,
+    output_model=Phase2RetryOutput,
     execution_location=ExecutionLocation.LOCAL,
     permission_level=PermissionLevel.READ_ONLY,
 )(_failed_retry_probe("unsafe"))
@@ -112,6 +132,7 @@ tool_registry.register(
     category=ToolCategory.SYSTEM,
     description="Test-only read operation explicitly safe to retry.",
     input_model=RetryProbeInput,
+    output_model=Phase2RetryOutput,
     execution_location=ExecutionLocation.LOCAL,
     permission_level=PermissionLevel.READ_ONLY,
     retry_safe=True,

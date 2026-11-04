@@ -4,7 +4,7 @@ from typing import Any
 from urllib.parse import quote
 from pydantic import BaseModel, Field
 
-from app.tools.schemas import ToolCategory, ExecutionLocation, PermissionLevel
+from app.tools.schemas import ToolCategory, ExecutionLocation, PermissionLevel, StrictContract
 from app.tools.registry import tool_registry
 from app.core.config import settings
 from app.privacy.encryption import encryption_service
@@ -22,11 +22,22 @@ class GenerateReportInput(BaseModel):
     )
     task_id: str | None = Field(default=None, exclude=True)
 
+class GenerateReportOutput(StrictContract):
+    report_id: str
+    title: str
+    markdown_content: str
+    markdown_path: str
+    html_path: str
+    relative_markdown_url: str | None = None
+    relative_html_url: str | None = None
+    artifacts: list[str]
+
 @tool_registry.register(
     name="generate_report",
     category=ToolCategory.REPORT,
     description="Synthesizes analytical results, embedded visualizations, and strategic recommendations into publication-grade Markdown and HTML reports.",
     input_model=GenerateReportInput,
+    output_model=GenerateReportOutput,
     execution_location=ExecutionLocation.LOCAL,
     permission_level=PermissionLevel.EXECUTE
 )

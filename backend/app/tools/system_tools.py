@@ -3,18 +3,32 @@ import shutil
 from typing import Any
 from pydantic import BaseModel, Field
 
-from app.tools.schemas import ToolCategory, ExecutionLocation, PermissionLevel
+from app.tools.schemas import ToolCategory, ExecutionLocation, PermissionLevel, StrictContract
 from app.tools.registry import tool_registry
 from app.core.config import settings
 
 class SystemHealthInput(BaseModel):
     check_storage: bool = Field(default=True, description="Whether to check available disk storage.")
 
+class SystemStorageInfo(StrictContract):
+    total_gb: float | None = None
+    used_gb: float | None = None
+    free_gb: float | None = None
+
+class SystemHealthOutput(StrictContract):
+    status: str
+    python_version: str
+    registered_tools_count: int
+    privacy_mode_default: str
+    storage: SystemStorageInfo
+    directories_initialized: bool
+
 @tool_registry.register(
     name="system_health",
     category=ToolCategory.SYSTEM,
     description="Reports system operational status, Python environment version, available tool counts, and storage metrics.",
     input_model=SystemHealthInput,
+    output_model=SystemHealthOutput,
     execution_location=ExecutionLocation.LOCAL,
     permission_level=PermissionLevel.READ_ONLY,
     retry_safe=True,

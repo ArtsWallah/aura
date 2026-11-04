@@ -32,6 +32,7 @@ class ToolRegistry:
         self._tools: dict[str, ToolDefinition] = {}
         self._executors: dict[str, Callable] = {}
         self._input_models: dict[str, Type[BaseModel]] = {}
+        self._output_models: dict[str, Type[BaseModel]] = {}
         self._loop_semaphores: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()
 
     def _execution_semaphore(self) -> asyncio.Semaphore:
@@ -56,10 +57,21 @@ class ToolRegistry:
         timeout_seconds: int = 60,
         version: str = "1.0.0"
     ):
-        """Decorator or method to register a typed tool."""
+        """Decorator or method to register a typed tool with mandatory input and output contracts."""
+        if input_model is None or not (isinstance(input_model, type) and issubclass(input_model, BaseModel)):
+            raise TypeError(
+                f"Tool '{name}' input_model must be an explicit subclass of pydantic.BaseModel, got {input_model!r}."
+            )
+        if output_model is None:
+            raise TypeError(f"Tool '{name}' must declare an explicit output_model.")
+        if not (isinstance(output_model, type) and issubclass(output_model, BaseModel)):
+            raise TypeError(
+                f"Tool '{name}' output_model must be an explicit subclass of pydantic.BaseModel, got {output_model!r}."
+            )
+
         def decorator(func: Callable):
             input_schema = input_model.model_json_schema()
-            output_schema = output_model.model_json_schema() if output_model else {"type": "object"}
+            output_schema = output_model.model_json_schema()
             
             tool_def = ToolDefinition(
                 name=name,
@@ -67,6 +79,7 @@ class ToolRegistry:
                 description=description,
                 input_schema=input_schema,
                 output_schema=output_schema,
+                output_model=output_model,
                 execution_location=execution_location,
                 permission_level=permission_level,
                 requires_approval=requires_approval,
@@ -78,10 +91,17 @@ class ToolRegistry:
             self._tools[name] = tool_def
             self._executors[name] = func
             self._input_models[name] = input_model
+            self._output_models[name] = output_model
             logger.info(f"Registered tool '{name}' [{category.value}] - {description[:50]}...")
             return func
             
         return decorator
+
+    def get_output_model(self, name: str) -> Type[BaseModel] | None:
+        return self._output_models.get(name)
+
+    def get_input_model(self, name: str) -> Type[BaseModel] | None:
+        return self._input_models.get(name)
 
     def get_tool_definition(self, name: str) -> ToolDefinition | None:
         return self._tools.get(name)

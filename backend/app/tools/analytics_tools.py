@@ -4,7 +4,7 @@ from scipy import stats
 from typing import Any, Literal
 from pydantic import BaseModel, Field
 
-from app.tools.schemas import ToolCategory, ExecutionLocation, PermissionLevel
+from app.tools.schemas import ToolCategory, ExecutionLocation, PermissionLevel, StrictContract
 from app.tools.registry import tool_registry
 from app.core.security import validate_safe_path, read_managed_dataset
 
@@ -13,11 +13,29 @@ class DescriptiveStatsInput(BaseModel):
     file_path: str = Field(description="Path to CSV or Excel file.")
     columns: list[str] | None = Field(default=None, description="Optional specific columns to compute stats for. Defaults to all numeric.")
 
+class ColumnDescriptiveStatistics(StrictContract):
+    count: int
+    mean: float
+    std: float
+    min: float
+    q25: float
+    median: float
+    q75: float
+    max: float
+    iqr: float
+    skewness: float
+    kurtosis: float
+
+class DescriptiveStatisticsOutput(StrictContract):
+    statistics: dict[str, ColumnDescriptiveStatistics]
+    analyzed_columns: list[str]
+
 @tool_registry.register(
     name="descriptive_statistics",
     category=ToolCategory.ANALYTICS,
     description="Calculates comprehensive descriptive statistics: mean, median, std, IQR, skewness, kurtosis, min, max, and quartiles for numeric fields.",
     input_model=DescriptiveStatsInput,
+    output_model=DescriptiveStatisticsOutput,
     execution_location=ExecutionLocation.LOCAL,
     permission_level=PermissionLevel.READ_ONLY,
     retry_safe=True,
@@ -75,11 +93,20 @@ class GroupComparisonInput(BaseModel):
     ascending: bool = Field(default=False, description="Sort order.")
     limit: int = Field(default=20, description="Maximum number of groups to return.")
 
+class GroupComparisonOutput(StrictContract):
+    group_by: str
+    metric_column: str
+    total_metric_value: float
+    group_count: int
+    results: list[dict[str, Any]]
+    underperforming_groups: list[str | int | float | bool | None] = Field(default_factory=list)
+
 @tool_registry.register(
     name="group_comparison",
     category=ToolCategory.ANALYTICS,
     description="Groups data by a categorical feature and computes aggregated metrics (sum, mean, count, min, max, std) for comparative segment analysis.",
     input_model=GroupComparisonInput,
+    output_model=GroupComparisonOutput,
     execution_location=ExecutionLocation.LOCAL,
     permission_level=PermissionLevel.READ_ONLY,
     retry_safe=True,
@@ -133,11 +160,25 @@ class CorrelationAnalysisInput(BaseModel):
     method: Literal["pearson", "spearman"] = Field(default="pearson", description="Correlation method.")
     threshold: float = Field(default=0.3, description="Minimum absolute correlation to report.")
 
+class CorrelationPair(StrictContract):
+    column_1: str
+    column_2: str
+    correlation: float
+    relationship: str
+
+class CorrelationAnalysisOutput(StrictContract):
+    method: str | None = None
+    analyzed_columns: list[str] = Field(default_factory=list)
+    prominent_relationships: list[CorrelationPair] = Field(default_factory=list)
+    correlation_matrix: dict[str, dict[str, float]] = Field(default_factory=dict)
+    error: str | None = None
+
 @tool_registry.register(
     name="correlation_analysis",
     category=ToolCategory.ANALYTICS,
     description="Computes Pearson or Spearman correlation coefficients across numeric columns and identifies prominent positive and negative relationships.",
     input_model=CorrelationAnalysisInput,
+    output_model=CorrelationAnalysisOutput,
     execution_location=ExecutionLocation.LOCAL,
     permission_level=PermissionLevel.READ_ONLY,
     retry_safe=True,
@@ -195,11 +236,22 @@ class OutlierDetectionInput(BaseModel):
     method: Literal["iqr", "zscore"] = Field(default="iqr", description="Method: IQR (interquartile range) or zscore.")
     threshold: float = Field(default=1.5, description="IQR multiplier (typically 1.5) or z-score threshold (typically 3.0).")
 
+class DetectOutliersOutput(StrictContract):
+    column: str
+    method: str
+    total_rows: int
+    outlier_count: int
+    outlier_percentage: float
+    lower_bound: float
+    upper_bound: float
+    sample_outliers: list[dict[str, Any]] = Field(default_factory=list)
+
 @tool_registry.register(
     name="detect_outliers",
     category=ToolCategory.ANALYTICS,
     description="Identifies statistical anomalies and extreme outlier records using IQR or Z-score boundaries.",
     input_model=OutlierDetectionInput,
+    output_model=DetectOutliersOutput,
     execution_location=ExecutionLocation.LOCAL,
     permission_level=PermissionLevel.READ_ONLY,
     retry_safe=True,

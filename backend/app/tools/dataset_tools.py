@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any
 from pydantic import BaseModel, Field
 
-from app.tools.schemas import ToolCategory, ExecutionLocation, PermissionLevel, ToolResult
+from app.tools.schemas import ToolCategory, ExecutionLocation, PermissionLevel, ToolResult, StrictContract
 from app.tools.registry import tool_registry
 from app.core.security import validate_safe_path, read_managed_dataset, managed_file_suffix
 
@@ -12,7 +12,7 @@ class InspectDatasetInput(BaseModel):
     file_path: str = Field(description="Relative or absolute path to CSV or Excel file.")
     sample_rows: int = Field(default=5, description="Number of sample rows to return for preview.")
 
-class InspectDatasetOutput(BaseModel):
+class InspectDatasetOutput(StrictContract):
     file_name: str
     format: str
     total_rows: int

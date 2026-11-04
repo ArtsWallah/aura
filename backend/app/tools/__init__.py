@@ -1,14 +1,30 @@
 from app.tools.registry import tool_registry
-from app.tools.schemas import ToolDefinition, ToolResult, ToolCategory, ExecutionLocation, PermissionLevel
+from app.tools.schemas import ToolDefinition, ToolResult, ToolCategory, ExecutionLocation, PermissionLevel, StrictContract
 
-# Ensure all tools are registered
-import app.tools.dataset_tools
-import app.tools.analytics_tools
-import app.tools.visualization_tools
-import app.tools.research_tools
-import app.tools.document_tools
-import app.tools.report_tools
-import app.tools.system_tools
+# Ensure all tools are registered and import output contracts
+from app.tools.dataset_tools import InspectDatasetOutput
+from app.tools.analytics_tools import (
+    DescriptiveStatisticsOutput,
+    ColumnDescriptiveStatistics,
+    GroupComparisonOutput,
+    CorrelationAnalysisOutput,
+    CorrelationPair,
+    DetectOutliersOutput,
+)
+from app.tools.visualization_tools import GenerateChartOutput
+from app.tools.research_tools import (
+    WebResearchOutput,
+    WebResearchSource,
+    WebResearchMetadata,
+)
+from app.tools.document_tools import (
+    ReadDocumentOutput,
+    DocumentChunk,
+    SearchDocumentChunksOutput,
+    ScoredDocumentChunk,
+)
+from app.tools.report_tools import GenerateReportOutput
+from app.tools.system_tools import SystemHealthOutput, SystemStorageInfo
 
 __all__ = [
     "tool_registry",
@@ -16,6 +32,25 @@ __all__ = [
     "ToolResult",
     "ToolCategory",
     "ExecutionLocation",
-    "PermissionLevel"
+    "PermissionLevel",
+    "StrictContract",
+    "InspectDatasetOutput",
+    "DescriptiveStatisticsOutput",
+    "ColumnDescriptiveStatistics",
+    "GroupComparisonOutput",
+    "CorrelationAnalysisOutput",
+    "CorrelationPair",
+    "DetectOutliersOutput",
+    "GenerateChartOutput",
+    "WebResearchOutput",
+    "WebResearchSource",
+    "WebResearchMetadata",
+    "ReadDocumentOutput",
+    "DocumentChunk",
+    "SearchDocumentChunksOutput",
+    "ScoredDocumentChunk",
+    "GenerateReportOutput",
+    "SystemHealthOutput",
+    "SystemStorageInfo",
 ]
 

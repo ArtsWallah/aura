@@ -1,6 +1,11 @@
 from enum import Enum
 from typing import Any, Type
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class StrictContract(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
 
 class ExecutionLocation(str, Enum):
     LOCAL = "local"
@@ -29,11 +34,14 @@ class ToolParameterSchema(BaseModel):
     default: Any = None
 
 class ToolDefinition(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     name: str
     category: ToolCategory
     description: str
     input_schema: dict[str, Any]
     output_schema: dict[str, Any]
+    output_model: Type[BaseModel] | None = Field(default=None, exclude=True)
     execution_location: ExecutionLocation = ExecutionLocation.LOCAL
     permission_level: PermissionLevel = PermissionLevel.READ_ONLY
     requires_approval: bool = False

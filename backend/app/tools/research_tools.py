@@ -3,7 +3,7 @@ import urllib.parse
 from typing import Any
 from pydantic import BaseModel, Field
 
-from app.tools.schemas import ToolCategory, ExecutionLocation, PermissionLevel
+from app.tools.schemas import ToolCategory, ExecutionLocation, PermissionLevel, StrictContract
 from app.tools.registry import tool_registry
 from app.core.logging import logger
 from app.privacy.outbound import PrivacyAwareAsyncClient, current_privacy_mode
@@ -19,11 +19,29 @@ class SourceCitation(BaseModel):
     published_date: str | None = None
     reliability_tier: str = "high"
 
+class WebResearchSource(StrictContract):
+    title: str
+    url: str
+    snippet: str
+    domain: str
+    is_factual_source: bool
+
+class WebResearchMetadata(StrictContract):
+    search_provider: str
+    distinguish_interpretation: str
+
+class WebResearchOutput(StrictContract):
+    query: str
+    results_count: int
+    sources: list[WebResearchSource]
+    metadata: WebResearchMetadata
+
 @tool_registry.register(
     name="web_research",
     category=ToolCategory.RESEARCH,
     description="Searches for verified external information, collects titles, URLs, and snippets with preserved metadata and source citations.",
     input_model=WebResearchInput,
+    output_model=WebResearchOutput,
     execution_location=ExecutionLocation.CLOUD,
     permission_level=PermissionLevel.READ_ONLY,
     retry_safe=True,

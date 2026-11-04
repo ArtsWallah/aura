@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from typing import Any, Literal
 from pydantic import BaseModel, Field
 
-from app.tools.schemas import ToolCategory, ExecutionLocation, PermissionLevel
+from app.tools.schemas import ToolCategory, ExecutionLocation, PermissionLevel, StrictContract
 from app.tools.registry import tool_registry
 from app.core.config import settings
 from app.core.security import validate_safe_path, read_managed_dataset
@@ -28,11 +28,21 @@ class GenerateChartInput(BaseModel):
     aggregation: Literal["sum", "mean", "count"] | None = Field(default="sum", description="Aggregation for bar charts.")
     top_n: int = Field(default=15, description="Max categories to plot.")
 
+class GenerateChartOutput(StrictContract):
+    chart_id: str
+    title: str
+    chart_type: str
+    relative_path: str
+    file_path: str
+    data_uri: str
+    artifacts: list[str]
+
 @tool_registry.register(
     name="generate_chart",
     category=ToolCategory.VISUALIZATION,
     description="Renders high-resolution statistical data visualizations (bar, line, scatter, histogram, box, correlation heatmap) and persists PNG charts.",
     input_model=GenerateChartInput,
+    output_model=GenerateChartOutput,
     execution_location=ExecutionLocation.LOCAL,
     permission_level=PermissionLevel.READ_ONLY
 )

@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any
 from pydantic import BaseModel, Field
 
-from app.tools.schemas import ToolCategory, ExecutionLocation, PermissionLevel
+from app.tools.schemas import ToolCategory, ExecutionLocation, PermissionLevel, StrictContract
 from app.tools.registry import tool_registry
 from app.core.security import validate_safe_path, read_managed_bytes
 
@@ -13,11 +13,26 @@ class ReadDocumentInput(BaseModel):
     chunk_size: int = Field(default=1000, description="Approximate characters per chunk.")
     chunk_overlap: int = Field(default=150, description="Overlap between consecutive chunks.")
 
+class DocumentChunk(StrictContract):
+    chunk_index: int
+    start_char: int
+    end_char: int
+    text: str
+
+class ReadDocumentOutput(StrictContract):
+    file_name: str
+    total_characters: int
+    total_words: int
+    chunk_count: int
+    chunks: list[DocumentChunk]
+    sample_preview: str
+
 @tool_registry.register(
     name="read_document",
     category=ToolCategory.DOCUMENT,
     description="Reads local documents, extracts plain text, and chunks them into structured sections for downstream reasoning or embedding retrieval.",
     input_model=ReadDocumentInput,
+    output_model=ReadDocumentOutput,
     execution_location=ExecutionLocation.LOCAL,
     permission_level=PermissionLevel.READ_ONLY,
     retry_safe=True,
@@ -64,11 +79,21 @@ class SearchDocumentChunksInput(BaseModel):
     query: str = Field(description="Search query or semantic question.")
     top_k: int = Field(default=3, description="Number of most relevant chunks to return.")
 
+class ScoredDocumentChunk(StrictContract):
+    chunk_index: int | None = None
+    relevance_score: float
+    text: str
+
+class SearchDocumentChunksOutput(StrictContract):
+    query: str
+    matches: list[ScoredDocumentChunk]
+
 @tool_registry.register(
     name="search_document_chunks",
     category=ToolCategory.DOCUMENT,
     description="Performs keyword and token-overlap relevance scoring over document chunks to retrieve the most contextually relevant excerpts.",
     input_model=SearchDocumentChunksInput,
+    output_model=SearchDocumentChunksOutput,
     execution_location=ExecutionLocation.LOCAL,
     permission_level=PermissionLevel.READ_ONLY,
     retry_safe=True,
