@@ -154,7 +154,8 @@ class SQLiteCheckpointer:
             return "chart_png", filename.removesuffix(".png.enc")
         return None
 
-    def _build_artifact_manifest(self, task_state: TaskState) -> list[dict[str, str]]:
+    @staticmethod
+    def _build_artifact_manifest(task_state: TaskState) -> list[dict[str, str]]:
         """Build typed references to encrypted artifacts directly inside approved roots."""
         roots = {
             "reports": settings.REPORTS_DIR.resolve(),
@@ -177,7 +178,7 @@ class SQLiteCheckpointer:
                 continue
             if resolved.name != original.name:
                 continue
-            kind = self._artifact_type_and_id(resolved.name)
+            kind = SQLiteCheckpointer._artifact_type_and_id(resolved.name)
             if kind is None:
                 continue
             artifact_type, artifact_id = kind

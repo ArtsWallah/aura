@@ -112,7 +112,12 @@ class PlanExecutor:
                     "tool": step.tool_name,
                     "data": result.data,
                     "artifacts": result.artifacts,
-                    "task_id": task_state.task_id,
+                    "metadata": {
+                        "task_id": task_state.task_id,
+                        "step_id": step.step_id,
+                        "tool_name": step.tool_name,
+                        "execution_time_ms": result.execution_time_ms,
+                    },
                 }
                 
                 if event_queue:
@@ -179,12 +184,16 @@ class PlanExecutor:
         Re-validates the resolved argument dictionary against the destination tool's schema.
         """
         from pydantic import ValidationError
+        from app.agent.checkpoint import SQLiteCheckpointer
+
+        manifest = SQLiteCheckpointer._build_artifact_manifest(task_state)
 
         resolved = resolve_step_references(
             step.parameters,
             task_state.step_results,
             dependencies=step.dependencies,
             active_task_id=task_state.task_id,
+            task_manifest=manifest,
         )
         params = dict(resolved)
         

@@ -642,3 +642,220 @@ async def test_24_end_to_end_real_tool_chaining():
     finally:
         if csv_file.exists():
             csv_file.unlink()
+
+
+# -----------------------------------------------------------------------------
+# Phase 3.3.1-B3.1: Targeted Security Review Tests
+# -----------------------------------------------------------------------------
+
+def test_b3_1_validated_output_unchanged_and_metadata_separated():
+    """Validated output payload is unchanged and execution metadata is stored separately."""
+    step = ExecutionStep(
+        step_id="step_meta",
+        title="Test metadata separation",
+        description="Run tool",
+        capability="system",
+        tool_name="system_health",
+        parameters={},
+    )
+    task_state = TaskState(
+        task_id="task_meta_123",
+        objective="Verify metadata separation",
+    )
+    raw_output = {
+        "status": "healthy",
+        "cpu_percent": 12.5,
+        "memory_percent": 45.0,
+        "disk_free_gb": 120.0,
+        "uptime_seconds": 3600.0,
+        "active_tasks": 1,
+    }
+    # Simulate step completion storage in PlanExecutor
+    task_state.step_results[step.step_id] = {
+        "tool": step.tool_name,
+        "data": copy.deepcopy(raw_output),
+        "artifacts": [],
+        "metadata": {
+            "task_id": task_state.task_id,
+            "step_id": step.step_id,
+            "tool_name": step.tool_name,
+            "execution_time_ms": 12.3,
+        },
+    }
+
+    # 1. Output payload is identical to tool output
+    stored_data = task_state.step_results[step.step_id]["data"]
+    assert stored_data == raw_output
+    assert "task_id" not in stored_data
+
+    # 2. Metadata is stored in a separate container
+    stored_meta = task_state.step_results[step.step_id]["metadata"]
+    assert stored_meta["task_id"] == "task_meta_123"
+    assert stored_meta["step_id"] == "step_meta"
+    assert stored_meta["tool_name"] == "system_health"
+
+
+def test_b3_1_tool_provided_task_id_cannot_override_ownership():
+    """A tool output containing task_id in its data payload cannot spoof execution ownership."""
+    step_results = {
+        "step_1": {
+            "tool": "inspect_dataset",
+            "data": {
+                "dataset_name": "data.csv",
+                "row_count": 10,
+                "column_count": 1,
+                "columns": ["col_a"],
+                "dtypes": {},
+                "missing_values": {},
+                "numeric_columns": [],
+                "categorical_columns": ["col_a"],
+                "datetime_columns": [],
+                "summary_statistics": {},
+                "preview": [],
+                # Adversarial spoof attempt in data payload
+                "task_id": "spoofed_target_task",
+            },
+            "metadata": {
+                # Authoritative execution ownership
+                "task_id": "authoritative_task_a",
+            },
+        }
+    }
+    params = {
+        "group_by": {"$ref": {"step_id": "step_1", "path": "data.categorical_columns[0]"}}
+    }
+
+    # 1. Access by the authoritative task owner succeeds
+    resolved = resolve_step_references(
+        params,
+        step_results,
+        dependencies=["step_1"],
+        active_task_id="authoritative_task_a",
+    )
+    assert resolved["group_by"] == "col_a"
+
+    # 2. Access by the spoofed task fails closed (tool output cannot claim ownership)
+    with pytest.raises(ReferenceResolutionError) as exc:
+        resolve_step_references(
+            params,
+            step_results,
+            dependencies=["step_1"],
+            active_task_id="spoofed_target_task",
+        )
+    assert exc.value.code == "CROSS_TASK_ACCESS"
+
+
+def test_b3_1_references_cannot_access_metadata_as_output():
+    """Downstream references cannot access execution metadata as if it were tool output."""
+    # 1. Path starting with 'metadata' is rejected by grammar
+    with pytest.raises(ReferenceSyntaxError) as exc1:
+        validate_reference_syntax({"$ref": {"step_id": "step_1", "path": "metadata.task_id"}})
+    assert exc1.value.code == "INVALID_PATH_SYNTAX"
+
+    # 2. Path data.task_id is rejected when not in tool output schema
+    with pytest.raises(ReferenceTypeError) as exc2:
+        infer_output_path_type(InspectDatasetOutput, "data.task_id")
+    assert exc2.value.code == "UNKNOWN_FIELD"
+
+
+def test_b3_1_raw_path_references_are_rejected():
+    """References to raw filesystem paths and data URIs are strictly forbidden."""
+    from app.tools.visualization_tools import GenerateChartOutput
+    from app.tools.report_tools import GenerateReportOutput
+
+    # file_path, markdown_path, html_path, data_uri, and data.artifacts are all forbidden
+    forbidden_paths = [
+        (GenerateChartOutput, "data.file_path"),
+        (GenerateChartOutput, "data.data_uri"),
+        (GenerateChartOutput, "data.artifacts"),
+        (GenerateReportOutput, "data.markdown_path"),
+        (GenerateReportOutput, "data.html_path"),
+    ]
+    for model, forbidden_path in forbidden_paths:
+        with pytest.raises(ReferenceTypeError) as exc:
+            infer_output_path_type(model, forbidden_path)
+        assert exc.value.code == "RAW_PATH_REFERENCE_FORBIDDEN"
+
+
+def test_b3_1_artifact_reference_resolves_to_manifest_descriptor():
+    """Artifact references resolve to typed manifest descriptors, never raw filesystem paths."""
+    manifest = [
+        {
+            "artifact_id": "chart_3f8a91b2c4",
+            "task_id": "task_active_1",
+            "artifact_type": "chart_png",
+            "relative_path": "chart_3f8a91b2c4.png.enc",
+        }
+    ]
+    step_results = {
+        "step_chart": {
+            "tool": "generate_chart",
+            "artifacts": ["C:/fake/charts/chart_3f8a91b2c4.png.enc"],
+            "data": {},
+            "metadata": {"task_id": "task_active_1"},
+        }
+    }
+
+    # Reference entire descriptor
+    params = {
+        "chart_desc": {"$ref": {"step_id": "step_chart", "path": "artifacts[0]"}}
+    }
+    resolved = resolve_step_references(
+        params,
+        step_results,
+        dependencies=["step_chart"],
+        active_task_id="task_active_1",
+        task_manifest=manifest,
+    )
+    desc = resolved["chart_desc"]
+    assert isinstance(desc, dict)
+    assert desc["artifact_id"] == "chart_3f8a91b2c4"
+    assert desc["task_id"] == "task_active_1"
+    assert desc["artifact_type"] == "chart_png"
+    assert desc["relative_path"] == "chart_3f8a91b2c4.png.enc"
+    assert "C:" not in desc["relative_path"]  # No absolute path authority!
+
+    # Reference specific descriptor field
+    params_field = {
+        "art_id": {"$ref": {"step_id": "step_chart", "path": "artifacts[0].artifact_id"}}
+    }
+    resolved_field = resolve_step_references(
+        params_field,
+        step_results,
+        dependencies=["step_chart"],
+        active_task_id="task_active_1",
+        task_manifest=manifest,
+    )
+    assert resolved_field["art_id"] == "chart_3f8a91b2c4"
+
+
+def test_b3_1_cross_task_artifact_in_manifest_fails_closed():
+    """Referencing an artifact that belongs to another task in the manifest fails closed."""
+    manifest = [
+        {
+            "artifact_id": "chart_external99",
+            "task_id": "task_other_user",
+            "artifact_type": "chart_png",
+            "relative_path": "chart_external99.png.enc",
+        }
+    ]
+    step_results = {
+        "step_chart": {
+            "tool": "generate_chart",
+            "artifacts": ["chart_external99.png.enc"],
+            "data": {},
+            "metadata": {"task_id": "task_active_1"},
+        }
+    }
+    params = {
+        "art": {"$ref": {"step_id": "step_chart", "path": "artifacts[0]"}}
+    }
+    with pytest.raises(ReferenceResolutionError) as exc:
+        resolve_step_references(
+            params,
+            step_results,
+            dependencies=["step_chart"],
+            active_task_id="task_active_1",
+            task_manifest=manifest,
+        )
+    assert exc.value.code == "CROSS_TASK_ARTIFACT_ACCESS"

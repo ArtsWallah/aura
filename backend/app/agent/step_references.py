@@ -34,6 +34,13 @@ FORBIDDEN_IDENTIFIERS = frozenset({
     "__code__",
 })
 
+FORBIDDEN_RAW_PATH_FIELDS = frozenset({
+    "file_path",
+    "markdown_path",
+    "html_path",
+    "data_uri",
+})
+
 
 class ReferenceError(ValueError):
     """Base exception for step output references."""
@@ -286,7 +293,7 @@ def infer_output_path_type(output_model: type[BaseModel] | None, path: str) -> A
         raise ReferenceTypeError("INVALID_PATH_ROOT", f"Path must start with 'data' or 'artifacts', got '{path}'.")
 
     if path.startswith("artifacts"):
-        curr_type: Any = list[str]
+        curr_type: Any = list[dict[str, str]]
         remainder = path[len("artifacts"):]
     else:
         if output_model is None:
@@ -300,6 +307,12 @@ def infer_output_path_type(output_model: type[BaseModel] | None, path: str) -> A
         if attr_name is not None:
             if attr_name.startswith("__") or attr_name in FORBIDDEN_IDENTIFIERS:
                 raise ReferenceTypeError("FORBIDDEN_IDENTIFIER", f"Prohibited access to '{attr_name}'.")
+
+            if attr_name in FORBIDDEN_RAW_PATH_FIELDS or (attr_name == "artifacts" and not path.startswith("artifacts")):
+                raise ReferenceTypeError(
+                    "RAW_PATH_REFERENCE_FORBIDDEN",
+                    f"Direct reference to raw path or data URI field '{attr_name}' is forbidden.",
+                )
 
             # Handle optional wrapping
             curr_is_nullable = is_nullable(curr_type)
@@ -430,13 +443,16 @@ def navigate_runtime_path(
         raise ReferenceResolutionError("INVALID_PATH_ROOT", f"Path must start with 'data' or 'artifacts', got '{path}'.")
 
     if path.startswith("artifacts"):
-        # Artifacts root navigation
+        # Artifacts root navigation: convert raw artifacts into typed descriptors
         if isinstance(root, dict) and "artifacts" in root:
-            current = root["artifacts"]
+            raw_artifacts = root["artifacts"]
         elif hasattr(root, "artifacts"):
-            current = getattr(root, "artifacts")
+            raw_artifacts = getattr(root, "artifacts")
         else:
-            current = root
+            raw_artifacts = root
+        current = _build_typed_artifact_descriptors(
+            raw_artifacts, active_task_id=active_task_id, task_manifest=task_manifest
+        )
         remainder = path[len("artifacts"):]
     else:
         # Data root navigation
@@ -455,6 +471,12 @@ def navigate_runtime_path(
         if attr_name is not None:
             if attr_name.startswith("__") or attr_name in FORBIDDEN_IDENTIFIERS:
                 raise ReferenceResolutionError("FORBIDDEN_ATTRIBUTE", f"Access to '{attr_name}' is forbidden.")
+
+            if attr_name in FORBIDDEN_RAW_PATH_FIELDS or (attr_name == "artifacts" and not path.startswith("artifacts")):
+                raise ReferenceResolutionError(
+                    "RAW_PATH_REFERENCE_FORBIDDEN",
+                    f"Direct reference to raw path or data URI field '{attr_name}' is forbidden.",
+                )
 
             if isinstance(current, dict):
                 if attr_name not in current:
@@ -481,10 +503,69 @@ def navigate_runtime_path(
 
     # Post-traversal security verification for artifact results
     if path.startswith("artifacts") and current is not None:
-        # If an artifact item or list was resolved, enforce task manifest ownership
         _verify_artifact_isolation(current, active_task_id=active_task_id, task_manifest=task_manifest)
 
     return current
+
+
+def _build_typed_artifact_descriptors(
+    raw_artifacts: Any,
+    *,
+    active_task_id: str | None,
+    task_manifest: list[dict[str, str]] | None,
+) -> list[dict[str, str]]:
+    """Converts raw artifact path strings to verified typed descriptor mappings."""
+    if not isinstance(raw_artifacts, (list, tuple)):
+        return []
+
+    descriptors: list[dict[str, str]] = []
+    manifest_by_name: dict[str, dict[str, str]] = {}
+    manifest_by_id: dict[str, dict[str, str]] = {}
+    if task_manifest:
+        for entry in task_manifest:
+            manifest_by_name[entry["relative_path"]] = entry
+            manifest_by_id[entry["artifact_id"]] = entry
+
+    for item in raw_artifacts:
+        if isinstance(item, dict):
+            item_task_id = item.get("task_id")
+            if item_task_id and active_task_id and item_task_id != active_task_id:
+                raise ReferenceResolutionError(
+                    "CROSS_TASK_ARTIFACT_ACCESS",
+                    f"Artifact belongs to task '{item_task_id}', not active task '{active_task_id}'.",
+                )
+            descriptors.append(item)
+        elif isinstance(item, str):
+            filename = item.replace("\\", "/").split("/")[-1]
+            if task_manifest is not None:
+                entry = manifest_by_name.get(filename) or manifest_by_id.get(filename) or manifest_by_id.get(item)
+                if entry is None or (active_task_id and entry.get("task_id") != active_task_id):
+                    raise ReferenceResolutionError(
+                        "CROSS_TASK_ARTIFACT_ACCESS",
+                        f"Artifact '{filename}' not found in authorized task manifest.",
+                    )
+                descriptors.append({
+                    "artifact_id": entry["artifact_id"],
+                    "task_id": entry["task_id"],
+                    "artifact_type": entry["artifact_type"],
+                    "relative_path": entry["relative_path"],
+                })
+            else:
+                from app.agent.checkpoint import SQLiteCheckpointer
+                kind = SQLiteCheckpointer._artifact_type_and_id(filename)
+                if kind is None:
+                    raise ReferenceResolutionError(
+                        "INVALID_ARTIFACT_NAME", f"Artifact filename '{filename}' is invalid."
+                    )
+                art_type, art_id = kind
+                descriptors.append({
+                    "artifact_id": art_id,
+                    "task_id": active_task_id or "",
+                    "artifact_type": art_type,
+                    "relative_path": filename,
+                })
+
+    return descriptors
 
 
 def _verify_artifact_isolation(
@@ -579,7 +660,9 @@ def resolve_step_references(
                             "FAILED_PREREQUISITE", f"Prerequisite step '{step_id}' failed execution."
                         )
                     # Cross-task output isolation check
-                    result_task_id = source_result.get("task_id")
+                    # Authoritative task_id is retrieved from metadata, never from tool output data
+                    meta = source_result.get("metadata")
+                    result_task_id = meta.get("task_id") if isinstance(meta, dict) else source_result.get("task_id")
                     if result_task_id and active_task_id and result_task_id != active_task_id:
                         raise ReferenceResolutionError(
                             "CROSS_TASK_ACCESS",
