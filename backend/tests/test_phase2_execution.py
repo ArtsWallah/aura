@@ -37,7 +37,7 @@ class Phase2GateOutput(BaseModel):
 
 
 class Phase2ProbeOutput(BaseModel):
-    label: str | None = None
+    label: str
 
 
 class Phase2SyncSleepOutput(BaseModel):

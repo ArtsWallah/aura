@@ -264,22 +264,69 @@ class ToolRegistry:
                         raise
                 
             elapsed_ms = (time.perf_counter() - start_time) * 1000.0
-            
-            # Format output
-            if isinstance(raw_result, ToolResult):
+
+            # If the tool returned an explicit failed ToolResult, preserve it directly.
+            is_wrapped_result = isinstance(raw_result, ToolResult)
+            if is_wrapped_result and not raw_result.success:
                 raw_result.execution_time_ms = elapsed_ms
                 return raw_result
-                
+
+            candidate_payload = raw_result.data if is_wrapped_result else raw_result
+
+            # Retrieve registered output model
+            output_model = self._output_models.get(name)
+            if output_model is None:
+                logger.error("Tool '%s' lacks a registered output model.", name)
+                return ToolResult(
+                    tool_name=name,
+                    success=False,
+                    error=f"Output validation failed for tool '{name}'.",
+                    execution_time_ms=elapsed_ms,
+                )
+
+            # Validate returned value against registered output contract
+            try:
+                validated_output = output_model.model_validate(candidate_payload)
+            except ValidationError:
+                logger.error("Tool '%s' output failed contract validation.", name)
+                return ToolResult(
+                    tool_name=name,
+                    success=False,
+                    error=f"Output validation failed for tool '{name}'.",
+                    execution_time_ms=elapsed_ms,
+                )
+            except Exception:
+                logger.error("Malformed output returned by tool '%s'.", name)
+                return ToolResult(
+                    tool_name=name,
+                    success=False,
+                    error=f"Malformed output returned by tool '{name}'.",
+                    execution_time_ms=elapsed_ms,
+                )
+
+            # Convert validated model to JSON-compatible format
+            validated_data = validated_output.model_dump(mode="json")
+
             artifacts = []
-            if isinstance(raw_result, dict) and "artifacts" in raw_result:
-                artifacts = raw_result.get("artifacts", [])
-                
+            if isinstance(validated_data, dict) and "artifacts" in validated_data:
+                raw_artifacts = validated_data.get("artifacts", [])
+                if isinstance(raw_artifacts, list):
+                    artifacts = [str(a) for a in raw_artifacts]
+            elif is_wrapped_result and raw_result.artifacts:
+                artifacts = list(raw_result.artifacts)
+
+            if is_wrapped_result:
+                raw_result.data = validated_data
+                raw_result.artifacts = artifacts
+                raw_result.execution_time_ms = elapsed_ms
+                return raw_result
+
             return ToolResult(
                 tool_name=name,
                 success=True,
-                data=raw_result,
+                data=validated_data,
                 execution_time_ms=elapsed_ms,
-                artifacts=artifacts
+                artifacts=artifacts,
             )
             
         except TimeoutError:
