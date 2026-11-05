@@ -360,6 +360,8 @@ async def test_workflow_05_group_comparison_to_generate_report(encrypted_sales_c
     assert "Category Performance Summary" in report_out["markdown_content"]
     assert "Category comparison indicates varying revenue streams." in report_out["markdown_content"]
     assert "Total aggregate revenue evaluated" in report_out["markdown_content"]
+    assert "Detailed Data Tables" in report_out["markdown_content"]
+    assert "Electronics" in report_out["markdown_content"]
 
 
 def test_workflow_06_inspect_to_correlation_analysis_contract_impossibility(encrypted_sales_csv):
