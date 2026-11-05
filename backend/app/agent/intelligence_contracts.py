@@ -215,6 +215,7 @@ class TraceArtifactType(str, Enum):
     CHART_PNG = "chart_png"
     REPORT_HTML = "report_html"
     REPORT_MARKDOWN = "report_markdown"
+    TRANSFORMED_DATASET = "transformed_dataset"
 
 
 class TraceConstructionStatus(str, Enum):

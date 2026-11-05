@@ -152,6 +152,9 @@ class SQLiteCheckpointer:
             return "report_markdown", filename.removesuffix(".md.enc") + "_markdown"
         if re.fullmatch(r"chart_[a-f0-9]{10}\.png\.enc", filename):
             return "chart_png", filename.removesuffix(".png.enc")
+        match = re.fullmatch(r"transformed_([a-f0-9]{10})_([a-f0-9]{10})\.csv\.enc", filename)
+        if match:
+            return "transformed_dataset", f"transformed_{match.group(2)}"
         return None
 
     @staticmethod
@@ -160,6 +163,7 @@ class SQLiteCheckpointer:
         roots = {
             "reports": settings.REPORTS_DIR.resolve(),
             "charts": settings.CHARTS_DIR.resolve(),
+            "transforms": settings.TRANSFORMS_DIR.resolve(),
         }
         candidates = list(task_state.artifacts)
         deliverable = task_state.final_deliverable or {}
@@ -182,7 +186,14 @@ class SQLiteCheckpointer:
             if kind is None:
                 continue
             artifact_type, artifact_id = kind
-            directory = "charts" if artifact_type == "chart_png" else "reports"
+            if artifact_type == "chart_png":
+                directory = "charts"
+            elif artifact_type in {"report_html", "report_markdown"}:
+                directory = "reports"
+            elif artifact_type == "transformed_dataset":
+                directory = "transforms"
+            else:
+                continue
             if resolved.parent != roots[directory] or not resolved.is_file():
                 continue
             key = (artifact_type, resolved.name)
@@ -213,6 +224,7 @@ class SQLiteCheckpointer:
         roots = {
             "reports": settings.REPORTS_DIR.resolve(),
             "charts": settings.CHARTS_DIR.resolve(),
+            "transforms": settings.TRANSFORMS_DIR.resolve(),
         }
         restored: list[str] = []
         report_id: str | None = None
@@ -230,6 +242,8 @@ class SQLiteCheckpointer:
                 directory = "charts"
             elif artifact_type in {"report_html", "report_markdown"}:
                 directory = "reports"
+            elif artifact_type == "transformed_dataset":
+                directory = "transforms"
             else:
                 raise ValueError("Unsupported artifact type.")
             kind = self._artifact_type_and_id(relative_path)

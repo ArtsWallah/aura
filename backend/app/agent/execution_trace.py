@@ -37,7 +37,8 @@ def _artifact_summaries(
         return []
     allowed = (
         {"chart_png"} if tool_name == "generate_chart" else
-        {"report_html", "report_markdown"} if tool_name == "generate_report" else set()
+        {"report_html", "report_markdown"} if tool_name == "generate_report" else
+        {"transformed_dataset"} if tool_name == "transform_dataset" else set()
     )
     if not allowed:
         return []
@@ -45,6 +46,7 @@ def _artifact_summaries(
         "chart_png": settings.CHARTS_DIR.resolve(),
         "report_html": settings.REPORTS_DIR.resolve(),
         "report_markdown": settings.REPORTS_DIR.resolve(),
+        "transformed_dataset": settings.TRANSFORMS_DIR.resolve(),
     }
     trusted_files: set[tuple[str, str]] = set()
     for entry in artifact_manifest or []:
@@ -85,6 +87,11 @@ def _artifact_summaries(
         return [
             TraceArtifact(artifact_type=TraceArtifactType.REPORT_MARKDOWN, available=markdown > 0, count=min(markdown, 10_000)),
             TraceArtifact(artifact_type=TraceArtifactType.REPORT_HTML, available=html > 0, count=min(html, 10_000)),
+        ]
+    if tool_name == "transform_dataset":
+        transformed = counts["transformed_dataset"]
+        return [
+            TraceArtifact(artifact_type=TraceArtifactType.TRANSFORMED_DATASET, available=transformed > 0, count=min(transformed, 10_000)),
         ]
     return []
 

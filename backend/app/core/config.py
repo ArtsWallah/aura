@@ -43,6 +43,7 @@ class Settings(BaseSettings):
     CHARTS_DIR: Path = DATA_DIR / "charts"
     REPORTS_DIR: Path = DATA_DIR / "reports"
     EXPORTS_DIR: Path = DATA_DIR / "exports"
+    TRANSFORMS_DIR: Path = DATA_DIR / "transforms"
     
     # Database
     DATABASE_URL: str = f"sqlite:///{DATA_DIR / 'aura.db'}"
@@ -74,7 +75,7 @@ class Settings(BaseSettings):
     )
 
     def init_directories(self):
-        for directory in [self.DATA_DIR, self.UPLOADS_DIR, self.CHARTS_DIR, self.REPORTS_DIR, self.EXPORTS_DIR]:
+        for directory in [self.DATA_DIR, self.UPLOADS_DIR, self.CHARTS_DIR, self.REPORTS_DIR, self.EXPORTS_DIR, self.TRANSFORMS_DIR]:
             directory.mkdir(parents=True, exist_ok=True)
 
 settings = Settings()

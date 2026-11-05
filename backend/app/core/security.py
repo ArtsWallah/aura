@@ -17,13 +17,38 @@ def validate_safe_path(target_path: str | Path, allow_read_only: bool = True) ->
     """
     Verify that the path is within the allowed workspace / data directories
     to prevent path traversal attacks.
+
+    Enforces pre-resolution symlink checks on all raw path components,
+    followed by canonical root containment within UPLOADS_DIR or TRANSFORMS_DIR.
+
+    Platform Limitations:
+    On Windows, Python's os.open lacks O_NOFOLLOW without native Win32 API calls
+    (CreateFileW with FILE_FLAG_OPEN_REPARSE_POINT). While pre-resolution checks
+    and canonical parent verification prevent standard symlink traversal, an
+    external TOCTOU race remains theoretically possible if directory components
+    are modified concurrently by an outside process.
     """
-    path = Path(target_path).resolve()
+    target_str = str(target_path)
+    if "\x00" in target_str:
+        raise PermissionError("Access denied: path contains null byte.")
+
+    raw_path = Path(target_path)
+
+    # Pre-resolution symlink check on raw path and all constituent ancestor components
+    curr = raw_path
+    while curr != curr.parent:
+        if curr.is_symlink():
+            raise PermissionError("Access denied: symlinks are not permitted.")
+        curr = curr.parent
+
+    path = raw_path.resolve()
     uploads_root = settings.UPLOADS_DIR.resolve()
+    transforms_root = settings.TRANSFORMS_DIR.resolve()
     bundled_sample = (settings.DATA_DIR / "sample_sales.csv").resolve()
-    is_safe = (path == bundled_sample or uploads_root in path.parents)
+
+    is_safe = (path == bundled_sample or uploads_root in path.parents or transforms_root in path.parents)
     if not is_safe or not path.is_file():
-        raise PermissionError("Access denied: file is outside managed uploads.")
+        raise PermissionError("Access denied: file is outside managed uploads or transforms.")
     if path != bundled_sample and path.suffix.lower() not in {".enc", ".csv", ".xlsx", ".xls", ".txt", ".md", ".json"}:
         raise PermissionError("Access denied: unsupported managed file type.")
     
