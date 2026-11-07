@@ -15,8 +15,10 @@ import {
   FileSpreadsheet
 } from "lucide-react";
 import { fetchTasks, fetchHealth, fetchTools, fetchModels } from "@/lib/api";
+import { useStartup } from "@/components/StartupLoader";
 
 export default function Dashboard() {
+  const { markStartupReady } = useStartup();
   const [tasks, setTasks] = useState<any[]>([]);
   const [health, setHealth] = useState<any>(null);
   const [toolsCount, setToolsCount] = useState<number>(0);
@@ -35,8 +37,9 @@ export default function Dashboard() {
       setToolsCount(tCount);
       setModelsCount(mCount);
       setLoading(false);
+      markStartupReady();
     });
-  }, []);
+  }, [markStartupReady]);
 
   const totalTasks = tasks.length;
   const completedTasks = tasks.filter((t) => t.status === "completed").length;
