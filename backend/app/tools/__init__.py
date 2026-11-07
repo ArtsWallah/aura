@@ -33,6 +33,8 @@ from app.tools.document_tools import (
 )
 from app.tools.report_tools import GenerateReportOutput
 from app.tools.system_tools import SystemHealthOutput, SystemStorageInfo
+from app.tools.transform_schemas import TransformDatasetOutput
+import app.tools.transforms.tool  # Ensure transform_dataset is registered
 
 __all__ = [
     "tool_registry",
@@ -61,5 +63,6 @@ __all__ = [
     "GenerateReportOutput",
     "SystemHealthOutput",
     "SystemStorageInfo",
+    "TransformDatasetOutput",
 ]
 

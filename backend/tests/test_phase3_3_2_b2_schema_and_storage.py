@@ -187,7 +187,8 @@ def test_checkpoint_build_manifest_includes_transformed_dataset(managed_test_dir
     monkeypatch.setattr(settings, "REPORTS_DIR", managed_test_dirs.reports)
 
     task_id = "task_manifest_test_01"
-    valid_filename = "transformed_1a2b3c4d5e_6f7a8b9c0d.csv.enc"
+    task_hash = hashlib.sha256(task_id.encode("utf-8")).hexdigest()[:10]
+    valid_filename = f"transformed_{task_hash}_6f7a8b9c0d.csv.enc"
     artifact_file = managed_test_dirs.transforms / valid_filename
     artifact_file.write_bytes(b"encrypted_content")
 
@@ -206,6 +207,26 @@ def test_checkpoint_build_manifest_includes_transformed_dataset(managed_test_dir
     assert entry["relative_path"] == valid_filename
 
 
+def test_checkpoint_build_manifest_rejects_foreign_task_hash(managed_test_dirs, monkeypatch):
+    """Verify _build_artifact_manifest rejects foreign-task artifact filenames."""
+    monkeypatch.setattr(settings, "TRANSFORMS_DIR", managed_test_dirs.transforms)
+
+    task_id = "task_owner_01"
+    foreign_hash = hashlib.sha256(b"task_other_99").hexdigest()[:10]
+    foreign_filename = f"transformed_{foreign_hash}_6f7a8b9c0d.csv.enc"
+    foreign_file = managed_test_dirs.transforms / foreign_filename
+    foreign_file.write_bytes(b"encrypted_content")
+
+    task_state = TaskState(
+        task_id=task_id,
+        objective="Foreign adoption test",
+        artifacts=[str(foreign_file)],
+    )
+
+    manifest = SQLiteCheckpointer._build_artifact_manifest(task_state)
+    assert len(manifest) == 0
+
+
 def test_checkpoint_restore_manifest_for_transformed_dataset(managed_test_dirs, monkeypatch):
     """Verify _restore_artifact_manifest restores transformed dataset artifacts safely."""
     monkeypatch.setattr(settings, "TRANSFORMS_DIR", managed_test_dirs.transforms)
@@ -213,7 +234,8 @@ def test_checkpoint_restore_manifest_for_transformed_dataset(managed_test_dirs, 
     monkeypatch.setattr(settings, "REPORTS_DIR", managed_test_dirs.reports)
 
     task_id = "task_restore_test_02"
-    valid_filename = "transformed_0123456789_abcdef0123.csv.enc"
+    task_hash = hashlib.sha256(task_id.encode("utf-8")).hexdigest()[:10]
+    valid_filename = f"transformed_{task_hash}_abcdef0123.csv.enc"
     artifact_file = managed_test_dirs.transforms / valid_filename
     artifact_file.write_bytes(b"encrypted_content")
 
@@ -234,6 +256,32 @@ def test_checkpoint_restore_manifest_for_transformed_dataset(managed_test_dirs, 
 
     assert len(state.artifacts) == 1
     assert Path(state.artifacts[0]).resolve() == artifact_file.resolve()
+
+
+def test_checkpoint_restore_rejects_foreign_task_hash(managed_test_dirs, monkeypatch):
+    """Verify _restore_artifact_manifest rejects entries with mismatched task hash in filename."""
+    monkeypatch.setattr(settings, "TRANSFORMS_DIR", managed_test_dirs.transforms)
+
+    task_id = "task_restore_test_03"
+    foreign_hash = hashlib.sha256(b"foreign_task_owner").hexdigest()[:10]
+    mismatched_filename = f"transformed_{foreign_hash}_abcdef0123.csv.enc"
+    artifact_file = managed_test_dirs.transforms / mismatched_filename
+    artifact_file.write_bytes(b"encrypted_content")
+
+    manifest_entries = [
+        {
+            "artifact_id": "transformed_abcdef0123",
+            "task_id": task_id,
+            "artifact_type": "transformed_dataset",
+            "relative_path": mismatched_filename,
+        }
+    ]
+    encrypted = encryption_service().encrypt_bytes(json.dumps(manifest_entries).encode("utf-8")).decode("ascii")
+    checkpointer = SQLiteCheckpointer(managed_test_dirs.tmp_path / "test.db")
+    state = TaskState(task_id=task_id, objective="Hash mismatch test")
+
+    with pytest.raises(ValueError, match="Artifact manifest task hash mismatch"):
+        checkpointer._restore_artifact_manifest(state, encrypted)
 
 
 def test_checkpoint_restore_rejects_cross_task_manifest(managed_test_dirs, monkeypatch):

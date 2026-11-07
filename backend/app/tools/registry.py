@@ -3,6 +3,7 @@ import time
 import inspect
 import uuid
 import weakref
+from contextvars import ContextVar
 from typing import Callable, Any, Type
 from pydantic import BaseModel, ValidationError
 
@@ -23,6 +24,13 @@ DIRECT_READ_ONLY_TOOL_ALLOWLIST = frozenset({
     "correlation_analysis", "detect_outliers", "read_document",
     "search_document_chunks", "system_health",
 })
+
+_active_cancellation_check: ContextVar[Callable[[], bool] | None] = ContextVar("active_cancellation_check", default=None)
+
+
+def current_cancellation_check() -> Callable[[], bool] | None:
+    return _active_cancellation_check.get()
+
 
 class ToolRegistry:
     def __init__(self):
@@ -238,30 +246,34 @@ class ToolRegistry:
         start_time = time.perf_counter()
         try:
             timeout_seconds = min(tool_def.timeout_seconds, settings.STEP_TIMEOUT_SECONDS)
-            async with self._execution_semaphore():
-                if cancellation_check is not None and cancellation_check():
-                    return ToolResult(tool_name=name, success=False, error="Tool execution cancelled before start.")
-                if inspect.iscoroutinefunction(executor):
-                    raw_result = await asyncio.wait_for(executor(validated_input), timeout=timeout_seconds)
-                else:
-                    # A worker thread keeps sync tools off the API event loop. Threads
-                    # cannot be killed safely, so timeout/cancellation waits for this
-                    # invocation to reach a safe return boundary before releasing capacity.
-                    invocation = asyncio.create_task(asyncio.to_thread(executor, validated_input))
-                    try:
-                        raw_result = await asyncio.wait_for(asyncio.shield(invocation), timeout=timeout_seconds)
-                    except asyncio.TimeoutError as exc:
+            token = _active_cancellation_check.set(cancellation_check)
+            try:
+                async with self._execution_semaphore():
+                    if cancellation_check is not None and cancellation_check():
+                        return ToolResult(tool_name=name, success=False, error="Tool execution cancelled before start.")
+                    if inspect.iscoroutinefunction(executor):
+                        raw_result = await asyncio.wait_for(executor(validated_input), timeout=timeout_seconds)
+                    else:
+                        # A worker thread keeps sync tools off the API event loop. Threads
+                        # cannot be killed safely, so timeout/cancellation waits for this
+                        # invocation to reach a safe return boundary before releasing capacity.
+                        invocation = asyncio.create_task(asyncio.to_thread(executor, validated_input))
                         try:
-                            await asyncio.shield(invocation)
-                        except Exception:
-                            pass
-                        raise TimeoutError("Tool execution exceeded its configured deadline.") from exc
-                    except asyncio.CancelledError:
-                        try:
-                            await asyncio.shield(invocation)
-                        except Exception:
-                            pass
-                        raise
+                            raw_result = await asyncio.wait_for(asyncio.shield(invocation), timeout=timeout_seconds)
+                        except asyncio.TimeoutError as exc:
+                            try:
+                                await asyncio.shield(invocation)
+                            except Exception:
+                                pass
+                            raise TimeoutError("Tool execution exceeded its configured deadline.") from exc
+                        except asyncio.CancelledError:
+                            try:
+                                await asyncio.shield(invocation)
+                            except Exception:
+                                pass
+                            raise
+            finally:
+                _active_cancellation_check.reset(token)
                 
             elapsed_ms = (time.perf_counter() - start_time) * 1000.0
 

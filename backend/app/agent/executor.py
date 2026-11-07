@@ -212,6 +212,8 @@ class PlanExecutor:
             if "chart_paths" not in params or not params["chart_paths"]:
                 params["chart_paths"] = chart_artifacts
             params["task_id"] = task_state.task_id
+        elif step.tool_name == "transform_dataset":
+            params["task_id"] = task_state.task_id
 
             # If findings are generic, enhance with quantitative figures from analytics steps
             for dep_id in step.dependencies:

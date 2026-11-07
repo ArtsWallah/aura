@@ -230,6 +230,7 @@ class TransformDatasetInput(StrictContract):
         max_length=20,
         description="Ordered sequence of transformations (max 20).",
     )
+    task_id: str | None = Field(default=None, exclude=True)
 
 
 class OperationSummary(StrictContract):

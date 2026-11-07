@@ -336,7 +336,10 @@ async def test_workflow_05_group_comparison_to_generate_report(encrypted_sales_c
                 parameters={
                     "title": "Category Performance Summary",
                     "executive_summary": "Overall sales breakdown across product lines.",
-                    "findings": ["Category comparison indicates varying revenue streams."],
+                    "findings": [
+                        "Category comparison indicates varying revenue streams.",
+                        "Total aggregate revenue evaluated.",
+                    ],
                     "recommendations": ["Optimize inventory for leading categories."],
                     "tables": {"$ref": {"step_id": "step_group", "path": "data.results"}},
                 },

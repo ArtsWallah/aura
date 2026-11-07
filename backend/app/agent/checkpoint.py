@@ -1,3 +1,4 @@
+import hashlib
 import json
 import re
 import sqlite3
@@ -192,6 +193,10 @@ class SQLiteCheckpointer:
                 directory = "reports"
             elif artifact_type == "transformed_dataset":
                 directory = "transforms"
+                expected_task_hash = hashlib.sha256(task_state.task_id.encode("utf-8")).hexdigest()[:10]
+                match = re.fullmatch(r"transformed_([a-f0-9]{10})_([a-f0-9]{10})\.csv\.enc", resolved.name)
+                if not match or match.group(1) != expected_task_hash:
+                    continue
             else:
                 continue
             if resolved.parent != roots[directory] or not resolved.is_file():
@@ -244,6 +249,10 @@ class SQLiteCheckpointer:
                 directory = "reports"
             elif artifact_type == "transformed_dataset":
                 directory = "transforms"
+                expected_task_hash = hashlib.sha256(state.task_id.encode("utf-8")).hexdigest()[:10]
+                match = re.fullmatch(r"transformed_([a-f0-9]{10})_([a-f0-9]{10})\.csv\.enc", relative_path)
+                if not match or match.group(1) != expected_task_hash:
+                    raise ValueError("Artifact manifest task hash mismatch.")
             else:
                 raise ValueError("Unsupported artifact type.")
             kind = self._artifact_type_and_id(relative_path)
