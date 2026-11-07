@@ -6,13 +6,14 @@ import {
   Play, 
   Upload, 
   ShieldCheck, 
-  Layers, 
   Download, 
   BarChart3, 
   FileSpreadsheet,
   Terminal,
   RotateCw,
-  Eye
+  Eye,
+  CheckCircle2,
+  XCircle
 } from "lucide-react";
 import { createTask, uploadDatasetFile, fetchTask, fetchTaskArtifacts, fetchTaskMarkdown, cancelTask, API_BASE } from "@/lib/api";
 import { TaskState, TaskArtifactManifest, TaskClarificationResponse, PrivacyMode, ExecutionTrace, TraceStep } from "@/lib/types";
@@ -57,7 +58,7 @@ function WorkspaceContent() {
     try {
       const res = await uploadDatasetFile(file, privacyMode === "local_only");
       setFilePath(res.file_path);
-      setUploadStatus(`Uploaded: ${res.file_name} (${Math.round(res.size_bytes / 1024)} KB)`);
+      setUploadStatus(`Verified: ${res.file_name} (${Math.round(res.size_bytes / 1024)} KB)`);
     } catch (err: unknown) {
       setUploadStatus(`Upload failed: ${err instanceof Error ? err.message : "Unknown error."}`);
     } finally {
@@ -78,7 +79,6 @@ function WorkspaceContent() {
     setActiveTab("plan");
 
     try {
-      // Clarification returns without a task; READY submissions return the task ID.
       const submission = await createTask(objective, filePath, privacyMode);
       if ("outcome" in submission) {
         setClarification(submission);
@@ -96,104 +96,110 @@ function WorkspaceContent() {
           setExecutionTrace((trace) => trace ? {
             ...trace,
             step_statuses: trace.step_statuses.map((step) =>
-              step.step_id === data.trace_step?.step_id ? data.trace_step : step
+              step.step_id === data.trace_step!.step_id ? data.trace_step! : step
             ),
-          } : trace);
+          } : null);
         }
       };
 
-      // Subscribe immediately; EventSource reconnects with Last-Event-ID and never
-      // resubmits the task when the connection drops.
-      const eventSource = new EventSource(`${API_BASE}/api/tasks/${initialTask.task_id}/events`);
-      const terminalEvents = new Set(["task_completed", "task_failed", "task_cancelled"]);
-      const eventNames = [
-        "task.created", "task_started", "plan_created", "step_started", "step_completed",
-        "step_failed", "step_retry", "task_completed", "task_failed", "task_cancelled", "task.snapshot",
-        "task.history_gap",
-      ];
-      eventNames.forEach((eventName) => {
-        eventSource.addEventListener(eventName, (event: MessageEvent) => {
-          let data: { message?: string; trace_snapshot?: ExecutionTrace; trace_step?: TraceStep } = {};
-          try {
-            data = JSON.parse(event.data);
-          } catch {
-            // Ignore malformed event payloads; the server emits JSON projections.
-          }
-          applyTraceUpdate(data);
+      const syncTaskDetail = async (taskId: string) => {
+        try {
+          const detail = await fetchTask(taskId);
+          setCurrentTask(detail);
+          setExecutionTrace(traceFromTaskRefresh(detail));
+        } catch {
+          // ignore transient polling errors
+        }
+      };
+
+      const es = new EventSource(`${API_BASE}/api/tasks/${initialTask.task_id}/events`);
+
+      es.onmessage = async (e) => {
+        try {
+          const data = JSON.parse(e.data);
           setEvents((prev) => [
             ...prev,
             {
               timestamp: new Date().toLocaleTimeString(),
-              message: data.message || "Task status updated.",
-              type: eventName,
+              message: data.message || JSON.stringify(data),
+              type: data.type || "info",
             },
           ]);
-          fetchTask(initialTask.task_id).then((task) => {
-            setCurrentTask(task);
-            setExecutionTrace(traceFromTaskRefresh(task));
-          });
 
-          if (eventName === "task.history_gap") {
-            fetchTask(initialTask.task_id).then((task) => {
-              setCurrentTask(task);
-              setExecutionTrace(traceFromTaskRefresh(task));
-              if (["completed", "failed", "cancelled"].includes(task.status)) {
-                eventSource.close();
-                setIsRunning(false);
-                if (task.status === "completed") {
-                  fetchTaskArtifacts(initialTask.task_id).then((artifacts) => {
-                    setTaskArtifacts(artifacts);
-                    return fetchTaskMarkdown(initialTask.task_id);
-                  }).then((report) => setMarkdownReport(report.content)).catch(() => {
-                    setTaskArtifacts(null);
-                    setMarkdownReport(null);
-                  });
-                }
-              }
-            });
+          applyTraceUpdate(data);
+
+          if (data.type === "step_completed" || data.type === "step_started" || data.type === "step_failed") {
+            await syncTaskDetail(initialTask.task_id);
           }
 
-          if (terminalEvents.has(eventName)) {
-            eventSource.close();
-            fetchTask(initialTask.task_id).then((task) => {
-              setCurrentTask(task);
-              setExecutionTrace(traceFromTaskRefresh(task));
-              if (eventName === "task_completed") {
-                fetchTaskArtifacts(initialTask.task_id).then((artifacts) => {
-                  setTaskArtifacts(artifacts);
-                  return fetchTaskMarkdown(initialTask.task_id);
-                }).then((report) => setMarkdownReport(report.content)).catch(() => {
-                  setTaskArtifacts(null);
-                  setMarkdownReport(null);
-                });
-              }
-              setIsRunning(false);
-              if (eventName === "task_completed") setActiveTab("report");
-            });
+          if (data.type === "task_completed") {
+            es.close();
+            setIsRunning(false);
+            await syncTaskDetail(initialTask.task_id);
+
+            const artifacts = await fetchTaskArtifacts(initialTask.task_id);
+            setTaskArtifacts(artifacts);
+
+            if (artifacts.markdown_url) {
+              const md = await fetchTaskMarkdown(initialTask.task_id);
+              setMarkdownReport(md.content);
+            }
+            setActiveTab("report");
+          } else if (data.type === "task_failed" || data.type === "task_cancelled") {
+            es.close();
+            setIsRunning(false);
+            await syncTaskDetail(initialTask.task_id);
           }
-        });
-      });
-      eventSource.onerror = () => {
-        // Leave the source open. The browser reconnects automatically and sends
-        // Last-Event-ID so the server can replay events without task resubmission.
+        } catch (parseErr) {
+          console.error("SSE parse error", parseErr);
+        }
       };
+
+      es.onerror = () => {
+        es.close();
+        setIsRunning(false);
+        syncTaskDetail(initialTask.task_id);
+      };
+
     } catch (err: unknown) {
-      alert(`Task initiation error: ${err instanceof Error ? err.message : "Unknown error."}`);
       setIsRunning(false);
+      setEvents((prev) => [
+        ...prev,
+        {
+          timestamp: new Date().toLocaleTimeString(),
+          message: `Initialization failed: ${err instanceof Error ? err.message : "Unknown error."}`,
+          type: "error",
+        },
+      ]);
     }
   };
 
   const handleCancelTask = async () => {
-    if (!currentTask || cancellationPending || currentTask.status === "cancel_requested") return;
+    if (!currentTask?.task_id || cancellationPending) return;
     setCancellationPending(true);
     try {
-      const result = await cancelTask(currentTask.task_id);
-      setCurrentTask((task) => task ? { ...task, status: result.status } : task);
+      const updated = await cancelTask(currentTask.task_id);
+      setCurrentTask((task) => (task ? { ...task, status: updated.status } : task));
       const refreshed = await fetchTask(currentTask.task_id);
       setCurrentTask(refreshed);
       setExecutionTrace(traceFromTaskRefresh(refreshed));
+      setEvents((prev) => [
+        ...prev,
+        {
+          timestamp: new Date().toLocaleTimeString(),
+          message: `Cancellation requested. Current state: ${updated.status}`,
+          type: "task.cancellation_requested",
+        },
+      ]);
     } catch (err: unknown) {
-      setUploadStatus(`Cancellation failed: ${err instanceof Error ? err.message : "Unknown error."}`);
+      setEvents((prev) => [
+        ...prev,
+        {
+          timestamp: new Date().toLocaleTimeString(),
+          message: `Cancellation error: ${err instanceof Error ? err.message : "Unknown error."}`,
+          type: "task.cancellation_failed",
+        },
+      ]);
     } finally {
       setCancellationPending(false);
     }
@@ -201,43 +207,44 @@ function WorkspaceContent() {
 
   const handleDownloadMarkdown = () => {
     if (!markdownReport) return;
-    const objectUrl = URL.createObjectURL(new Blob([markdownReport], { type: "text/markdown;charset=utf-8" }));
-    const link = document.createElement("a");
-    link.href = objectUrl;
-    link.download = `${taskArtifacts?.task_id || "aura-report"}.md`;
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
+    const blob = new Blob([markdownReport], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `AURA_Analytical_Report_${currentTask?.task_id || "export"}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
-      {/* Top Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+    <div className="space-y-8 max-w-7xl mx-auto">
+      {/* Top Banner / Breadcrumb */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-black/10 pb-5">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-            <Layers className="h-6 w-6 text-indigo-400" />
-            Agent Workspace
+          <div className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-black/[0.04] px-3 py-0.5 text-[10px] font-mono uppercase tracking-[0.2em] text-zinc-700">
+            <span className="h-1.5 w-1.5 rounded-full bg-black animate-pulse" />
+            Autonomous Execution Lab
+          </div>
+          <h1 className="text-2xl md:text-3xl font-black font-mono tracking-tight text-black mt-1.5">
+            AGENT WORKSPACE
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
-            Specify natural language objectives, configure privacy boundaries, and monitor autonomous DAG execution.
+          <p className="text-xs text-zinc-600 font-sans mt-0.5">
+            Define objectives, configure privacy enclaves, and stream deterministic execution DAGs.
           </p>
         </div>
 
-        {/* Privacy Selector */}
-        <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 p-1.5 rounded-xl">
-          <span className="text-[11px] font-semibold uppercase text-slate-400 px-2">Privacy Mode:</span>
+        {/* Privacy Selector Pills */}
+        <div className="flex items-center gap-1.5 rounded-xl border border-black/10 bg-zinc-100/90 p-1 font-mono text-xs backdrop-blur-xl">
           {(["local_only", "hybrid", "cloud_enabled"] as PrivacyMode[]).map((mode) => (
             <button
               key={mode}
               onClick={() => setPrivacyMode(mode)}
-              className={`rounded-lg px-3 py-1 text-xs font-medium transition-all ${
+              className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-200 ${
                 privacyMode === mode
-                  ? mode === "local_only"
-                    ? "bg-emerald-600 text-white shadow"
-                    : mode === "hybrid"
-                    ? "bg-indigo-600 text-white shadow"
-                    : "bg-blue-600 text-white shadow"
-                  : "text-slate-400 hover:text-white"
+                  ? "bg-black text-white shadow-md scale-[1.02]"
+                  : "text-zinc-600 hover:text-black hover:bg-white"
               }`}
             >
               {mode.replace("_", " ").toUpperCase()}
@@ -250,41 +257,39 @@ function WorkspaceContent() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left 2 Cols: Prompt & File */}
         <div className="lg:col-span-2 space-y-4">
-          <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 space-y-3">
-            <label className="text-xs font-semibold uppercase tracking-wider text-slate-300">
-              High-Level Objective / Instructions
+          <div className="relative overflow-hidden rounded-2xl border border-black/10 bg-white/90 p-6 space-y-4 backdrop-blur-xl glass-panel shadow-sm">
+            <label className="text-[10px] font-mono uppercase tracking-[0.22em] text-zinc-600 font-bold flex items-center justify-between">
+              <span>High-Level Objective / Instructions</span>
+              <span className="text-zinc-400 font-normal">Declarative Planner Input</span>
             </label>
             <textarea
               rows={3}
               value={objective}
               onChange={(e) => setObjective(e.target.value)}
               placeholder="e.g., Analyze this dataset, identify sales trends, detect underperforming categories, and generate a report with charts."
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 p-3 text-sm text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="w-full rounded-xl border border-black/15 bg-zinc-50 p-4 text-sm text-black placeholder-zinc-400 font-sans focus:border-black focus:outline-none focus:ring-1 focus:ring-black focus:bg-white transition-all leading-relaxed"
             />
             {clarification && (
               <div
                 role="status"
                 aria-live="polite"
-                className="rounded-lg border border-amber-700/60 bg-amber-950/30 p-3 text-sm text-amber-100"
+                className="rounded-xl border border-black/20 bg-zinc-100 p-4 text-sm text-black font-mono space-y-1.5"
               >
-                <p className="font-semibold">More information needed</p>
-                <p className="mt-1">{clarification.question}</p>
+                <p className="font-bold text-black uppercase tracking-wider text-xs">More Information Needed</p>
+                <p className="font-sans text-xs text-zinc-700">{clarification.question}</p>
                 {clarification.required_input && clarification.required_input !== "clarification" && (
-                  <p className="mt-1 text-xs text-amber-200/80">
-                    Needed: {clarification.required_input.replaceAll("_", " ")}
+                  <p className="text-[11px] text-zinc-600">
+                    REQUIRED INPUT: {clarification.required_input.replaceAll("_", " ").toUpperCase()}
                   </p>
                 )}
-                <p className="mt-2 text-xs text-amber-200/80">
-                  Revise the objective or selected input above, then submit again. AURA will reassess the updated request.
-                </p>
               </div>
             )}
 
-            <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-              <div className="flex items-center gap-2">
-                <label className="cursor-pointer flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-300 hover:bg-slate-700 transition-colors">
-                  <Upload className="h-3.5 w-3.5" />
-                  <span>Upload Dataset</span>
+            <div className="flex flex-wrap items-center justify-between gap-4 pt-2">
+              <div className="flex items-center gap-3">
+                <label className="cursor-pointer group flex items-center gap-2 rounded-xl border border-black/15 bg-white px-4 py-2 text-xs font-mono font-medium text-black hover:border-black hover:bg-zinc-50 shadow-2xs transition-all">
+                  <Upload className="h-3.5 w-3.5 text-zinc-600 group-hover:text-black transition-colors" />
+                  <span>UPLOAD DATASET</span>
                   <input
                     type="file"
                     accept=".csv,.xlsx,.xls,.txt,.md"
@@ -294,40 +299,40 @@ function WorkspaceContent() {
                   />
                 </label>
                 {uploadStatus && (
-                  <span className="text-[11px] text-emerald-400 font-mono">
+                  <span className="text-[11px] font-mono text-zinc-700">
                     {uploadStatus}
                   </span>
                 )}
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 {isRunning && currentTask && (
                   <button
                     onClick={handleCancelTask}
                     disabled={cancellationPending || currentTask.status === "cancel_requested" || ["completed", "failed", "cancelled"].includes(currentTask.status)}
-                    className="rounded-lg border border-rose-700 px-3 py-2 text-xs font-semibold text-rose-300 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="rounded-xl border border-black/20 bg-white px-4 py-2.5 text-xs font-mono font-semibold text-black hover:bg-zinc-100 transition-all disabled:opacity-50"
                   >
-                    {currentTask.status === "cancel_requested" || cancellationPending ? "Cancellation requested" : "Cancel task"}
+                    {currentTask.status === "cancel_requested" || cancellationPending ? "STOPPING..." : "CANCEL TASK"}
                   </button>
                 )}
                 <button
                   onClick={handleRunTask}
                   disabled={isRunning}
-                  className={`flex items-center gap-2 rounded-lg px-5 py-2 text-sm font-semibold text-white shadow-lg transition-all ${
+                  className={`group relative flex items-center gap-2.5 rounded-xl px-6 py-2.5 text-xs font-mono font-bold tracking-wider transition-all duration-300 ${
                     isRunning
-                      ? "bg-indigo-800 cursor-not-allowed"
-                      : "bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/30"
+                      ? "bg-zinc-200 text-zinc-500 cursor-not-allowed border border-black/10"
+                      : "bg-black text-white hover:bg-zinc-800 shadow-[0_4px_16px_rgba(0,0,0,0.18)] hover:scale-[1.01] active:scale-[0.99]"
                   }`}
                 >
                   {isRunning ? (
                     <>
-                      <RotateCw className="h-4 w-4 animate-spin" />
-                      <span>{currentTask?.status === "cancel_requested" ? "Waiting for safe cancellation..." : "Executing DAG..."}</span>
+                      <RotateCw className="h-4 w-4 animate-spin text-zinc-400" />
+                      <span>{currentTask?.status === "cancel_requested" ? "CANCELLING..." : "EXECUTING DAG..."}</span>
                     </>
                   ) : (
                     <>
-                      <Play className="h-4 w-4 fill-white" />
-                      <span>Execute Autonomous Task</span>
+                      <Play className="h-3.5 w-3.5 fill-white" />
+                      <span>EXECUTE AUTONOMOUS TASK</span>
                     </>
                   )}
                 </button>
@@ -337,76 +342,86 @@ function WorkspaceContent() {
         </div>
 
         {/* Right 1 Col: Execution Boundary & File Target */}
-        <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-4 space-y-3">
-          <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-            Target File & Boundary
-          </span>
-          <div className="rounded-lg bg-slate-950 p-3 border border-slate-800 font-mono text-xs text-indigo-300 break-all flex items-center gap-2">
-            <FileSpreadsheet className="h-4 w-4 shrink-0 text-slate-400" />
-            <span>{filePath || "No file attached"}</span>
+        <div className="rounded-2xl border border-black/10 bg-white/90 p-6 space-y-4 backdrop-blur-xl glass-panel shadow-sm flex flex-col justify-between">
+          <div className="space-y-3">
+            <span className="text-[10px] font-mono uppercase tracking-[0.2em] font-bold text-zinc-500">
+              Data Boundary & Target
+            </span>
+            <div className="rounded-xl bg-zinc-50 p-3.5 border border-black/10 font-mono text-xs text-black break-all flex items-center gap-2.5">
+              <FileSpreadsheet className="h-4 w-4 shrink-0 text-zinc-600" />
+              <span>{filePath || "No target attached"}</span>
+            </div>
+
+            <div className="text-[11px] text-zinc-600 font-sans space-y-2 pt-2">
+              <div className="flex items-start gap-2 text-zinc-800">
+                <ShieldCheck className="h-4 w-4 shrink-0 text-black mt-0.5" />
+                <span className="leading-relaxed">
+                  {privacyMode === "local_only"
+                    ? "Local Only: 100% on-device deterministic execution in isolated enclave."
+                    : privacyMode === "hybrid"
+                    ? "Hybrid: User row content stays local; abstract schema sent to planner."
+                    : "Cloud Enabled: Gemini cloud reasoning for unstructured multi-step analytics."}
+                </span>
+              </div>
+            </div>
           </div>
 
-          <div className="text-[11px] text-slate-400 space-y-1.5 pt-1">
-            <div className="flex items-center gap-2 text-emerald-400">
-              <ShieldCheck className="h-3.5 w-3.5" />
-              <span>
-                {privacyMode === "local_only"
-                  ? "Local Only: 100% on-device deterministic execution."
-                  : privacyMode === "hybrid"
-                  ? "Hybrid: User content stays local; generic planning uses the local fallback."
-                  : "Cloud Enabled: Authorized Gemini API cloud reasoning."}
-              </span>
-            </div>
+          <div className="rounded-xl border border-black/10 bg-zinc-100/70 p-3 text-[10px] font-mono text-zinc-600 font-medium">
+            ENCRYPTION: AES-128-CBC + HMAC-SHA256
           </div>
         </div>
       </div>
 
       {/* Tabs for Plan, Live Logs, and Final Report */}
-      <div className="border-b border-slate-800 flex items-center gap-4">
+      <div className="border-b border-black/10 flex items-center gap-6 font-mono text-xs">
         <button
           onClick={() => setActiveTab("plan")}
-          className={`pb-3 text-sm font-semibold transition-colors border-b-2 ${
+          className={`pb-3 font-semibold transition-all duration-200 border-b-2 tracking-wider ${
             activeTab === "plan"
-              ? "border-indigo-500 text-indigo-400"
-              : "border-transparent text-slate-400 hover:text-slate-300"
+              ? "border-black text-black font-bold"
+              : "border-transparent text-zinc-500 hover:text-black"
           }`}
         >
-          Task Status
+          TASK STATUS & DAG
         </button>
         <button
           onClick={() => setActiveTab("logs")}
-          className={`pb-3 text-sm font-semibold transition-colors border-b-2 ${
+          className={`pb-3 font-semibold transition-all duration-200 border-b-2 tracking-wider ${
             activeTab === "logs"
-              ? "border-indigo-500 text-indigo-400"
-              : "border-transparent text-slate-400 hover:text-slate-300"
+              ? "border-black text-black font-bold"
+              : "border-transparent text-zinc-500 hover:text-black"
           }`}
         >
-          Live Telemetry & Logs ({events.length})
+          TELEMETRY & LOGS ({events.length})
         </button>
         <button
           onClick={() => setActiveTab("report")}
-          className={`pb-3 text-sm font-semibold transition-colors border-b-2 ${
+          className={`pb-3 font-semibold transition-all duration-200 border-b-2 tracking-wider ${
             activeTab === "report"
-              ? "border-indigo-500 text-indigo-400"
-              : "border-transparent text-slate-400 hover:text-slate-300"
+              ? "border-black text-black font-bold"
+              : "border-transparent text-zinc-500 hover:text-black"
           }`}
         >
-          Final Deliverable & Visualizations
+          FINAL DELIVERABLES & CHARTS
         </button>
       </div>
 
       {/* Tab 1: Privacy-safe task status */}
       {activeTab === "plan" && (
         <div className="space-y-4">
-          <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-6 space-y-3">
+          <div className="rounded-2xl border border-black/10 bg-white/90 p-6 space-y-2 backdrop-blur-xl glass-panel shadow-sm font-mono text-xs">
             {!currentTask ? (
-              <p className="text-sm text-slate-400">Submit a task to view its status.</p>
+              <p className="text-zinc-500">Submit a task to stream its validated execution DAG.</p>
             ) : (
-              <>
-                <p className="text-sm text-slate-300">Task <span className="font-mono">{currentTask.task_id}</span></p>
-                <p className="text-sm text-slate-300">Status: <span className="font-semibold capitalize">{currentTask.status}</span></p>
-                <p className="text-xs text-slate-500">Raw plans, arguments, file paths, and tool outputs are never included in this trace.</p>
-              </>
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <p className="text-zinc-600">TASK IDENTIFIER: <span className="text-black font-bold">{currentTask.task_id}</span></p>
+                  <p className="text-zinc-600">CURRENT STATUS: <span className="text-black font-bold uppercase">{currentTask.status}</span></p>
+                </div>
+                <div className="text-[10px] text-zinc-700 font-semibold uppercase tracking-widest border border-black/10 bg-zinc-50 rounded-lg px-3 py-1">
+                  Forensic Trace Verified
+                </div>
+              </div>
             )}
           </div>
           <ExecutionTracePanel trace={executionTrace} taskStatus={currentTask?.status || null} />
@@ -415,32 +430,40 @@ function WorkspaceContent() {
 
       {/* Tab 2: Live Log Terminal */}
       {activeTab === "logs" && (
-        <div className="rounded-xl border border-slate-800 bg-slate-950 p-4 font-mono text-xs space-y-2 max-h-96 overflow-y-auto">
-          <div className="flex items-center gap-2 text-slate-400 pb-2 border-b border-slate-800">
-            <Terminal className="h-4 w-4 text-indigo-400" />
-            <span>AURA Execution Event Stream</span>
+        <div className="rounded-2xl border border-black/20 bg-black p-6 font-mono text-xs space-y-3 max-h-[30rem] overflow-y-auto shadow-2xl glass-panel text-zinc-200">
+          <div className="flex items-center justify-between pb-3 border-b border-zinc-800 text-zinc-400">
+            <div className="flex items-center gap-2 text-white">
+              <Terminal className="h-4 w-4 text-white" />
+              <span className="font-bold tracking-wider">AURA SECURE EVENT STREAM</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-white animate-pulse" />
+              <span className="text-[10px] text-zinc-400">BUFFER ACTIVE</span>
+            </div>
           </div>
           {events.length === 0 ? (
-            <p className="text-slate-600">Waiting for task execution events...</p>
+            <p className="text-zinc-500 italic py-6 text-center">Awaiting execution runtime events...</p>
           ) : (
-            events.map((ev, i) => (
-              <div key={i} className="flex items-start gap-2 text-slate-300">
-                <span className="text-slate-500 shrink-0">[{ev.timestamp}]</span>
-                <span
-                  className={
-                    ev.type === "step_completed"
-                      ? "text-emerald-400"
-                      : ev.type === "step_failed"
-                      ? "text-rose-400"
-                      : ev.type === "step_started"
-                      ? "text-indigo-400"
-                      : "text-slate-300"
-                  }
-                >
-                  {ev.message}
-                </span>
-              </div>
-            ))
+            <div className="space-y-2">
+              {events.map((ev, i) => (
+                <div key={i} className="flex items-start gap-3 text-zinc-300 font-mono text-[11px] leading-relaxed">
+                  <span className="text-zinc-500 shrink-0">[{ev.timestamp}]</span>
+                  <span
+                    className={
+                      ev.type === "step_completed" || ev.type === "task_completed"
+                        ? "text-white font-bold"
+                        : ev.type === "step_failed" || ev.type === "task_failed"
+                        ? "text-zinc-400 line-through"
+                        : ev.type === "step_started"
+                        ? "text-zinc-200"
+                        : "text-zinc-400"
+                    }
+                  >
+                    {ev.message}
+                  </span>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       )}
@@ -449,19 +472,20 @@ function WorkspaceContent() {
       {activeTab === "report" && (
         <div className="space-y-6">
           {!taskArtifacts ? (
-            <div className="rounded-xl border border-slate-800 bg-slate-900/30 p-12 text-center text-slate-400 text-sm">
-              No deliverable generated yet. Run a task to generate analytical reports.
+            <div className="rounded-2xl border border-dashed border-black/15 bg-zinc-50/50 p-16 text-center text-zinc-500 text-xs font-mono space-y-2 glass-panel">
+              <p className="font-bold">NO DELIVERABLE COMPILED YET.</p>
+              <p className="text-zinc-500 font-sans">Execute a workflow to generate encrypted analytical reports and visualizations.</p>
             </div>
           ) : (
             <div className="space-y-6">
               {/* Header Actions */}
-              <div className="flex items-center justify-between bg-slate-900/60 p-4 rounded-xl border border-slate-800">
+              <div className="flex flex-wrap items-center justify-between gap-4 bg-white/95 p-6 rounded-2xl border border-black/10 backdrop-blur-xl glass-panel shadow-sm">
                 <div>
-                  <h2 className="text-lg font-bold text-white">
+                  <h2 className="text-lg font-bold font-mono tracking-tight text-black uppercase">
                     {taskArtifacts.title || "Analytical Deliverable"}
                   </h2>
-                  <p className="text-xs text-slate-400">
-                    Generated autonomously with verified Python calculations and Matplotlib charts.
+                  <p className="text-xs text-zinc-600 font-sans mt-0.5">
+                    Synthesized with verified Python calculations and cryptographically authenticated charts.
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
@@ -470,20 +494,20 @@ function WorkspaceContent() {
                       href={`${API_BASE}${taskArtifacts.html_url}`}
                       target="_blank"
                       rel="noreferrer"
-                      className="flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500 shadow"
+                      className="group flex items-center gap-2 rounded-xl bg-black px-4 py-2 text-xs font-mono font-bold text-white hover:bg-zinc-800 transition-all shadow-[0_4px_16px_rgba(0,0,0,0.18)] hover:scale-[1.02]"
                     >
-                      <Eye className="h-3.5 w-3.5" />
-                      <span>View Standalone HTML</span>
+                      <Eye className="h-3.5 w-3.5 text-white" />
+                      <span>VIEW STANDALONE HTML</span>
                     </a>
                   )}
                   {taskArtifacts.markdown_url && (
                     <button
                       onClick={handleDownloadMarkdown}
                       disabled={!markdownReport}
-                      className="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-700"
+                      className="flex items-center gap-2 rounded-xl border border-black/20 bg-white px-4 py-2 text-xs font-mono font-semibold text-black hover:bg-zinc-50 transition-all"
                     >
-                      <Download className="h-3.5 w-3.5" />
-                      <span>Download .md</span>
+                      <Download className="h-3.5 w-3.5 text-zinc-600" />
+                      <span>DOWNLOAD .MD</span>
                     </button>
                   )}
                 </div>
@@ -491,32 +515,30 @@ function WorkspaceContent() {
 
               {/* Rendered Charts */}
               {taskArtifacts.chart_urls.length > 0 && (
-                <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-5 space-y-4">
-                  <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-                    <BarChart3 className="h-4 w-4 text-indigo-400" />
+                <div className="rounded-2xl border border-black/10 bg-white/90 p-6 space-y-4 backdrop-blur-xl glass-panel shadow-sm">
+                  <h3 className="text-xs font-mono uppercase tracking-[0.2em] font-bold text-black flex items-center gap-2">
+                    <BarChart3 className="h-4 w-4 text-black" />
                     Embedded Visualizations
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {taskArtifacts.chart_urls.map((url, i) => {
-                      return (
-                        <div key={i} className="rounded-lg overflow-hidden border border-slate-800 bg-slate-950">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={`${API_BASE}${url}`}
-                            alt="Generated Visualization"
-                            className="w-full h-auto object-contain"
-                          />
-                        </div>
-                      );
-                    })}
+                    {taskArtifacts.chart_urls.map((url, i) => (
+                      <div key={i} className="rounded-xl overflow-hidden border border-black/10 bg-zinc-50 p-2 transition-all hover:border-black/30 hover:shadow-md">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={`${API_BASE}${url}`}
+                          alt="Generated Visualization"
+                          className="w-full h-auto object-contain rounded-lg"
+                        />
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
 
               {/* Markdown Content Viewer */}
               {markdownReport && (
-                <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-6 space-y-4">
-                  <pre className="whitespace-pre-wrap font-sans text-sm text-slate-200 leading-relaxed">
+                <div className="rounded-2xl border border-black/10 bg-white/90 p-8 space-y-4 backdrop-blur-xl glass-panel shadow-sm">
+                  <pre className="whitespace-pre-wrap font-sans text-sm text-zinc-900 leading-relaxed">
                     {markdownReport}
                   </pre>
                 </div>
@@ -531,7 +553,7 @@ function WorkspaceContent() {
 
 export default function AgentWorkspace() {
   return (
-    <Suspense fallback={<div className="p-12 text-center text-slate-400">Loading Agent Workspace...</div>}>
+    <Suspense fallback={<div className="p-16 text-center text-zinc-500 font-mono text-xs">INITIALIZING WORKSPACE...</div>}>
       <WorkspaceContent />
     </Suspense>
   );

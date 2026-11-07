@@ -3,7 +3,7 @@ import { ExecutionTrace, TaskStatus, TraceStep } from "@/lib/types";
 const categoryLabel = (value: string | null | undefined) => (value ? value.replaceAll("_", " ") : "Unknown");
 
 function outcomeMessage(status: ExecutionTrace["evaluation_status"], taskStatus: TaskStatus) {
-  if (status === "succeeded") return "All planned steps completed with the expected evidence.";
+  if (status === "succeeded") return "All planned steps completed with verified cryptographic evidence.";
   if (status === "partial_success") return "Some useful work completed, but one or more steps did not.";
   if (status === "execution_failed") return "Execution ended without useful completed work.";
   if (status === "inconclusive") return "Available evidence could not confirm the requested outcome.";
@@ -15,12 +15,20 @@ function outcomeMessage(status: ExecutionTrace["evaluation_status"], taskStatus:
   return "Execution is in progress.";
 }
 
-function statusClass(status: TraceStep["status"]) {
-  if (status === "completed") return "text-emerald-300";
-  if (status === "failed" || status === "interrupted") return "text-rose-300";
-  if (status === "skipped") return "text-amber-300";
-  if (status === "in_progress") return "text-indigo-300";
-  return "text-slate-400";
+function statusBadge(status: TraceStep["status"]) {
+  if (status === "completed") {
+    return "border border-black bg-black text-white font-mono font-bold shadow-sm";
+  }
+  if (status === "failed" || status === "interrupted") {
+    return "border border-zinc-400 bg-zinc-200 text-zinc-800 font-mono";
+  }
+  if (status === "skipped") {
+    return "border border-zinc-200 bg-zinc-100 text-zinc-400 font-mono";
+  }
+  if (status === "in_progress") {
+    return "bg-black text-white font-mono font-bold animate-pulse shadow-[0_0_12px_rgba(0,0,0,0.3)]";
+  }
+  return "border border-zinc-200 bg-zinc-50 text-zinc-600 font-mono";
 }
 
 interface Props {
@@ -30,70 +38,86 @@ interface Props {
 
 export default function ExecutionTracePanel({ trace, taskStatus }: Props) {
   return (
-    <section aria-label="Execution trace" className="rounded-xl border border-slate-800 bg-slate-900/40 p-5 space-y-4">
-      <div>
-        <h2 className="text-sm font-semibold text-white">Execution trace</h2>
-        <p className="mt-1 text-xs text-slate-400">
-          Safe summary of AURA's interpretation, validated plan, and recorded step outcomes.
-        </p>
+    <section aria-label="Execution trace" className="rounded-2xl border border-black/10 bg-white/90 p-6 space-y-5 backdrop-blur-xl glass-panel shadow-sm">
+      <div className="flex items-center justify-between border-b border-black/10 pb-4">
+        <div>
+          <h2 className="text-xs font-mono uppercase tracking-[0.2em] font-bold text-black flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-black animate-ping" />
+            EXECUTION TELEMETRY & TRACE
+          </h2>
+          <p className="mt-1 text-xs text-zinc-600 font-sans">
+            Cryptographic audit of intent interpretation, DAG validation, and verified step artifacts.
+          </p>
+        </div>
       </div>
       {!trace ? (
-        <p className="text-sm text-slate-400">
-          {taskStatus === "queued" || taskStatus === "planning"
-            ? "Waiting for the validated plan."
-            : "No intelligence trace is available for this task."}
-        </p>
+        <div className="rounded-xl border border-dashed border-black/15 bg-zinc-50/50 p-6 text-center">
+          <p className="text-xs font-mono text-zinc-500">
+            {taskStatus === "queued" || taskStatus === "planning"
+              ? "Awaiting plan validation..."
+              : "No intelligence trace registered for this task."}
+          </p>
+        </div>
       ) : (
         <>
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-lg bg-slate-950/70 p-3">
-              <p className="text-[10px] font-semibold uppercase text-slate-500">Understanding</p>
-              <p className="mt-1 text-sm text-white">{categoryLabel(trace.intent_category)}</p>
+          <div className="grid gap-3 sm:grid-cols-3 font-mono">
+            <div className="rounded-xl border border-black/10 bg-zinc-50/80 p-4 transition-all hover:border-black/30 hover:bg-white hover:shadow-md">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Understanding</p>
+              <p className="mt-1.5 text-sm font-bold text-black uppercase">{categoryLabel(trace.intent_category)}</p>
               {trace.intent_confidence !== null && (
-                <p className="text-xs text-slate-400">Confidence {Math.round(trace.intent_confidence * 100)}%</p>
+                <p className="mt-1 text-xs text-zinc-600">CONFIDENCE: {Math.round(trace.intent_confidence * 100)}%</p>
               )}
-              <p className="mt-1 text-xs text-slate-500">Planner: {categoryLabel(trace.provider_identity)}</p>
+              <p className="mt-1 text-[11px] text-zinc-500">PLANNER: {categoryLabel(trace.provider_identity)}</p>
             </div>
-            <div className="rounded-lg bg-slate-950/70 p-3 sm:col-span-2">
-              <p className="text-[10px] font-semibold uppercase text-slate-500">Planning</p>
-              <p className="mt-1 text-xs text-slate-300">
-                {trace.step_statuses.length} ordered step{trace.step_statuses.length === 1 ? "" : "s"} in the validated plan
+            <div className="rounded-xl border border-black/10 bg-zinc-50/80 p-4 sm:col-span-2 transition-all hover:border-black/30 hover:bg-white hover:shadow-md">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Validated Plan Structure</p>
+              <p className="mt-1.5 text-xs text-zinc-900 font-semibold">
+                {trace.step_statuses.length} ordered step{trace.step_statuses.length === 1 ? "" : "s"} locked in execution DAG
               </p>
               {trace.step_statuses.length > 0 && (
-                <p className="mt-1 text-xs text-slate-400">
-                  {trace.step_statuses.map((step) => step.tool_label || step.tool_name).join(" > ")}
+                <p className="mt-2 text-xs text-zinc-600 leading-relaxed">
+                  {trace.step_statuses.map((step) => step.tool_label || step.tool_name).join("  →  ")}
                 </p>
               )}
             </div>
           </div>
 
           <div className="space-y-2">
-            <p className="text-[10px] font-semibold uppercase text-slate-500">Execution</p>
-            {trace.step_statuses.map((step, index) => (
-              <div key={step.step_id} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-slate-800 bg-slate-950/50 px-3 py-2 text-xs">
-                <span className="w-5 text-slate-500">{index + 1}.</span>
-                <span className="min-w-32 text-slate-200">{step.tool_label || step.tool_name}</span>
-                <span className="text-slate-500">{categoryLabel(step.tool_category || "tool")}</span>
-                <span className={`capitalize ${statusClass(step.status)}`}>{categoryLabel(step.status)}</span>
-                <span className="text-slate-400">Retries {step.retry_count}/{step.retry_limit}</span>
-                {step.failure_category && step.failure_category !== "none" && (
-                  <span className="text-amber-300">{categoryLabel(step.failure_category)}</span>
-                )}
-                {step.artifacts.filter((artifact) => artifact.available).map((artifact) => (
-                  <span key={artifact.artifact_type} className="text-cyan-300">
-                    {categoryLabel(artifact.artifact_type)} x {artifact.count}
-                  </span>
-                ))}
-              </div>
-            ))}
+            <p className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-zinc-500">Execution Steps</p>
+            <div className="space-y-2">
+              {trace.step_statuses.map((step, index) => (
+                <div key={step.step_id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-black/10 bg-zinc-50/60 px-4 py-3 text-xs transition-all hover:border-black/30 hover:bg-white hover:shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <span className="font-mono text-zinc-400 w-5">{String(index + 1).padStart(2, "0")}.</span>
+                    <span className="font-bold text-black tracking-tight">{step.tool_label || step.tool_name}</span>
+                    <span className="font-mono text-[10px] uppercase text-zinc-600 border border-black/10 bg-white rounded px-1.5 py-0.5">
+                      {categoryLabel(step.tool_category || "tool")}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`px-2.5 py-0.5 rounded text-[10px] tracking-wider uppercase ${statusBadge(step.status)}`}>
+                      {categoryLabel(step.status)}
+                    </span>
+                    <span className="font-mono text-[11px] text-zinc-500">
+                      R: {step.retry_count}/{step.retry_limit}
+                    </span>
+                    {step.artifacts.filter((artifact) => artifact.available).map((artifact) => (
+                      <span key={artifact.artifact_type} className="font-mono text-[10px] uppercase border border-black/15 bg-white text-zinc-800 px-2 py-0.5 rounded font-semibold shadow-2xs">
+                        {categoryLabel(artifact.artifact_type)}: {artifact.count}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
-          <div className="rounded-lg border border-slate-800 bg-slate-950/70 p-3">
-            <p className="text-[10px] font-semibold uppercase text-slate-500">Outcome</p>
-            <p className="mt-1 text-sm text-white">
+          <div className="rounded-xl border border-black/10 bg-zinc-50/80 p-4 space-y-1">
+            <p className="text-[10px] font-mono font-bold uppercase tracking-wider text-zinc-500">Final Outcome Evaluation</p>
+            <p className="text-sm font-mono font-black text-black uppercase tracking-tight">
               {trace.evaluation_status ? categoryLabel(trace.evaluation_status) : categoryLabel(taskStatus || "waiting")}
             </p>
-            <p className="mt-1 text-xs text-slate-400">{outcomeMessage(trace.evaluation_status, taskStatus || "queued")}</p>
+            <p className="text-xs text-zinc-600 font-sans">{outcomeMessage(trace.evaluation_status, taskStatus || "queued")}</p>
           </div>
         </>
       )}

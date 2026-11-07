@@ -4,15 +4,7 @@ import { useEffect, useState } from "react";
 import { 
   Wrench, 
   Play, 
-  ShieldCheck, 
-  Code, 
-  Clock, 
-  CheckCircle2, 
-  Terminal,
-  FileSpreadsheet,
-  BarChart3,
-  Search,
-  FileText
+  Terminal
 } from "lucide-react";
 import { fetchTools, executeToolDirect } from "@/lib/api";
 import { ToolDefinition } from "@/lib/types";
@@ -35,7 +27,6 @@ export default function ToolRegistryPage() {
 
   const handleSelectTool = (tool: ToolDefinition) => {
     setSelectedTool(tool);
-    // Provide sensible default JSON based on tool
     if (tool.name === "inspect_dataset") {
       setCustomArgs(JSON.stringify({ file_path: "data/sample_sales.csv", sample_rows: 5 }, null, 2));
     } else if (tool.name === "descriptive_statistics") {
@@ -73,12 +64,16 @@ export default function ToolRegistryPage() {
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="border-b border-slate-800 pb-4">
-        <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-          <Wrench className="h-6 w-6 text-indigo-400" />
-          Deterministic Tool Registry
+      <div className="border-b border-black/10 pb-5">
+        <div className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-black/[0.04] px-3 py-0.5 text-[10px] font-mono uppercase tracking-[0.2em] text-zinc-700">
+          <span className="h-1.5 w-1.5 rounded-full bg-black animate-pulse" />
+          Deterministic Sandbox
+        </div>
+        <h1 className="text-2xl md:text-3xl font-black font-mono tracking-tight text-black mt-1.5 flex items-center gap-2.5">
+          <Wrench className="h-6 w-6 text-black" />
+          DETERMINISTIC TOOL REGISTRY
         </h1>
-        <p className="text-xs text-slate-400 mt-1">
+        <p className="text-xs text-zinc-600 font-sans mt-0.5">
           Strongly-typed Python execution engines registered with validated Pydantic schemas, permissions, and timeout controls.
         </p>
       </div>
@@ -86,8 +81,8 @@ export default function ToolRegistryPage() {
       {/* Main Layout: Tools Catalog & Interactive Runner */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left: Tools List */}
-        <div className="space-y-2.5">
-          <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+        <div className="space-y-3">
+          <span className="text-[10px] font-mono uppercase tracking-[0.2em] font-bold text-zinc-500">
             Registered Engines ({tools.length})
           </span>
           <div className="space-y-2">
@@ -97,19 +92,18 @@ export default function ToolRegistryPage() {
                 <button
                   key={t.name}
                   onClick={() => handleSelectTool(t)}
-                  className={`w-full text-left rounded-xl p-3.5 border transition-all ${
-                    isSelected
-                      ? "border-indigo-500 bg-indigo-950/30 text-white shadow"
-                      : "border-slate-800 bg-slate-900/40 text-slate-300 hover:bg-slate-800/40"
-                  }`}
+                  className={`w-full text-left rounded-2xl p-4 border transition-all duration-200 glass-panel ${isSelected
+                      ? "border-black bg-black text-white shadow-md scale-[1.01]"
+                      : "border-black/10 bg-white/90 text-zinc-900 hover:border-black/30 hover:bg-zinc-50 shadow-2xs"
+                    }`}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="font-mono text-xs font-bold text-indigo-400">{t.name}</span>
-                    <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] font-mono text-slate-300">
-                      {t.category.toUpperCase()}
+                    <span className={`font-mono text-xs font-bold tracking-tight ${isSelected ? "text-white" : "text-black"}`}>{t.name}</span>
+                    <span className={`rounded-lg px-2 py-0.5 text-[9px] font-mono uppercase font-semibold ${isSelected ? "border border-white/20 bg-white/10 text-white" : "border border-black/10 bg-zinc-100 text-zinc-700"}`}>
+                      {t.category}
                     </span>
                   </div>
-                  <p className="text-[11px] text-slate-400 mt-1 line-clamp-2 leading-relaxed">
+                  <p className={`text-[11px] mt-1.5 line-clamp-2 leading-relaxed font-sans ${isSelected ? "text-zinc-300" : "text-zinc-600"}`}>
                     {t.description}
                   </p>
                 </button>
@@ -121,41 +115,41 @@ export default function ToolRegistryPage() {
         {/* Right: Selected Tool Spec & Direct Runner */}
         <div className="lg:col-span-2 space-y-6">
           {!selectedTool ? (
-            <div className="rounded-xl border border-slate-800 bg-slate-900/30 p-12 text-center text-slate-400 text-sm">
-              Select a tool to inspect its specification and test execution.
+            <div className="rounded-2xl border border-dashed border-black/15 bg-zinc-50/50 p-16 text-center text-zinc-500 font-mono text-xs glass-panel">
+              SELECT AN ENGINE TO INSPECT CONTRACTS AND TEST EXECUTION.
             </div>
           ) : (
-            <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-6 space-y-6">
+            <div className="rounded-2xl border border-black/10 bg-white/90 p-6 space-y-6 backdrop-blur-xl glass-panel shadow-sm">
               {/* Tool Header */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-black/10 pb-5">
                 <div>
-                  <h2 className="text-lg font-bold text-white font-mono">{selectedTool.name}</h2>
-                  <p className="text-xs text-slate-400 mt-1">{selectedTool.description}</p>
+                  <h2 className="text-xl font-black text-black font-mono tracking-tight">{selectedTool.name}</h2>
+                  <p className="text-xs text-zinc-600 mt-1 font-sans">{selectedTool.description}</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="rounded bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-[11px] font-mono font-medium text-emerald-400">
-                    {selectedTool.execution_location.toUpperCase()}
+                  <span className="rounded-lg border border-black/15 bg-zinc-100 px-2.5 py-1 text-[10px] font-mono font-bold text-black uppercase tracking-wider">
+                    {selectedTool.execution_location}
                   </span>
-                  <span className="rounded bg-slate-800 border border-slate-700 px-2 py-0.5 text-[11px] font-mono text-slate-300">
-                    timeout: {selectedTool.timeout_seconds}s
+                  <span className="rounded-lg border border-black/10 bg-zinc-50 px-2.5 py-1 text-[10px] font-mono text-zinc-600 font-medium">
+                    TIMEOUT: {selectedTool.timeout_seconds}S
                   </span>
                 </div>
               </div>
 
               {/* Direct Runner Sandbox */}
-              <div className="space-y-3">
+              <div className="space-y-3 font-mono">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-slate-300 flex items-center gap-2">
-                    <Terminal className="h-4 w-4 text-indigo-400" />
-                    Input Arguments (JSON)
+                  <label className="text-[10px] uppercase tracking-[0.2em] text-zinc-600 font-bold flex items-center gap-2">
+                    <Terminal className="h-4 w-4 text-black" />
+                    Input Arguments (JSON Payload)
                   </label>
                   <button
                     onClick={handleExecute}
                     disabled={executing}
-                    className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500 shadow"
+                    className="flex items-center gap-1.5 rounded-xl bg-black px-4 py-1.5 text-xs font-mono font-bold text-white hover:bg-zinc-800 transition-all shadow-[0_4px_16px_rgba(0,0,0,0.18)] hover:scale-[1.02] active:scale-[0.98]"
                   >
                     <Play className="h-3 w-3 fill-white" />
-                    <span>{executing ? "Executing..." : "Execute Tool"}</span>
+                    <span>{executing ? "COMPUTING..." : "EXECUTE DIRECT"}</span>
                   </button>
                 </div>
 
@@ -163,38 +157,38 @@ export default function ToolRegistryPage() {
                   rows={5}
                   value={customArgs}
                   onChange={(e) => setCustomArgs(e.target.value)}
-                  className="w-full rounded-lg border border-slate-800 bg-slate-950 p-3 font-mono text-xs text-indigo-300 focus:outline-none focus:border-indigo-500"
+                  className="w-full rounded-xl border border-black/15 bg-zinc-50 p-4 font-mono text-xs text-black focus:outline-none focus:border-black focus:bg-white shadow-2xs transition-all"
                 />
               </div>
 
               {/* Tool Execution Result */}
               {execResult && (
-                <div className="space-y-2 pt-2 border-t border-slate-800">
+                <div className="space-y-2.5 pt-3 border-t border-black/10 font-mono">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    <span className="text-[10px] uppercase tracking-[0.2em] font-bold text-zinc-600">
                       Execution Result ({execResult.execution_time_ms ? `${Math.round(execResult.execution_time_ms)}ms` : "0ms"})
                     </span>
                     <span
-                      className={`text-xs font-bold ${
-                        execResult.success ? "text-emerald-400" : "text-rose-400"
+                      className={`text-xs font-bold px-2.5 py-0.5 rounded-md ${
+                        execResult.success ? "bg-black text-white font-black" : "border border-zinc-400 bg-zinc-200 text-zinc-800"
                       }`}
                     >
                       {execResult.success ? "SUCCESS" : "ERROR"}
                     </span>
                   </div>
 
-                  <pre className="rounded-lg bg-slate-950 p-3 font-mono text-[11px] text-slate-300 overflow-x-auto max-h-72 border border-slate-800">
+                  <pre className="rounded-xl bg-zinc-50 p-4 font-mono text-[11px] text-zinc-900 overflow-x-auto max-h-72 border border-black/10 shadow-2xs">
                     {JSON.stringify(execResult.data || execResult.error, null, 2)}
                   </pre>
                 </div>
               )}
 
               {/* Input Schema Inspector */}
-              <div className="space-y-2 pt-2 border-t border-slate-800">
-                <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                  Pydantic JSON Schema
+              <div className="space-y-2 pt-3 border-t border-black/10">
+                <span className="text-[10px] font-mono uppercase tracking-[0.2em] font-bold text-zinc-500">
+                  Pydantic JSON Contract Definition
                 </span>
-                <pre className="rounded-lg bg-slate-950/80 p-3 font-mono text-[10px] text-slate-500 overflow-x-auto max-h-40 border border-slate-800/80">
+                <pre className="rounded-xl bg-zinc-50 p-4 font-mono text-[10px] text-zinc-700 overflow-x-auto max-h-40 border border-black/10">
                   {JSON.stringify(selectedTool.input_schema, null, 2)}
                 </pre>
               </div>
@@ -205,4 +199,3 @@ export default function ToolRegistryPage() {
     </div>
   );
 }
-
