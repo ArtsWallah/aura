@@ -7,8 +7,10 @@ from __future__ import annotations
 
 import collections.abc
 import copy
+import hashlib
 import re
 import typing
+from pathlib import Path
 from typing import Any, Literal, get_args, get_origin
 
 from pydantic import BaseModel
@@ -600,6 +602,107 @@ def _verify_artifact_isolation(
                         )
 
 
+def _resolve_artifact_to_canonical_path(
+    resolved_val: Any,
+    *,
+    active_task_id: str | None,
+    task_manifest: list[dict[str, str]] | None,
+) -> str:
+    """
+    Validates and resolves a transformed dataset artifact reference to its authorized canonical path.
+    Enforces task ownership, task hash matching, artifact type, manifest registration,
+    strict directory containment, and file existence.
+    """
+    from app.core.config import settings
+
+    if not task_manifest:
+        raise ReferenceResolutionError(
+            "UNREGISTERED_ARTIFACT",
+            "Cannot resolve file_path artifact reference without an authorized task manifest.",
+        )
+
+    if not active_task_id:
+        raise ReferenceResolutionError(
+            "TASK_IDENTIFIER_MISSING",
+            "Cannot resolve artifact reference without an active task ID.",
+        )
+
+    if isinstance(resolved_val, dict):
+        candidate_id = resolved_val.get("artifact_id")
+        candidate_rel = resolved_val.get("relative_path")
+    elif isinstance(resolved_val, str):
+        candidate_id = resolved_val
+        candidate_rel = resolved_val
+    else:
+        raise ReferenceResolutionError(
+            "INVALID_ARTIFACT_REFERENCE",
+            f"Expected artifact descriptor or identifier for file_path, got {type(resolved_val).__name__}.",
+        )
+
+    matching_entry: dict[str, str] | None = None
+    for entry in task_manifest:
+        if (
+            entry.get("artifact_id") == candidate_id
+            or entry.get("relative_path") == candidate_rel
+            or entry.get("relative_path") == Path(str(candidate_rel)).name
+            or entry.get("artifact_id") == candidate_rel
+        ):
+            matching_entry = entry
+            break
+
+    if matching_entry is None:
+        raise ReferenceResolutionError(
+            "UNREGISTERED_ARTIFACT",
+            f"Artifact '{candidate_rel or candidate_id}' is not registered in the authorized task manifest.",
+        )
+
+    entry_task_id = matching_entry.get("task_id")
+    if entry_task_id != active_task_id:
+        raise ReferenceResolutionError(
+            "CROSS_TASK_ARTIFACT_ACCESS",
+            f"Artifact belongs to task '{entry_task_id}', not active task '{active_task_id}'.",
+        )
+
+    entry_type = matching_entry.get("artifact_type")
+    if entry_type != "transformed_dataset":
+        raise ReferenceResolutionError(
+            "INVALID_ARTIFACT_TYPE",
+            f"Artifact type '{entry_type}' is not a transformed dataset and cannot be used as file_path.",
+        )
+
+    rel_name = matching_entry.get("relative_path", "")
+    if "/" in rel_name or "\\" in rel_name or ".." in rel_name or "\x00" in rel_name:
+        raise ReferenceResolutionError(
+            "PATH_CONTAINMENT_VIOLATION",
+            f"Artifact path '{rel_name}' contains illegal path components.",
+        )
+
+    expected_task_hash = hashlib.sha256(active_task_id.encode("utf-8")).hexdigest()[:10]
+    match = re.fullmatch(r"transformed_([a-f0-9]{10})_([a-f0-9]{10})\.csv\.enc", rel_name)
+    if not match or match.group(1) != expected_task_hash:
+        raise ReferenceResolutionError(
+            "CROSS_TASK_ARTIFACT_ACCESS",
+            f"Transformed artifact filename '{rel_name}' does not match expected task hash.",
+        )
+
+    transforms_root = settings.TRANSFORMS_DIR.resolve()
+    canonical_path = (transforms_root / rel_name).resolve()
+
+    if canonical_path.parent != transforms_root:
+        raise ReferenceResolutionError(
+            "PATH_CONTAINMENT_VIOLATION",
+            f"Artifact '{rel_name}' resolved outside approved transforms directory.",
+        )
+
+    if not canonical_path.is_file():
+        raise ReferenceResolutionError(
+            "ARTIFACT_FILE_NOT_FOUND",
+            f"Transformed artifact file '{canonical_path.name}' does not exist on disk.",
+        )
+
+    return str(canonical_path)
+
+
 def resolve_step_references(
     parameters: dict[str, Any],
     step_results: dict[str, Any],
@@ -616,7 +719,7 @@ def resolve_step_references(
     if depth > MAX_REFERENCE_DEPTH:
         raise ReferenceResolutionError("NESTING_DEPTH_EXCEEDED", "Reference nesting depth limit (10) exceeded.")
 
-    def _resolve_node(node: Any, current_depth: int) -> Any:
+    def _resolve_node(node: Any, current_depth: int, parent_key: str | None = None) -> Any:
         if current_depth > MAX_REFERENCE_DEPTH:
             raise ReferenceResolutionError("NESTING_DEPTH_EXCEEDED", "Reference nesting depth limit (10) exceeded.")
 
@@ -669,22 +772,36 @@ def resolve_step_references(
                             f"Step result belongs to task '{result_task_id}', not active task '{active_task_id}'.",
                         )
 
-                return navigate_runtime_path(
+                resolved_val = navigate_runtime_path(
                     source_result,
                     path,
                     active_task_id=active_task_id,
                     task_manifest=task_manifest,
                 )
 
+                if parent_key == "file_path":
+                    if not path.startswith("artifacts"):
+                        raise ReferenceResolutionError(
+                            "INVALID_ARTIFACT_REFERENCE",
+                            f"The 'file_path' parameter can only reference artifacts from an upstream transform_dataset step, got '{path}'.",
+                        )
+                    return _resolve_artifact_to_canonical_path(
+                        resolved_val,
+                        active_task_id=active_task_id,
+                        task_manifest=task_manifest,
+                    )
+
+                return resolved_val
+
             # 3. Literal Escaped Reference Unescaping ($$ref -> $ref)
             new_dict: dict[str, Any] = {}
             for k, v in node.items():
                 resolved_key = "$ref" if k == "$$ref" else k
-                new_dict[resolved_key] = _resolve_node(v, current_depth + 1)
+                new_dict[resolved_key] = _resolve_node(v, current_depth + 1, parent_key=k)
             return new_dict
 
         elif isinstance(node, list):
-            return [_resolve_node(item, current_depth + 1) for item in node]
+            return [_resolve_node(item, current_depth + 1, parent_key=parent_key) for item in node]
 
         return node
 

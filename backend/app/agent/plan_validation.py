@@ -148,6 +148,22 @@ def validate_execution_plan(
                     raise PlanValidationError("invalid_reference_path", exc.message) from exc
 
                 tgt_type = resolve_target_parameter_type(dest_in_model, arg_path)
+
+                if arg_path == "file_path" or arg_path.endswith(".file_path"):
+                    if not ref_path.startswith("artifacts"):
+                        raise PlanValidationError(
+                            "type_incompatibility",
+                            f"Parameter '{arg_path}' can only reference artifacts from an upstream transform_dataset step.",
+                        )
+                    if src_tool_name != "transform_dataset":
+                        raise PlanValidationError(
+                            "type_incompatibility",
+                            f"Tool '{src_tool_name}' produces non-dataset artifacts incompatible with '{arg_path}'.",
+                        )
+                    # When targeting file_path from transform_dataset artifacts, single-item references resolve to str (canonical file path).
+                    if check_type_compatibility(src_type, dict[str, str])[0] or src_type is str:
+                        src_type = str
+
                 ok, reason = check_type_compatibility(src_type, tgt_type)
                 if not ok:
                     raise PlanValidationError(
