@@ -462,3 +462,276 @@ def test_manifest_integration_and_task_hash_validation(managed_transforms_dir, m
     )
     foreign_manifest = SQLiteCheckpointer._build_artifact_manifest(foreign_state)
     assert len(foreign_manifest) == 0
+
+
+# ==============================================================================
+# 4. Phase 3.3.2-B3.1 Remediation Regression Tests
+# ==============================================================================
+
+def test_remediation_b3_01_report_with_analytics_receives_findings():
+    """Verify generate_report retains upstream analytics findings enrichment (FINDING-B3-01)."""
+    from app.agent.executor import PlanExecutor
+    from app.agent.state import ExecutionStep, TaskState
+
+    task_state = TaskState(
+        task_id="task_report_findings_enrich",
+        objective="test",
+        step_results={
+            "step_analytics": {
+                "tool": "group_comparison",
+                "data": {
+                    "underperforming_groups": ["LowRevenue_A", "LowRevenue_B"],
+                    "total_metric_value": 125000.50,
+                    "metric_column": "revenue",
+                },
+                "metadata": {"task_id": "task_report_findings_enrich"},
+            }
+        },
+    )
+
+    step = ExecutionStep(
+        step_id="step_rep",
+        title="Report Step",
+        description="Generates report",
+        capability="system",
+        tool_name="generate_report",
+        parameters={
+            "title": "Quarterly Financial Analysis",
+            "executive_summary": "Summary of quarterly financial breakdown.",
+            "findings": ["Initial core observation."],
+            "recommendations": ["Expand high-performing categories."],
+        },
+        dependencies=["step_analytics"],
+    )
+
+    executor = PlanExecutor()
+    resolved = executor._resolve_step_parameters(step, task_state)
+    assert "findings" in resolved
+    findings_text = " ".join(resolved["findings"])
+    assert "Underperforming segments identified below 5% contribution threshold" in findings_text
+    assert "Total aggregate revenue evaluated: 125,000.50" in findings_text
+
+
+def test_remediation_b3_01_transform_dataset_step_with_dependencies_no_findings():
+    """Verify transform_dataset does not receive unexpected findings from dependencies (FINDING-B3-01)."""
+    from app.agent.executor import PlanExecutor
+    from app.agent.state import ExecutionStep, TaskState
+
+    task_state = TaskState(
+        task_id="task_transform_dep_clean",
+        objective="test",
+        step_results={
+            "step_analytics": {
+                "tool": "group_comparison",
+                "data": {
+                    "underperforming_groups": ["LowRevenue_A"],
+                    "total_metric_value": 50000.0,
+                },
+                "metadata": {"task_id": "task_transform_dep_clean"},
+            }
+        },
+    )
+
+    step = ExecutionStep(
+        step_id="step_tr",
+        title="Transform Step",
+        description="Transforms data",
+        capability="system",
+        tool_name="transform_dataset",
+        parameters={
+            "file_path": "data/sample_sales.csv",
+            "operations": [{"op": "select_columns", "columns": ["date", "category"], "mode": "keep"}],
+        },
+        dependencies=["step_analytics"],
+    )
+
+    executor = PlanExecutor()
+    resolved = executor._resolve_step_parameters(step, task_state)
+    # Findings must NOT be injected into transform_dataset parameters
+    assert "findings" not in resolved
+    assert resolved["task_id"] == "task_transform_dep_clean"
+
+
+def test_remediation_b3_01_transform_dataset_input_rejects_extra_fields():
+    """Verify TransformDatasetInput strictly forbids unexpected client fields (FINDING-B3-01)."""
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+        TransformDatasetInput.model_validate({
+            "file_path": "data/sample_sales.csv",
+            "operations": [{"op": "select_columns", "columns": ["category"], "mode": "keep"}],
+            "findings": ["Injected malicious findings"],
+        })
+
+
+@pytest.mark.asyncio
+async def test_remediation_b3_01_both_workflows_work_through_authorized_pipeline(managed_transforms_dir):
+    """Verify transform_dataset with dependencies executes successfully through PlanExecutor."""
+    from app.agent.execution_handoff import test_legacy_tool_invocation
+    from app.agent.executor import executor
+    from app.agent.state import ExecutionStep, StepStatus, TaskState
+
+    source_file = settings.UPLOADS_DIR / "pipeline_in.csv.enc"
+    source_file.write_bytes(encryption_service().encrypt_bytes(b"colA,colB\n1,2\n3,4\n"))
+
+    task_state = TaskState(
+        task_id="task_pipeline_b3_1",
+        objective="Verify authorized execution of transform_dataset with dependencies",
+        step_results={
+            "dep_step": {
+                "tool": "some_prior_tool",
+                "data": {"underperforming_groups": ["GroupX"], "total_metric_value": 999.0},
+                "metadata": {"task_id": "task_pipeline_b3_1"},
+            }
+        },
+    )
+
+    step = ExecutionStep(
+        step_id="step_pipeline_tr",
+        title="Transform Data",
+        description="Select colA",
+        capability="system",
+        tool_name="transform_dataset",
+        parameters={
+            "file_path": str(source_file),
+            "operations": [{"op": "select_columns", "columns": ["colA"], "mode": "keep"}],
+        },
+        dependencies=["dep_step"],
+    )
+
+    result = await executor.execute_step(step, task_state)
+    assert result.success is True
+    assert step.status == StepStatus.COMPLETED
+    assert result.data["final_column_count"] == 1
+
+
+def test_remediation_b3_02_boolean_casting_all_literals():
+    """Verify CastColumns accepts all approved B1.2 boolean representations and rejects invalid values (FINDING-B3-02)."""
+    # Test True representations
+    true_literals = ["true", "TRUE", "True", " 1 ", 1, 1.0, "t", "T", "yes", "YES", "Yes", "y", "Y"]
+    for lit in true_literals:
+        df = pd.DataFrame({"flag": [lit, np.nan]})
+        res, _ = execute_cast_columns(df, CastColumns(casts={"flag": TargetDataType.BOOL}))
+        assert res["flag"].iloc[0] is True or res["flag"].iloc[0] == 1, f"Failed for True literal: {lit}"
+        assert pd.isna(res["flag"].iloc[1])
+
+    # Test False representations
+    false_literals = ["false", "FALSE", "False", " 0 ", 0, 0.0, "f", "F", "no", "NO", "No", "n", "N"]
+    for lit in false_literals:
+        df = pd.DataFrame({"flag": [lit, np.nan]})
+        res, _ = execute_cast_columns(df, CastColumns(casts={"flag": TargetDataType.BOOL}))
+        assert res["flag"].iloc[0] is False or res["flag"].iloc[0] == 0, f"Failed for False literal: {lit}"
+        assert pd.isna(res["flag"].iloc[1])
+
+    # Test invalid values fail closed
+    invalid_literals = ["maybe", "yep", "nope", 2, -1, "2", "foo"]
+    for bad in invalid_literals:
+        df = pd.DataFrame({"flag": [bad]})
+        with pytest.raises(ValueError, match="Lossy/invalid cast to bool"):
+            execute_cast_columns(df, CastColumns(casts={"flag": TargetDataType.BOOL}))
+
+
+def test_remediation_b3_03_datetime_timezone_comparisons():
+    """Verify datetime comparisons under B1.2 timezone semantics across all combinations (FINDING-B3-03)."""
+    # 1. Aware vs Aware with different offsets
+    # 10:00 UTC+2 is 08:00 UTC; 09:00 UTC-2 is 11:00 UTC
+    df_aware = pd.DataFrame({"dt": ["2026-01-01 10:00:00+02:00", "2026-01-01 15:00:00+02:00"]})
+    op_aware = FilterRows(column="dt", operator=FilterOperator.LT, value="2026-01-01T09:00:00-02:00")
+    res_aware, _ = execute_filter_rows(df_aware, op_aware)
+    # 08:00 UTC is < 11:00 UTC (10:00+02:00 matches); 13:00 UTC is not < 11:00 UTC (15:00+02:00 excluded)
+    assert len(res_aware) == 1
+    assert res_aware.iloc[0]["dt"] == "2026-01-01 10:00:00+02:00"
+
+    # 2. Naive vs Naive
+    df_naive = pd.DataFrame({"dt": ["2026-01-01 10:00:00", "2026-01-01 14:00:00"]})
+    op_naive = FilterRows(column="dt", operator=FilterOperator.GT, value="2026-01-01T12:00:00")
+    res_naive, _ = execute_filter_rows(df_naive, op_naive)
+    assert len(res_naive) == 1
+    assert res_naive.iloc[0]["dt"] == "2026-01-01 14:00:00"
+
+    # 3. Aware column vs Naive operand (naive interpreted as UTC)
+    # Operand: 11:00 naive -> 11:00 UTC. Column: 10:00+02:00 (08:00 UTC), 14:00+02:00 (12:00 UTC)
+    op_aware_vs_naive = FilterRows(column="dt", operator=FilterOperator.GT, value="2026-01-01T11:00:00")
+    res_aware_vs_naive, _ = execute_filter_rows(df_aware, op_aware_vs_naive)
+    assert len(res_aware_vs_naive) == 1
+    assert res_aware_vs_naive.iloc[0]["dt"] == "2026-01-01 15:00:00+02:00"
+
+    # 4. Naive column vs Aware operand (naive column interpreted as UTC)
+    # Column: 10:00 naive -> 10:00 UTC, 14:00 naive -> 14:00 UTC. Operand: 13:00+02:00 -> 11:00 UTC
+    op_naive_vs_aware = FilterRows(column="dt", operator=FilterOperator.GT, value="2026-01-01T13:00:00+02:00")
+    res_naive_vs_aware, _ = execute_filter_rows(df_naive, op_naive_vs_aware)
+    assert len(res_naive_vs_aware) == 1
+    assert res_naive_vs_aware.iloc[0]["dt"] == "2026-01-01 14:00:00"
+
+    # 5. Mixed values across a single column (aware, naive, nulls)
+    df_mixed = pd.DataFrame({
+        "dt": [
+            "2026-01-01 10:00:00+02:00",  # 08:00 UTC
+            "2026-01-01 12:00:00",        # 12:00 UTC (naive as UTC)
+            None,                         # Null
+            "2026-01-01 07:00:00Z",       # 07:00 UTC
+        ]
+    })
+    # Filter GT 07:30 UTC
+    op_mixed = FilterRows(column="dt", operator=FilterOperator.GT, value="2026-01-01T07:30:00Z")
+    res_mixed, _ = execute_filter_rows(df_mixed, op_mixed)
+    # 08:00 UTC and 12:00 UTC match; 07:00 UTC and None excluded
+    assert len(res_mixed) == 2
+    assert "2026-01-01 10:00:00+02:00" in res_mixed["dt"].tolist()
+    assert "2026-01-01 12:00:00" in res_mixed["dt"].tolist()
+
+    # 6. Invalid datetime operand fails with sanitized typed ValueError
+    with pytest.raises(ValueError, match="Invalid ISO datetime operand"):
+        execute_filter_rows(df_naive, FilterRows(column="dt", operator=FilterOperator.GT, value="not-a-datetime"))
+
+    # 7. Unparseable column fails with sanitized typed ValueError
+    df_unparseable = pd.DataFrame({"dt": ["not-a-date", "also-not-a-date"]})
+    with pytest.raises(ValueError, match="Cannot perform datetime comparison"):
+        execute_filter_rows(df_unparseable, FilterRows(column="dt", operator=FilterOperator.GT, value="2026-01-01T00:00:00"))
+
+
+def test_remediation_b3_04_pre_finalization_cancellation_boundaries(managed_transforms_dir):
+    """Verify cooperative cancellation checks at safe boundaries prevent file finalization (FINDING-B3-04)."""
+    from app.tools.registry import _active_cancellation_check
+
+    source_file = settings.UPLOADS_DIR / "cancel_test.csv.enc"
+    source_file.write_bytes(encryption_service().encrypt_bytes(b"a,b\n1,2\n3,4\n"))
+
+    task_id = "task_cancel_boundaries"
+    task_hash = hashlib.sha256(task_id.encode("utf-8")).hexdigest()[:10]
+    payload = TransformDatasetInput(
+        file_path=str(source_file),
+        operations=[SelectColumns(columns=["a"], mode="keep")],
+        task_id=task_id,
+    )
+
+    # 1. Cancellation before load/execution
+    token = _active_cancellation_check.set(lambda: True)
+    try:
+        with pytest.raises(asyncio.CancelledError, match="pre_load"):
+            transform_dataset(payload)
+    finally:
+        _active_cancellation_check.reset(token)
+
+    # Confirm no temp files or final files were created
+    assert len(list(managed_transforms_dir.glob(f"*{task_hash}*"))) == 0
+
+    # 2. Dynamic cancellation flag triggered during finalization
+    call_count = 0
+
+    def trigger_during_finalization() -> bool:
+        nonlocal call_count
+        call_count += 1
+        # Trigger cancellation after transformation execution completes
+        return call_count >= 3
+
+    token2 = _active_cancellation_check.set(trigger_during_finalization)
+    try:
+        with pytest.raises(asyncio.CancelledError):
+            transform_dataset(payload)
+    finally:
+        _active_cancellation_check.reset(token2)
+
+    # Confirm any .tmp files were unlinked and no finalized file exists
+    assert len(list(managed_transforms_dir.glob("*.tmp"))) == 0
+    assert len(list(managed_transforms_dir.glob(f"transformed_{task_hash}_*.csv.enc"))) == 0

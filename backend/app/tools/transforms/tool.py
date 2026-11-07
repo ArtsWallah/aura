@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import os
 import secrets
@@ -11,7 +12,7 @@ from typing import Any
 from app.core.config import settings
 from app.core.security import read_managed_dataset, validate_safe_path
 from app.privacy.encryption import encryption_service
-from app.tools.registry import tool_registry
+from app.tools.registry import current_cancellation_check, tool_registry
 from app.tools.schemas import ExecutionLocation, PermissionLevel, ToolCategory
 from app.tools.transform_schemas import (
     TransformDatasetInput,
@@ -22,6 +23,15 @@ from app.tools.transforms.engine import apply_transformations
 
 MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024  # 25 MB
 MAX_ARTIFACTS_PER_TASK = 5
+
+
+def _check_pipeline_cancellation(stage: str) -> None:
+    """Check cooperative cancellation context at safe execution boundaries."""
+    check = current_cancellation_check()
+    if check is not None and check():
+        raise asyncio.CancelledError(
+            f"Transformation pipeline cancelled at {stage}."
+        )
 
 
 @tool_registry.register(
@@ -37,6 +47,8 @@ MAX_ARTIFACTS_PER_TASK = 5
 )
 def transform_dataset(params: TransformDatasetInput) -> dict[str, Any]:
     """Execute validated dataset transformation pipeline and persist encrypted artifact."""
+    _check_pipeline_cancellation("pre_load")
+
     safe_path = validate_safe_path(params.file_path)
     if not safe_path.exists():
         raise FileNotFoundError(f"File not found: {safe_path.name}")
@@ -55,10 +67,12 @@ def transform_dataset(params: TransformDatasetInput) -> dict[str, Any]:
             f"Maximum transformed artifact limit ({MAX_ARTIFACTS_PER_TASK}) reached for task."
         )
 
-    # Execute transformations
+    # Boundary 1: Execute transformations
     transformed_df, summaries = apply_transformations(df, params.operations)
+    _check_pipeline_cancellation("post_transformations")
 
-    # CSV serialization and size check
+    # Boundary 2: CSV serialization and size check
+    _check_pipeline_cancellation("pre_serialization")
     csv_bytes = transformed_df.to_csv(index=False).encode("utf-8")
     if len(csv_bytes) > MAX_FILE_SIZE_BYTES:
         raise ValueError(
@@ -72,6 +86,9 @@ def transform_dataset(params: TransformDatasetInput) -> dict[str, Any]:
             f"Transformed dataset exceeds encrypted size limit of {MAX_FILE_SIZE_BYTES} bytes."
         )
 
+    # Boundary 3: Pre-file creation cancellation check
+    _check_pipeline_cancellation("pre_file_creation")
+
     # Exclusive temporary file creation and atomic finalization
     temp_filename = f".tmp_{task_hash}_{secrets.token_hex(8)}.tmp"
     temp_path = settings.TRANSFORMS_DIR / temp_filename
@@ -83,10 +100,13 @@ def transform_dataset(params: TransformDatasetInput) -> dict[str, Any]:
             f.flush()
             os.fsync(f.fileno())
 
+        # Boundary 4: Pre-rename finalization cancellation check
+        _check_pipeline_cancellation("pre_finalization")
+
         final_filename = generate_transformed_filename(task_id)
         final_path = settings.TRANSFORMS_DIR / final_filename
         os.replace(temp_path, final_path)
-    except Exception:
+    except BaseException:
         if temp_path.exists():
             try:
                 temp_path.unlink()

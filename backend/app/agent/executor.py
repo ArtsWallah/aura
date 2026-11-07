@@ -212,8 +212,6 @@ class PlanExecutor:
             if "chart_paths" not in params or not params["chart_paths"]:
                 params["chart_paths"] = chart_artifacts
             params["task_id"] = task_state.task_id
-        elif step.tool_name == "transform_dataset":
-            params["task_id"] = task_state.task_id
 
             # If findings are generic, enhance with quantitative figures from analytics steps
             for dep_id in step.dependencies:
@@ -228,6 +226,8 @@ class PlanExecutor:
                     params.setdefault("findings", []).append(
                         f"Total aggregate {data.get('metric_column', 'metric')} evaluated: {data['total_metric_value']:,.2f}."
                     )
+        elif step.tool_name == "transform_dataset":
+            params["task_id"] = task_state.task_id
 
         # Re-validate destination tool arguments against its registered input model
         try:

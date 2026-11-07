@@ -43,6 +43,78 @@ def check_dataset_bounds(df: pd.DataFrame) -> None:
         raise ValueError(f"Dataset exceeds maximum cell limit: {cells} > {MAX_CELLS}.")
 
 
+def _normalize_datetime_operands(
+    series: pd.Series, target_val: str, col_name: str, op_value: str
+) -> tuple[pd.Series, pd.Timestamp]:
+    """Normalize datetime series and comparison target per B1.2 timezone semantics."""
+    try:
+        target_dt = pd.to_datetime(target_val)
+    except Exception as exc:
+        raise ValueError(
+            f"Invalid ISO datetime operand for operator '{op_value}'."
+        ) from exc
+
+    def _parse_item(item: Any) -> Any:
+        if pd.isna(item) or item is None:
+            return pd.NaT
+        if isinstance(item, pd.Timestamp):
+            return item
+        try:
+            return pd.to_datetime(item)
+        except Exception:
+            return pd.NaT
+
+    if pd.api.types.is_datetime64_any_dtype(series):
+        parsed_series = series.copy()
+    else:
+        parsed_series = series.apply(_parse_item)
+
+    if parsed_series.notna().sum() == 0 and series.notna().sum() > 0:
+        raise ValueError(
+            f"Cannot perform datetime comparison on column '{col_name}'."
+        )
+
+    target_aware = getattr(target_dt, "tzinfo", None) is not None
+    has_aware = False
+    has_naive = False
+
+    if pd.api.types.is_datetime64tz_dtype(parsed_series):
+        has_aware = True
+    elif pd.api.types.is_datetime64_dtype(parsed_series):
+        has_naive = True
+    else:
+        for item in parsed_series.dropna():
+            if getattr(item, "tzinfo", None) is not None:
+                has_aware = True
+            else:
+                has_naive = True
+            if has_aware and has_naive:
+                break
+
+    if target_aware or has_aware:
+        norm_target = target_dt.tz_convert("UTC") if target_aware else target_dt.tz_localize("UTC")
+
+        def _to_utc(item: Any) -> Any:
+            if pd.isna(item):
+                return pd.NaT
+            if not isinstance(item, pd.Timestamp):
+                try:
+                    item = pd.to_datetime(item)
+                except Exception:
+                    return pd.NaT
+            if item.tzinfo is None:
+                return item.tz_localize("UTC")
+            return item.tz_convert("UTC")
+
+        converted = parsed_series.apply(_to_utc)
+        norm_series = pd.to_datetime(converted, utc=True)
+    else:
+        norm_target = target_dt
+        norm_series = pd.to_datetime(parsed_series)
+
+    return norm_series, norm_target
+
+
 def execute_filter_rows(
     df: pd.DataFrame, op: FilterRows
 ) -> tuple[pd.DataFrame, dict[str, StrictJsonValue]]:
@@ -100,22 +172,9 @@ def execute_filter_rows(
             else:
                 mask = (num_s <= val) & num_s.notna()
         elif isinstance(val, str):
-            try:
-                target_dt = pd.to_datetime(val)
-            except Exception as exc:
-                raise ValueError(
-                    f"Invalid ISO datetime operand '{val}' for operator '{operator.value}'."
-                ) from exc
-            try:
-                dt_s = pd.to_datetime(series, errors="coerce")
-            except Exception as exc:
-                raise ValueError(
-                    f"Cannot parse column '{op.column}' as datetime for comparison."
-                ) from exc
-            if dt_s.notna().sum() == 0 and series.notna().sum() > 0:
-                raise ValueError(
-                    f"Cannot perform datetime comparison on column '{op.column}'."
-                )
+            dt_s, target_dt = _normalize_datetime_operands(
+                series, val, op.column, operator.value
+            )
             if operator == FilterOperator.GT:
                 mask = (dt_s > target_dt) & dt_s.notna()
             elif operator == FilterOperator.GTE:
@@ -331,6 +390,7 @@ def execute_cast_columns(
                 "true": True,
                 "t": True,
                 "yes": True,
+                "y": True,
                 "1": True,
                 False: False,
                 0: False,
@@ -338,6 +398,7 @@ def execute_cast_columns(
                 "false": False,
                 "f": False,
                 "no": False,
+                "n": False,
                 "0": False,
             }
 
